@@ -44,32 +44,33 @@ interface SchedulerOrderRun {
   host: { style: 'display: flex; flex: 1; min-height: 0; overflow: hidden;' }
 })
 export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewInit {
-  @Input() resources: SchedulerResource[] = [];
-  @Input() events: SchedulerEvent[] = [];
-  @Input() groups: SchedulerGroup[] = [];
-  @Input() unavailability: UnavailabilityBlock[] = [];
-  @Input() viewStart: Date = new Date();
-  @Input() viewEnd: Date = new Date();
-  @Input() slotDurationMinutes = 60;
-  @Input() readonly = false;
-  @Input() showOrderTiles = true;
-  @Input() preserveRowHeightOnAvailability = false;
-  @Input() detailedEventIds: string[] = [];
-  @Input() detailedOrderIds: string[] = [];
-  @Input() selectedResourceIds: string[] = [];
-  @Input() resourceViews: ResourceFavoriteView[] = [];
-  @Input() selectedResourceView: ResourceFavoriteView | null = null;
-  @Input() rightPaneOpen = false;
+  @Input() public resources: SchedulerResource[] = [];
+  @Input() public events: SchedulerEvent[] = [];
+  @Input() public groups: SchedulerGroup[] = [];
+  @Input() public unavailability: UnavailabilityBlock[] = [];
+  @Input() public viewStart: Date = new Date();
+  @Input() public viewEnd: Date = new Date();
+  @Input() public slotDurationMinutes = 60;
+  @Input() public readonly = false;
+  @Input() public showOrderTiles = true;
+  @Input() public preserveRowHeightOnAvailability = false;
+  @Input() public detailedEventIds: string[] = [];
+  @Input() public detailedOrderIds: string[] = [];
+  @Input() public selectedResourceIds: string[] = [];
+  @Input() public resourceViews: ResourceFavoriteView[] = [];
+  @Input() public selectedResourceView: ResourceFavoriteView | null = null;
+  @Input('rightPaneOpen') public rightPaneOpen = false;
+  @Input() public scrollToEventId: string | null = null;
 
-  @Output() eventMoved   = new EventEmitter<EventMovePayload>();
-  @Output() eventResized = new EventEmitter<EventResizePayload>();
-  @Output() eventDropped = new EventEmitter<EventDropPayload>();
-  @Output() eventClicked = new EventEmitter<EventClickPayload>();
-  @Output() resourceSelectionChange = new EventEmitter<ResourceSelectionChangePayload>();
-  @Output() resourceViewChange = new EventEmitter<ResourceFavoriteView | null>();
-  @Output() resourceViewListRequested = new EventEmitter<ResourceFavoriteView | null>();
-  @Output() resourceViewAddRequested = new EventEmitter<void>();
-  @Output() rightPaneToggle = new EventEmitter<void>();
+  @Output() public eventMoved   = new EventEmitter<EventMovePayload>();
+  @Output() public eventResized = new EventEmitter<EventResizePayload>();
+  @Output() public eventDropped = new EventEmitter<EventDropPayload>();
+  @Output() public eventClicked = new EventEmitter<EventClickPayload>();
+  @Output() public resourceSelectionChange = new EventEmitter<ResourceSelectionChangePayload>();
+  @Output() public resourceViewChange = new EventEmitter<ResourceFavoriteView | null>();
+  @Output() public resourceViewListRequested = new EventEmitter<ResourceFavoriteView | null>();
+  @Output() public resourceViewAddRequested = new EventEmitter<void>();
+  @Output() public rightPaneToggle = new EventEmitter<void>();
 
   @ViewChild('headerScroll') headerScrollRef!: ElementRef<HTMLElement>;
   @ViewChild('bodyScroll') bodyScrollRef!: ElementRef<HTMLElement>;
@@ -155,6 +156,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (changes['groups'] && !this.hasInitializedGroupSelection) {
       this.selectedGroupIds = this.groups.map(group => group.id);
       this.hasInitializedGroupSelection = true;
+    }
+    if (changes['scrollToEventId'] && this.scrollToEventId) {
+      queueMicrotask(() => this.scrollToEvent(this.scrollToEventId));
     }
   }
 
@@ -525,7 +529,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     });
   }
 
-  getExpandedResourcesForGroup(groupId: string): SchedulerResource[] {
+  public getExpandedResourcesForGroup(groupId: string): SchedulerResource[] {
     return this.collapsedGroupIds.has(groupId) ? [] : this.getResourcesForGroup(groupId);
   }
 
@@ -554,16 +558,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.isResourceViewDropdownOpen = false;
   }
 
-  toggleResourceViewDropdown(): void {
+  public toggleResourceViewDropdown(): void {
     this.isResourceViewDropdownOpen = !this.isResourceViewDropdownOpen;
     if (this.isResourceViewDropdownOpen) this.isGroupDropdownOpen = false;
   }
 
-  onBodyScroll(): void {
+  public onBodyScroll(): void {
     this.syncHeaderScroll();
   }
 
-  openResourceViewList(): void {
+  public openResourceViewList(): void {
     this.isResourceViewDropdownOpen = false;
     this.resourceViewListRequested.emit(this.selectedResourceView);
   }
@@ -576,6 +580,18 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private syncHeaderScroll(): void {
     if (!this.headerScrollRef || !this.bodyScrollRef) return;
     this.headerScrollRef.nativeElement.scrollLeft = this.bodyScrollRef.nativeElement.scrollLeft;
+  }
+
+  private scrollToEvent(eventId: string | null): void {
+    if (!eventId || !this.bodyScrollRef) return;
+    const event = this.events.find(candidate => candidate.id === eventId);
+    if (!event) return;
+
+    const body = this.bodyScrollRef.nativeElement;
+    const left = Math.max(0, this.getEventLeft(event) - this.HOUR_WIDTH);
+    const top = Math.max(0, this.getResourceTop(event.resourceId) - GROUP_ROW_HEIGHT);
+    body.scrollTo({ left, top, behavior: 'smooth' });
+    this.syncHeaderScroll();
   }
 
   toggleGroupDropdown(): void {
@@ -843,6 +859,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const dropType = (e.dataTransfer?.getData('dropType') || (orderId ? 'order' : 'job')) as 'job' | 'order';
     const durationMinutes = parseInt(e.dataTransfer?.getData('durationMinutes') ?? '60', 10);
     const resourceType = e.dataTransfer?.getData('resourceType') || undefined;
+    const droppedResource = this.resources.find(resource => resource.id === resourceId);
+    const droppedResourceType = (droppedResource?.meta as any)?.type;
     if (!jobId && !orderId) return;
 
     const bodyEl = this.bodyScrollRef?.nativeElement;
@@ -877,7 +895,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const end = new Date(start.getTime() + durationMinutes * 60000);
 
     this.zone.run(() => {
-      this.eventDropped.emit({ jobId: jobId || `order-${orderId}`, orderId, dropType, resourceId, resourceType, start, end });
+      this.eventDropped.emit({ jobId: jobId || `order-${orderId}`, orderId, dropType, resourceId, resourceType, droppedResourceType, start, end });
     });
   }
 }

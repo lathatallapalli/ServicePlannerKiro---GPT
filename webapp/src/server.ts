@@ -5,6 +5,7 @@ import {
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
 import express from 'express';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
@@ -26,7 +27,12 @@ const angularApp = new AngularNodeAppEngine();
  */
 
 app.get('/service-planner', (_req, res) => {
-  res.sendFile(servicePlannerIndex);
+  if (existsSync(servicePlannerIndex)) {
+    res.sendFile(servicePlannerIndex);
+    return;
+  }
+
+  res.sendFile(join(browserDistFolder, 'index.html'));
 });
 
 /**

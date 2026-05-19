@@ -42,13 +42,13 @@
     &--secondary {
       background: #626469;
 
-      &:hover { background: darken(#626469, 8%); }
+      &:hover { background: #4e5054; }
     }
 
     &--primary {
       background: #4C68B1;
 
-      &:hover { background: darken(#4C68B1, 8%); }
+      &:hover { background: #3d538e; }
     }
 
     &:focus-visible {

@@ -31,14 +31,18 @@ export class AutoSchedulerService {
 
     const allEntries: ScheduleEntry[] = [...existingEntries];
     const result: ScheduleEntry[] = [];
+    const CHECKIN_DURATION_MINUTES = 30;
 
     let earliestJobStart: Date | null = null;
+    let earliestCheckinStart: Date | null = null;
     let latestJobEnd: Date | null = null;
 
     const jobsByWorkOrder = this.groupJobsByWorkOrder(jobs);
 
     for (const workOrderJobs of jobsByWorkOrder) {
-      let workOrderCursor = new Date(searchFrom);
+      const checkinStart = this.findCheckinStart(searchFrom, dayStartHour, dayEndHour, CHECKIN_DURATION_MINUTES, SLOT_MINUTES);
+      if (!checkinStart) return null;
+      let workOrderCursor = new Date(checkinStart.getTime() + CHECKIN_DURATION_MINUTES * 60000);
 
       for (const job of workOrderJobs) {
         const requirements = this.getRequirements(job);
@@ -75,14 +79,15 @@ export class AutoSchedulerService {
 
         workOrderCursor = new Date(slot.end);
 
+        if (!earliestCheckinStart || checkinStart < earliestCheckinStart) earliestCheckinStart = new Date(checkinStart);
         if (!earliestJobStart || slot.start < earliestJobStart) earliestJobStart = new Date(slot.start);
         if (!latestJobEnd || slot.end > latestJobEnd) latestJobEnd = new Date(slot.end);
       }
     }
 
-    if (!earliestJobStart || !latestJobEnd) return null;
+    if (!earliestCheckinStart || !earliestJobStart || !latestJobEnd) return null;
 
-    return { entries: result, checkinStart: earliestJobStart, handoverEnd: latestJobEnd };
+    return { entries: result, checkinStart: earliestCheckinStart, handoverEnd: latestJobEnd };
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────
@@ -181,6 +186,33 @@ export class AutoSchedulerService {
     next.setDate(next.getDate() + 1);
     next.setHours(dayStartHour, 0, 0, 0);
     return next;
+  }
+
+  private findCheckinStart(
+    searchFrom: Date,
+    dayStartHour: number,
+    dayEndHour: number,
+    durationMinutes: number,
+    slotMinutes: number,
+  ): Date | null {
+    let cursor = this.snapToSlot(searchFrom, slotMinutes, dayStartHour);
+    const maxSearchEnd = new Date(searchFrom);
+    maxSearchEnd.setDate(maxSearchEnd.getDate() + 365);
+
+    while (cursor <= maxSearchEnd) {
+      const end = new Date(cursor.getTime() + durationMinutes * 60000);
+      if (
+        this.isWithinDay(cursor, dayStartHour, dayEndHour) &&
+        end.toDateString() === cursor.toDateString() &&
+        this.isWithinDay(end, dayStartHour, dayEndHour)
+      ) {
+        return cursor;
+      }
+
+      cursor = this.nextDayStart(cursor, dayStartHour);
+    }
+
+    return null;
   }
 
   private isResourceFree(

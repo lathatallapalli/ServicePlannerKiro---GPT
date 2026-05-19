@@ -29,6 +29,7 @@
     [preserveRowHeightOnAvailability]="isFullPlanner()"
     [detailedEventIds]="plannedBookingEventIds"
     [detailedOrderIds]="detailedOrderIds"
+    [scrollToEventId]="scrollToEventId"
     [resourceViews]="resourceViews"
     [selectedResourceView]="selectedResourceView"
     [rightPaneOpen]="!isFullPlanner() || isOrderPanelOpen"
@@ -38,7 +39,7 @@
     (eventDropped)="onEventDropped($event)"
     (resourceSelectionChange)="onResourceSelectionChange($event)"
     (resourceViewChange)="onResourceViewChange($event)"
-    (resourceViewListRequested)="openResourceViewList($event)"
+    (resourceViewListRequested)="openResourceViewList($any($event))"
     (resourceViewAddRequested)="addResourceView()"
     (rightPaneToggle)="toggleOrderPanel()"
   />

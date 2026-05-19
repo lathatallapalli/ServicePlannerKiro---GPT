@@ -194,7 +194,7 @@ $month-bar-height: 60px;
   }
 
   &__body > &__group-row:first-child {
-    border-top: 1px solid #C6C6C6;
+    border-top: $border-strong;
   }
 
   &__group-label {

@@ -183,7 +183,7 @@
     padding: 0 16px;
     cursor: pointer;
 
-    &:hover { background: darken(#626469, 8%); }
+    &:hover { background: #4e5054; }
 
     &:disabled {
       background: #C6C6C6;
@@ -207,6 +207,6 @@
     color: white;
     cursor: pointer;
 
-    &:hover { background: darken(#626469, 8%); }
+    &:hover { background: #4e5054; }
   }
 }

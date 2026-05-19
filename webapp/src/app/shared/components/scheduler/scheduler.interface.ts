@@ -50,6 +50,7 @@ export interface EventDropPayload {
   dropType?: 'job' | 'order';
   resourceId: string;
   resourceType?: string;
+  droppedResourceType?: string;
   start: Date;
   end: Date;
 }
