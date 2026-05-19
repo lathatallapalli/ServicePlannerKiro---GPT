@@ -1,0 +1,450 @@
+<div class="scheduler">
+
+  <!-- Month selector -->
+  <div class="scheduler__month-bar">
+    <div class="scheduler__corner" [style.width.px]="RESOURCE_COL_WIDTH">
+      <div style="align-self:stretch;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;text-transform:none">
+        <span style="align-self:stretch;color:var(--Text-text-secondary,#525252);font-size:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:16px;letter-spacing:.32px;padding-bottom: 4px;">Resource views</span>
+        <div [style.outline]="isResourceViewDropdownOpen ? '2px solid var(--Focus-focus,#4C68B1)' : 'none'" style="align-self:stretch;min-width:0;height:34px;background:var(--Field-field-01,#F4F4F4);position:relative;text-transform:none;display:flex;flex-direction:column;align-items:stretch">
+        <button type="button" (click)="toggleResourceViewDropdown()" aria-label="Resource Views" style="height:34px;border:0;background:transparent;padding:8px 16px;display:inline-flex;align-items:center;gap:8px;text-align:left;cursor:pointer">
+          <span style="flex:1 1 0;min-width:0;height:18px;color:var(--Text-text-primary,#161616);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ selectedResourceViewLabel }}</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path [attr.d]="isResourceViewDropdownOpen ? 'M8 5l5 5-.7.7L8 6.4l-4.3 4.3L3 10l5-5Z' : 'M8 11 3 6l.7-.7L8 9.6l4.3-4.3.7.7-5 5Z'" fill="#161616"/></svg>
+        </button>
+        @if (isResourceViewDropdownOpen) {
+          <div style="position:absolute;left:0;right:0;top:34px;z-index:1000;max-height:360px;overflow:auto;box-shadow:0 2px 6px rgba(0,0,0,.3);background:var(--Layer-layer-01,#F4F4F4);display:inline-flex;flex-direction:column;align-items:flex-start">
+            <button type="button" (click)="selectResourceView(null)" style="align-self:stretch;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;position:relative;display:inline-flex;align-items:center;gap:16px;text-align:left;cursor:pointer">
+              <span style="width:16px;height:16px;color:#161616;display:inline-flex;flex:0 0 auto">
+                @if (!selectedResourceView) {
+                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM7 10.75 4.5 8.27 5.3 7.5 7 9.17l3.7-3.67.8.79L7 10.75Z" fill="currentColor"/></svg>
+                } @else {
+                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM3 13V3h10v10H3Z" fill="currentColor"/></svg>
+                }
+              </span>
+              <span style="flex:1 1 0;min-width:0;height:18px;color:var(--Text-text-secondary,#525252);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:none">All resources</span>
+            </button>
+            @for (view of resourceViews; track view.label) {
+              <button type="button" (click)="selectResourceView(view)" style="align-self:stretch;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;position:relative;display:inline-flex;align-items:center;gap:16px;text-align:left;cursor:pointer">
+                <span style="position:absolute;left:16px;right:16px;top:0;height:0;outline:1px solid var(--Border-border-subtle-01,#C6C6C6);outline-offset:-.5px" aria-hidden="true"></span>
+                <span style="width:16px;height:16px;color:#161616;display:inline-flex;flex:0 0 auto">
+                  @if (selectedResourceView?.label === view.label) {
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM7 10.75 4.5 8.27 5.3 7.5 7 9.17l3.7-3.67.8.79L7 10.75Z" fill="currentColor"/></svg>
+                  } @else {
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM3 13V3h10v10H3Z" fill="currentColor"/></svg>
+                  }
+                </span>
+                <span style="flex:1 1 0;min-width:0;height:18px;color:var(--Text-text-secondary,#525252);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:none">{{ view.label }}</span>
+              </button>
+            }
+            <div style="align-self:stretch;border-top:1px solid var(--Border-border-subtle-01,#C6C6C6);display:inline-flex;align-items:flex-start">
+              <button type="button" disabled style="flex:1 1 0;height:40px;border:0;border-right:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Layer-layer-01,#F4F4F4);overflow:hidden;display:inline-flex;align-items:center;justify-content:flex-start;padding:0 48px 0 16px;position:relative;text-align:left;color:var(--Text-text-disabled,rgba(22,22,22,.25));cursor:not-allowed">
+                <span style="flex:1 1 0;min-width:0;font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Add</span>
+                <span style="position:absolute;right:16px;top:12px;width:16px;height:16px;display:inline-flex;background:white;mix-blend-mode:multiply" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 7.5V4H7.5V7.5H4V8.5H7.5V12H8.5V8.5H12V7.5H8.5Z" fill="var(--Text-text-disabled,#161616)" fill-opacity=".25"/></svg>
+                </span>
+              </button>
+              <button type="button" (click)="openResourceViewList()" style="flex:1 1 0;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);overflow:hidden;display:inline-flex;align-items:center;justify-content:flex-start;padding:0 48px 0 16px;position:relative;text-align:left;color:var(--Text-text-secondary,#525252);cursor:pointer">
+                <span style="flex:1 1 0;min-width:0;font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Edit</span>
+                <span style="position:absolute;right:16px;top:12px;width:16px;height:16px;display:inline-flex;background:white;mix-blend-mode:multiply" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path fill-rule="evenodd" clip-rule="evenodd" d="M5 3V4H11.295L3 12.295L3.705 13L12 4.705V11H13V3H5V3Z" fill="var(--Text-text-secondary,#525252)"/></svg>
+                </span>
+              </button>
+            </div>
+          </div>
+        }
+        </div>
+      </div>
+    </div>
+    <div class="scheduler__months">
+      @for (month of months; track month; let i = $index) {
+        <button class="scheduler__month-btn"
+          [class.scheduler__month-btn--active]="selectedMonth === i"
+          (click)="selectMonth(i)" type="button">
+          {{ month }}
+        </button>
+      }
+    </div>
+    <button class="scheduler__right-pane-btn" [class.scheduler__right-pane-btn--open]="rightPaneOpen" type="button" aria-label="Toggle right pane" (click)="rightPaneToggle.emit()">
+      @if (rightPaneOpen) {
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+          <path d="M14 2H2C1.73478 2 1.48043 2.10536 1.29289 2.29289C1.10536 2.48043 1 2.73478 1 3V13C1 13.2652 1.10536 13.5196 1.29289 13.7071C1.48043 13.8946 1.73478 14 2 14H14C14.2652 14 14.5196 13.8946 14.7071 13.7071C14.8946 13.5196 15 13.2652 15 13V3C15 2.73478 14.8946 2.48043 14.7071 2.29289C14.5196 2.10536 14.2652 2 14 2ZM2 3H10V13H2V3Z" fill="var(--Icon-icon-interactive,#4C68B1)"/>
+        </svg>
+      } @else {
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+          <path d="M14 2H2C1.73478 2 1.48043 2.10536 1.29289 2.29289C1.10536 2.48043 1 2.73478 1 3V13C1 13.2652 1.10536 13.5196 1.29289 13.7071C1.48043 13.8946 1.73478 14 2 14H14C14.2652 14 14.5196 13.8946 14.7071 13.7071C14.8946 13.5196 15 13.2652 15 13V3C15 2.73478 14.8946 2.48043 14.7071 2.29289C14.5196 2.10536 14.2652 2 14 2ZM2 3H10V13H2V3ZM14 13H11V3H14V13Z" fill="var(--Icon-icon-primary,#161616)"/>
+        </svg>
+      }
+    </button>
+  </div>
+
+  <!-- Sticky header -->
+  <div class="scheduler__header-row">
+    <div class="scheduler__resource-header" [style.width.px]="RESOURCE_COL_WIDTH">
+      <div style="width:100%;display:flex;flex-direction:column;justify-content:center;gap:8px;text-transform:none">
+        <div style="align-self:stretch;min-width:0;height:32px;background:var(--Field-field-01,#F4F4F4);position:relative;text-transform:none;display:flex;flex-direction:column;align-items:stretch">
+          <button type="button" (click)="toggleGroupDropdown()" aria-label="Resource type" style="height:32px;border:0;background:transparent;padding:7px 16px;display:inline-flex;align-items:center;gap:8px;text-align:left;cursor:pointer">
+              @if (selectedGroupIds.length === groups.length) {
+                <span style="height:18px;background:var(--Background-background-inverse,#393939);border-radius:1000px;display:inline-flex;align-items:center">
+                  <span style="padding:0 8px 2px;color:var(--Icon-icon-inverse,white);font-size:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:16px;letter-spacing:.32px">All</span>
+                  <span role="button" tabindex="0" aria-label="Clear selected resource types" (click)="clearGroupSelection($event)" style="padding:1px;color:white;display:inline-flex">
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M12 4.7 11.3 4 8 7.3 4.7 4 4 4.7 7.3 8 4 11.3l.7.7L8 8.7l3.3 3.3.7-.7L8.7 8 12 4.7Z" fill="currentColor"/></svg>
+                  </span>
+                </span>
+              }
+              <span style="flex:1 1 0;min-width:0;height:18px;color:var(--Text-text-primary,#161616);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ selectedGroupLabel }}</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path [attr.d]="isGroupDropdownOpen ? 'M8 5l5 5-.7.7L8 6.4l-4.3 4.3L3 10l5-5Z' : 'M8 11 3 6l.7-.7L8 9.6l4.3-4.3.7.7-5 5Z'" fill="#161616"/></svg>
+            </button>
+            @if (isGroupDropdownOpen) {
+              <div style="position:absolute;left:0;right:0;top:32px;z-index:1000;max-height:320px;overflow:auto;box-shadow:0 2px 6px rgba(0,0,0,.3);background:var(--Layer-layer-01,#F4F4F4)">
+                @for (group of groups; track group.id) {
+                  <button type="button" (click)="toggleGroupSelection(group.id, $event)" style="width:100%;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer">
+                    <span style="width:16px;height:16px;color:#161616;display:inline-flex;flex:0 0 auto">
+                      @if (selectedGroupIds.includes(group.id)) {
+                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM7 10.75 4.5 8.27 5.3 7.5 7 9.17l3.7-3.67.8.79L7 10.75Z" fill="currentColor"/></svg>
+                      } @else {
+                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM3 13V3h10v10H3Z" fill="currentColor"/></svg>
+                      }
+                    </span>
+                    <span style="flex:1 1 0;min-width:0;color:#525252;font-size:14px;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:none">{{ group.label }}</span>
+                  </button>
+                }
+              </div>
+            }
+        </div>
+        <div style="align-self:stretch;min-width:0;height:32px;display:flex;align-items:center;background:var(--Field-field-01,#F4F4F4);position:relative;text-transform:none">
+          <span style="padding:8px;display:flex;color:var(--Icon-icon-secondary,#525252)">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.795 10.724 10.019A5.51 5.51 0 1 0 10.017 10.726L13.793 14.5021 14.5 13.795ZM2 6.50208A4.5 4.5 0 1 1 6.5 11.0021 4.505 4.505 0 0 1 2 6.50208Z" fill="currentColor"/></svg>
+          </span>
+          <input type="search" aria-label="Search resource" placeholder="Search resource" [(ngModel)]="resourceSearch" style="flex:1 1 0;min-width:0;height:32px;border:0;background:transparent;color:#161616;font:400 14px/18px 'IBM Plex Sans',sans-serif;letter-spacing:.16px;outline:none" />
+          <button type="button" aria-label="Search resource" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:var(--Icon-icon-on-color,white);display:flex;align-items:center;justify-content:center;padding:8px">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.795 10.724 10.019A5.51 5.51 0 1 0 10.017 10.726L13.793 14.5021 14.5 13.795ZM2 6.50208A4.5 4.5 0 1 1 6.5 11.0021 4.505 4.505 0 0 1 2 6.50208Z" fill="currentColor"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="scheduler__header-scroll" #headerScroll>
+      <div [style.width.px]="totalWidth">
+        <div class="scheduler__day-row" [style.height.px]="DATE_ROW_HEIGHT">
+          @for (day of daySlots; track day.getTime()) {
+            <div class="scheduler__day-cell" [style.width.px]="getDayWidth()">
+              <span class="scheduler__day-num">{{ formatDay(day) }}</span>
+              <span class="scheduler__day-name">{{ formatWeekday(day) }}</span>
+            </div>
+          }
+        </div>
+        <div class="scheduler__hour-row" [style.height.px]="HOUR_ROW_HEIGHT">
+          @for (day of daySlots; track day.getTime()) {
+            @for (slot of timeSlots; track slot.getTime()) {
+              <div class="scheduler__time-slot" [style.width.px]="slotDurationMinutes / 60 * HOUR_WIDTH">
+                <span class="scheduler__time-slot-separator" aria-hidden="true"></span>
+                <span class="scheduler__time-slot-content">
+                  <span class="scheduler__time-slot-label">{{ formatSlot(slot) }}</span>
+                </span>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="scheduler__body" #bodyScroll style="position:relative" (scroll)="onBodyScroll()">
+
+    @for (group of visibleGroups; track group.id) {
+      <div class="scheduler__group-row">
+        <div class="scheduler__group-label" [style.width.px]="RESOURCE_COL_WIDTH" [style.height.px]="GROUP_ROW_HEIGHT">
+          <span>{{ group.label }}</span>
+            <button type="button" (click)="toggleGroupCollapsed(group.id)" [attr.aria-label]="isGroupCollapsed(group.id) ? 'Expand ' + group.label : 'Collapse ' + group.label" style="width:32px;height:32px;border:0;background:transparent;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isGroupCollapsed(group.id) ? 'rotate(180deg)' : 'none'">
+                <path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/>
+              </svg>
+            </button>
+            <button type="button" (click)="toggleSelectedOnlyForGroup(group.id)" style="margin-left:auto;border:0;background:transparent;color:var(--Link-link-primary,#4C68B1);font-size:14px;font-weight:400;line-height:18px;letter-spacing:.16px;text-transform:none;cursor:pointer">
+              {{ isShowingSelectedOnly(group.id) ? 'See all' : 'See selected' }}
+            </button>
+        </div>
+        <div class="scheduler__group-fill" [style.width.px]="totalWidth" [style.height.px]="GROUP_ROW_HEIGHT"></div>
+      </div>
+
+      @for (resource of getResourcesForGroup(group.id); track resource.id) {
+        <div class="scheduler__row" [style.height.px]="rowHeight"
+          [class.scheduler__row--drop-target]="dropTargetResourceId === resource.id"
+          (dragover)="onDragOver($event, resource.id)"
+          (dragleave)="onDragLeave()"
+          (drop)="onDrop($event, resource.id)">
+          <div class="scheduler__resource-cell" [style.width.px]="RESOURCE_COL_WIDTH">
+            <div class="scheduler__resource-content">
+              <label class="scheduler__resource-checkbox" (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
+                <input class="scheduler__resource-checkbox-input" type="checkbox"
+                  [checked]="isResourceSelected(resource.id)"
+                  [attr.aria-label]="'Select ' + resource.label"
+                  (change)="onResourceSelectionChange($event, resource)" />
+                <svg class="scheduler__resource-checkbox-icon scheduler__resource-checkbox-icon--unchecked" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+                  <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply" />
+                  <path d="M16.25 2.5H3.75C3.41848 2.5 3.10054 2.6317 2.86612 2.86612C2.6317 3.10054 2.5 3.41848 2.5 3.75V16.25C2.5 16.5815 2.6317 16.8995 2.86612 17.1339C3.10054 17.3683 3.41848 17.5 3.75 17.5H16.25C16.5815 17.5 16.8995 17.3683 17.1339 17.1339C17.3683 16.8995 17.5 16.5815 17.5 16.25V3.75C17.5 3.41848 17.3683 3.10054 17.1339 2.86612C16.8995 2.6317 16.5815 2.5 16.25 2.5ZM3.75 16.25V3.75H16.25V16.25H3.75Z" fill="currentColor" />
+                </svg>
+                <svg class="scheduler__resource-checkbox-icon scheduler__resource-checkbox-icon--checked" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+                  <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply" />
+                  <path d="M16.25 2.5H3.75C3.41848 2.5 3.10054 2.6317 2.86612 2.86612C2.6317 3.10054 2.5 3.41848 2.5 3.75V16.25C2.5 16.5815 2.6317 16.8995 2.86612 17.1339C3.10054 17.3683 3.41848 17.5 3.75 17.5H16.25C16.5815 17.5 16.8995 17.3683 17.1339 17.1339C17.3683 16.8995 17.5 16.5815 17.5 16.25V3.75C17.5 3.41848 17.3683 3.10054 17.1339 2.86612C16.8995 2.6317 16.5815 2.5 16.25 2.5ZM8.75 13.4375L5.625 10.3392L6.61925 9.375L8.75 11.466L13.3804 6.875L14.3753 7.86075L8.75 13.4375Z" fill="currentColor" />
+                </svg>
+              </label>
+              <span class="scheduler__resource-label">{{ resource.label }}</span>
+            </div>
+          </div>
+          <div class="scheduler__timeline-cell" [style.width.px]="totalWidth">
+            @for (day of daySlots; track day.getTime()) {
+              @for (slot of timeSlots; track slot.getTime()) {
+                <div class="scheduler__slot-line" [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
+              }
+              <div class="scheduler__day-line" [style.left.px]="getDayOffsetPx(day)"></div>
+            }
+            @for (block of getUnavailabilityForResource(resource.id); track block.start) {
+              <div class="scheduler__unavailable"
+                [style.left.px]="getUnavailabilityLeft(block)"
+                [style.width.px]="getUnavailabilityWidth(block)"
+                [style.top.px]="showOrderTiles && !isLunchBlock(block) ? null : 0"
+                [style.bottom.px]="showOrderTiles && !isLunchBlock(block) ? null : 0"
+                [style.background]="showOrderTiles ? null : (isLunchBlock(block) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white')"
+                [style.border-left]="showOrderTiles ? null : '0'"
+                [style.padding]="showOrderTiles ? null : '0'">
+                @if (showOrderTiles) {
+                  <span class="scheduler__event-title">{{ getUnavailabilityTitle(block) }}</span>
+                  <span class="scheduler__event-time">{{ getUnavailabilityDetail(block) }}</span>
+                }
+              </div>
+            }
+            @for (run of getOrderRunsForResource(resource.id); track run.key + '-' + run.start.getTime()) {
+              @if (shouldRenderOrderRun(run)) {
+                <div class="scheduler__order-run"
+                  [style.left.px]="getOrderRunLeft(run)"
+                  [style.width.px]="getOrderRunWidth(run)"
+                  style="position:absolute;top:0;height:28px;display:flex;align-items:center;gap:2px;padding:6px 16px;background:#E0E0E0;border-left:2px solid #808080;box-sizing:border-box;overflow:hidden;z-index:3;pointer-events:none">
+                  <span class="scheduler__event-order-ref">{{ getEventOrderReference(run.firstEvent) }}</span>
+                  <span class="scheduler__event-order-count">{{ getOrderRunSequence(run) }}</span>
+                </div>
+              }
+            }
+            @for (event of getEventsForResource(resource.id); track event.id) {
+              @if (shouldRenderEventForResource(event, resource.id)) {
+              <div class="scheduler__event"
+                [class.scheduler__event--compact]="!shouldShowEventDetails(event)"
+                [class.scheduler__event--show-tag]="shouldShowEventTag(event)"
+                [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(event)"
+                [class.scheduler__event--blocked-order]="isBlockedOrderEvent(event)"
+                [class.scheduler__event--continued]="hasContiguousPreviousEvent(event)"
+                [class.scheduler__event--continues]="hasContiguousNextEvent(event)"
+                [class.scheduler__event--preview]="isPreviewingEvent(event)"
+                [class.scheduler__event--order-started]="getEventStatus(event) === 'order-started'"
+                [class.scheduler__event--customer-waiting]="getEventStatus(event) === 'customer-waiting'"
+                [class.scheduler__event--completed]="getEventStatus(event) === 'completed'"
+                [style.left.px]="getRenderedEventLeft(event)"
+                [style.width.px]="getRenderedEventWidth(event)"
+                [style.top.px]="shouldShowEventDetails(event) ? getRenderedEventTop(event) : 0"
+                [style.bottom]="shouldShowEventDetails(event) ? 'auto' : null"
+                [style.height.px]="shouldShowEventDetails(event) ? getRenderedEventHeight(event) : null"
+                [style.padding]="shouldShowEventDetails(event) ? null : '0'"
+                [style.background]="shouldShowEventDetails(event) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white'"
+                [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
+                [style.box-shadow]="shouldShowEventDetails(event) ? null : 'none'"
+                (mousedown)="onEventMouseDown($event, event)"
+                (click)="onEventClick($event, event)">
+                <div class="scheduler__event-handle scheduler__event-handle--left"
+                  [style.display]="shouldShowEventDetails(event) ? null : 'none'"
+                  (mousedown)="onResizeMouseDown($event, event, 'left')"></div>
+                @if (shouldShowEventDetails(event)) {
+                  <span class="scheduler__event-copy">
+                    @if (!shouldReserveOrderRunSpace(event)) {
+                      <span class="scheduler__event-order">
+                        <span class="scheduler__event-order-ref">{{ getEventOrderReference(event) }}</span>
+                        <span class="scheduler__event-order-count">{{ getEventOrderSequence(event) }}</span>
+                      </span>
+                    }
+                    <span class="scheduler__event-job">
+                      <span class="scheduler__event-job-copy">
+                        <span class="scheduler__event-title">{{ event.title }}</span>
+                        <span class="scheduler__event-time">{{ getEventDetail(event) }}</span>
+                      </span>
+                      @if (shouldShowEventTag(event)) {
+                        <span class="scheduler__event-tag">
+                      <span class="scheduler__event-tag-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                      </span>
+                      <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
+                        </span>
+                      }
+                    </span>
+                  </span>
+                }
+                <div class="scheduler__event-handle scheduler__event-handle--right"
+                  [style.display]="shouldShowEventDetails(event) ? null : 'none'"
+                  (mousedown)="onResizeMouseDown($event, event, 'right')"></div>
+              </div>
+            }
+            }
+          </div>
+        </div>
+      }
+    }
+
+    @for (resource of getUngroupedResources(); track resource.id) {
+      <div class="scheduler__row" [style.height.px]="rowHeight"
+        [class.scheduler__row--drop-target]="dropTargetResourceId === resource.id"
+        (dragover)="onDragOver($event, resource.id)"
+        (dragleave)="onDragLeave()"
+        (drop)="onDrop($event, resource.id)">
+        <div class="scheduler__resource-cell" [style.width.px]="RESOURCE_COL_WIDTH">
+          <div class="scheduler__resource-content">
+            <label class="scheduler__resource-checkbox" (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
+              <input class="scheduler__resource-checkbox-input" type="checkbox"
+                [checked]="isResourceSelected(resource.id)"
+                [attr.aria-label]="'Select ' + resource.label"
+                (change)="onResourceSelectionChange($event, resource)" />
+              <svg class="scheduler__resource-checkbox-icon scheduler__resource-checkbox-icon--unchecked" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+                <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply" />
+                <path d="M16.25 2.5H3.75C3.41848 2.5 3.10054 2.6317 2.86612 2.86612C2.6317 3.10054 2.5 3.41848 2.5 3.75V16.25C2.5 16.5815 2.6317 16.8995 2.86612 17.1339C3.10054 17.3683 3.41848 17.5 3.75 17.5H16.25C16.5815 17.5 16.8995 17.3683 17.1339 17.1339C17.3683 16.8995 17.5 16.5815 17.5 16.25V3.75C17.5 3.41848 17.3683 3.10054 17.1339 2.86612C16.8995 2.6317 16.5815 2.5 16.25 2.5ZM3.75 16.25V3.75H16.25V16.25H3.75Z" fill="currentColor" />
+              </svg>
+              <svg class="scheduler__resource-checkbox-icon scheduler__resource-checkbox-icon--checked" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false">
+                <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply" />
+                <path d="M16.25 2.5H3.75C3.41848 2.5 3.10054 2.6317 2.86612 2.86612C2.6317 3.10054 2.5 3.41848 2.5 3.75V16.25C2.5 16.5815 2.6317 16.8995 2.86612 17.1339C3.10054 17.3683 3.41848 17.5 3.75 17.5H16.25C16.5815 17.5 16.8995 17.3683 17.1339 17.1339C17.3683 16.8995 17.5 16.5815 17.5 16.25V3.75C17.5 3.41848 17.3683 3.10054 17.1339 2.86612C16.8995 2.6317 16.5815 2.5 16.25 2.5ZM8.75 13.4375L5.625 10.3392L6.61925 9.375L8.75 11.466L13.3804 6.875L14.3753 7.86075L8.75 13.4375Z" fill="currentColor" />
+              </svg>
+            </label>
+            <span class="scheduler__resource-label">{{ resource.label }}</span>
+          </div>
+        </div>
+        <div class="scheduler__timeline-cell" [style.width.px]="totalWidth">
+          @for (day of daySlots; track day.getTime()) {
+            @for (slot of timeSlots; track slot.getTime()) {
+              <div class="scheduler__slot-line" [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
+            }
+            <div class="scheduler__day-line" [style.left.px]="getDayOffsetPx(day)"></div>
+          }
+          @for (block of getUnavailabilityForResource(resource.id); track block.start) {
+            <div class="scheduler__unavailable"
+              [style.left.px]="getUnavailabilityLeft(block)"
+              [style.width.px]="getUnavailabilityWidth(block)"
+              [style.top.px]="showOrderTiles && !isLunchBlock(block) ? null : 0"
+              [style.bottom.px]="showOrderTiles && !isLunchBlock(block) ? null : 0"
+              [style.background]="showOrderTiles ? null : (isLunchBlock(block) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white')"
+              [style.border-left]="showOrderTiles ? null : '0'"
+              [style.padding]="showOrderTiles ? null : '0'">
+              @if (showOrderTiles) {
+                <span class="scheduler__event-title">{{ getUnavailabilityTitle(block) }}</span>
+                <span class="scheduler__event-time">{{ getUnavailabilityDetail(block) }}</span>
+              }
+            </div>
+          }
+          @for (run of getOrderRunsForResource(resource.id); track run.key + '-' + run.start.getTime()) {
+            @if (shouldRenderOrderRun(run)) {
+              <div class="scheduler__order-run"
+                [style.left.px]="getOrderRunLeft(run)"
+                [style.width.px]="getOrderRunWidth(run)"
+                style="position:absolute;top:0;height:28px;display:flex;align-items:center;gap:2px;padding:6px 16px;background:#E0E0E0;border-left:2px solid #808080;box-sizing:border-box;overflow:hidden;z-index:3;pointer-events:none">
+                <span class="scheduler__event-order-ref">{{ getEventOrderReference(run.firstEvent) }}</span>
+                <span class="scheduler__event-order-count">{{ getOrderRunSequence(run) }}</span>
+              </div>
+            }
+          }
+          @for (event of getEventsForResource(resource.id); track event.id) {
+            <div class="scheduler__event"
+              [class.scheduler__event--compact]="!shouldShowEventDetails(event)"
+              [class.scheduler__event--show-tag]="shouldShowEventTag(event)"
+              [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(event)"
+              [class.scheduler__event--blocked-order]="isBlockedOrderEvent(event)"
+              [class.scheduler__event--continued]="hasContiguousPreviousEvent(event)"
+              [class.scheduler__event--continues]="hasContiguousNextEvent(event)"
+              [class.scheduler__event--order-started]="getEventStatus(event) === 'order-started'"
+              [class.scheduler__event--customer-waiting]="getEventStatus(event) === 'customer-waiting'"
+              [class.scheduler__event--completed]="getEventStatus(event) === 'completed'"
+              [style.left.px]="getEventLeft(event)"
+              [style.width.px]="getEventWidth(event)"
+              [style.top.px]="shouldShowEventDetails(event) ? getRenderedEventTop(event) : 0"
+              [style.bottom]="shouldShowEventDetails(event) ? 'auto' : null"
+              [style.height.px]="shouldShowEventDetails(event) ? getRenderedEventHeight(event) : null"
+              [style.padding]="shouldShowEventDetails(event) ? null : '0'"
+              [style.background]="shouldShowEventDetails(event) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white'"
+              [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
+              [style.box-shadow]="shouldShowEventDetails(event) ? null : 'none'"
+              (mousedown)="onEventMouseDown($event, event)"
+              (click)="onEventClick($event, event)">
+              <div class="scheduler__event-handle scheduler__event-handle--left"
+                [style.display]="shouldShowEventDetails(event) ? null : 'none'"
+                (mousedown)="onResizeMouseDown($event, event, 'left')"></div>
+                @if (shouldShowEventDetails(event)) {
+                  <span class="scheduler__event-copy">
+                    @if (!shouldReserveOrderRunSpace(event)) {
+                    <span class="scheduler__event-order">
+                      <span class="scheduler__event-order-ref">{{ getEventOrderReference(event) }}</span>
+                      <span class="scheduler__event-order-count">{{ getEventOrderSequence(event) }}</span>
+                    </span>
+                    }
+                    <span class="scheduler__event-job">
+                      <span class="scheduler__event-job-copy">
+                        <span class="scheduler__event-title">{{ event.title }}</span>
+                        <span class="scheduler__event-time">{{ getEventDetail(event) }}</span>
+                      </span>
+                      @if (shouldShowEventTag(event)) {
+                        <span class="scheduler__event-tag">
+                    <span class="scheduler__event-tag-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                    </span>
+                    <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
+                        </span>
+                      }
+                    </span>
+                  </span>
+                }
+              <div class="scheduler__event-handle scheduler__event-handle--right"
+                [style.display]="shouldShowEventDetails(event) ? null : 'none'"
+                (mousedown)="onResizeMouseDown($event, event, 'right')"></div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (getPreviewEvent(); as previewEvent) {
+      <div class="scheduler__event"
+        [class.scheduler__event--compact]="!shouldShowEventDetails(previewEvent)"
+        [class.scheduler__event--show-tag]="shouldShowEventTag(previewEvent)"
+        [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(previewEvent)"
+        [class.scheduler__event--blocked-order]="isBlockedOrderEvent(previewEvent)"
+        [class.scheduler__event--continued]="hasContiguousPreviousEvent(previewEvent)"
+        [class.scheduler__event--continues]="hasContiguousNextEvent(previewEvent)"
+        [class.scheduler__event--order-started]="getEventStatus(previewEvent) === 'order-started'"
+        [class.scheduler__event--customer-waiting]="getEventStatus(previewEvent) === 'customer-waiting'"
+        [class.scheduler__event--completed]="getEventStatus(previewEvent) === 'completed'"
+        [style.left.px]="getPreviewLeft()"
+        [style.top.px]="getPreviewTop()"
+        [style.width.px]="getPreviewWidth()"
+        [style.height.px]="rowHeight"
+        [style.bottom]="'auto'"
+        [style.padding]="shouldShowEventDetails(previewEvent) ? null : '0'"
+        [style.background]="shouldShowEventDetails(previewEvent) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white'"
+        [style.border-left]="shouldShowEventDetails(previewEvent) ? null : '0'"
+        [style.box-shadow]="shouldShowEventDetails(previewEvent) ? null : 'none'"
+        [style.pointer-events]="'none'"
+        [style.z-index]="20">
+        @if (shouldShowEventDetails(previewEvent)) {
+          <span class="scheduler__event-copy">
+            <span class="scheduler__event-order">
+              @if (!hasContiguousPreviousEvent(previewEvent)) {
+                <span class="scheduler__event-order-ref">{{ getEventOrderReference(previewEvent) }}</span>
+                <span class="scheduler__event-order-count">{{ getEventOrderSequence(previewEvent) }}</span>
+              }
+            </span>
+            <span class="scheduler__event-job">
+              <span class="scheduler__event-job-copy">
+                <span class="scheduler__event-title">{{ previewEvent.title }}</span>
+                <span class="scheduler__event-time">{{ getEventDetail(previewEvent) }}</span>
+              </span>
+            </span>
+          </span>
+        }
+      </div>
+    }
+
+  </div>
+</div>
+

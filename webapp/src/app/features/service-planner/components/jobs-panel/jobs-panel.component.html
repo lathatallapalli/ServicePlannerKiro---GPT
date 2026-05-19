@@ -1,0 +1,113 @@
+<div class="jobs-panel">
+
+  <!-- ── Jobs header ───────────────────────────────────────────────────────── -->
+  <div class="jobs-panel__header">
+    <span class="jobs-panel__title">Jobs</span>
+  </div>
+  <div style="align-self:stretch;background:var(--Field-field-01,#F4F4F4);border-bottom:1px solid var(--Border-border-strong-01,#8D8D8D);display:inline-flex;align-items:center;margin:0 16px 12px">
+    <span style="padding:8px;display:flex;color:var(--Icon-icon-secondary,#525252)">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.795 10.724 10.019A5.51 5.51 0 1 0 10.017 10.726L13.793 14.5021 14.5 13.795ZM2 6.50208A4.5 4.5 0 1 1 6.5 11.0021 4.505 4.505 0 0 1 2 6.50208Z" fill="currentColor"/></svg>
+    </span>
+    <input type="search" aria-label="Search jobs" placeholder="Search jobs" [(ngModel)]="searchQuery" style="flex:1 1 0;min-width:0;height:32px;border:0;background:transparent;color:#161616;font:400 14px/18px 'IBM Plex Sans',sans-serif;letter-spacing:.16px;outline:none" />
+  </div>
+
+  <!-- ── Scrollable content ────────────────────────────────────────────────── -->
+  <div class="jobs-panel__scroll-area">
+
+    <!-- Job tiles -->
+    <div class="jobs-panel__list">
+      @for (tile of filteredJobTiles; track tile.job.id) {
+        <div class="job-tile" role="button" tabindex="0" (click)="jobClicked.emit(tile.job)">
+          <div class="job-tile__top">
+            <span class="job-tile__title">{{ tile.job.title }}</span>
+            <span class="job-tile__tag" [class.job-tile__tag--scheduled]="isFullyBooked(tile.job)">
+              {{ isFullyBooked(tile.job) ? 'Scheduled' : getFruLabel(tile.job.estimatedDurationMinutes) }}
+            </span>
+          </div>
+          <div class="job-tile__resources">
+            @for (req of getRequirements(tile.job); track req.resourceType) {
+              @if (getBookingForRequirement(tile.job.id, req.resourceType); as booking) {
+                <div class="job-tile__resource-row">
+                  <span class="job-tile__resource-name job-tile__resource-name--booked">{{ booking.resourceName }}</span>
+                  <span class="job-tile__resource-status job-tile__resource-status--booked">BOOKED</span>
+                  <button class="job-tile__undo" type="button" (click)="undoBooking.emit(booking)" aria-label="Undo">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="#626469"/></svg>
+                  </button>
+                </div>
+              } @else {
+                <div class="job-tile__resource-row job-tile__resource-row--draggable"
+                  draggable="true"
+                  (dragstart)="onDragStart($event, tile.job.id, req.resourceType, tile.job.estimatedDurationMinutes)">
+                  <span class="job-tile__resource-name">{{ getRequirementLabel(req) }}</span>
+                  <span class="job-tile__resource-status">PENDING</span>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      }
+      @if (filteredJobTiles.length === 0) {
+        <div class="jobs-panel__empty">{{ jobTiles.length === 0 ? 'No unscheduled jobs' : 'No matching jobs' }}</div>
+      }
+    </div>
+
+    <!-- Activity header -->
+    <div class="jobs-panel__header">
+      <span class="jobs-panel__title">Activity</span>
+    </div>
+
+    <!-- Activity tiles -->
+    <div class="jobs-panel__list">
+      @for (act of activityTiles; track act.id) {
+        <div class="job-tile">
+          <div class="job-tile__top">
+            <span class="job-tile__title">{{ act.title }}</span>
+            @if (isActivityBooked(act.id)) {
+              <span class="job-tile__tag job-tile__tag--scheduled">Scheduled</span>
+            }
+          </div>
+          <div class="job-tile__resources">
+            <div class="job-tile__resource-row"
+              [class.job-tile__resource-row--draggable]="!getActivityBooking(act.id)"
+              [attr.draggable]="!getActivityBooking(act.id) ? true : null"
+              (dragstart)="!getActivityBooking(act.id) && onDragStart($event, act.id, act.resourceType, act.estimatedDurationMinutes)">
+              <span class="job-tile__resource-name"
+                [class.job-tile__resource-name--booked]="getActivityBooking(act.id)">
+                {{ getActivityBooking(act.id)?.resourceName ?? act.resourceLabel }}
+              </span>
+              <span class="job-tile__resource-status"
+                [class.job-tile__resource-status--booked]="getActivityBooking(act.id)">
+                {{ getActivityBooking(act.id) ? 'BOOKED' : 'PENDING' }}
+              </span>
+              @if (getActivityBooking(act.id); as booking) {
+                <button class="job-tile__undo" type="button" (click)="undoBooking.emit(booking)" aria-label="Undo">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="#626469"/></svg>
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+  </div><!-- end scroll-area -->
+
+  <!-- ── Footer ────────────────────────────────────────────────────────────── -->
+  <div class="jobs-panel__footer">
+    <button class="jobs-panel__btn jobs-panel__btn--book" type="button" [disabled]="bookFirstDisabled" (click)="onBookClick()">
+      <span>Book first availability</span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M13 2H11V1H10V2H6V1H5V2H3C2.45 2 2 2.45 2 3V13C2 13.55 2.45 14 3 14H13C13.55 14 14 13.55 14 13V3C14 2.45 13.55 2 13 2ZM13 13H3V6H13V13ZM13 5H3V3H5V4H6V3H10V4H11V3H13V5Z" fill="white"/></svg>
+    </button>
+    <button class="jobs-panel__btn jobs-panel__btn--icon" type="button" aria-label="Previous"
+      [disabled]="!hasPrevious"
+      [class.jobs-panel__btn--active]="hasPrevious"
+      (click)="bookPrevious.emit()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M8 4L8.715 4.6965L5.925 7.5H12V8.5H5.925L8.715 11.2865L8 12L4 8L8 4Z" fill="currentColor"/><path d="M8 15C6.61553 15 5.26216 14.5895 4.11101 13.8203C2.95987 13.0511 2.06266 11.9579 1.53285 10.6788C1.00303 9.3997 0.86441 7.99224 1.13451 6.63437C1.4046 5.2765 2.07129 4.02922 3.05026 3.05026C4.02922 2.07129 5.2765 1.4046 6.63437 1.13451C7.99224 0.86441 9.3997 1.00303 10.6788 1.53285C11.9579 2.06266 13.0511 2.95987 13.8203 4.11101C14.5895 5.26216 15 6.61553 15 8C14.9979 9.85588 14.2597 11.6351 12.9474 12.9474C11.6351 14.2597 9.85588 14.9979 8 15ZM8 2C6.81332 2 5.65328 2.3519 4.66658 3.01119C3.67989 3.67047 2.91085 4.60755 2.45673 5.7039C2.0026 6.80026 1.88378 8.00666 2.11529 9.17054C2.3468 10.3344 2.91825 11.4035 3.75736 12.2426C4.59648 13.0818 5.66558 13.6532 6.82946 13.8847C7.99335 14.1162 9.19975 13.9974 10.2961 13.5433C11.3925 13.0892 12.3295 12.3201 12.9888 11.3334C13.6481 10.3467 14 9.18669 14 8C13.9982 6.40926 13.3655 4.88419 12.2406 3.75936C11.1158 2.63454 9.59075 2.00182 8 2Z" fill="currentColor"/></svg>
+    </button>
+    <button class="jobs-panel__btn jobs-panel__btn--icon jobs-panel__btn--active" type="button" aria-label="Next"
+      (click)="bookNext.emit()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M8 4L7.285 4.6965L10.075 7.5H4V8.5H10.075L7.285 11.2865L8 12L12 8L8 4Z" fill="white"/><path d="M8 15C6.61553 15 5.26216 14.5895 4.11101 13.8203C2.95987 13.0511 2.06266 11.9579 1.53285 10.6788C1.00303 9.3997 0.86441 7.99224 1.13451 6.63437C1.4046 5.2765 2.07129 4.02922 3.05026 3.05026C4.02922 2.07129 5.2765 1.4046 6.63437 1.13451C7.99224 0.86441 9.3997 1.00303 10.6788 1.53285C11.9579 2.06266 13.0511 2.95987 13.8203 4.11101C14.5895 5.26216 15 6.61553 15 8C14.9979 9.85588 14.2597 11.6351 12.9474 12.9474C11.6351 14.2597 9.85588 14.9979 8 15ZM8 2C6.81332 2 5.65328 2.3519 4.66658 3.01119C3.67989 3.67047 2.91085 4.60755 2.45673 5.7039C2.0026 6.80026 1.88378 8.00666 2.11529 9.17054C2.3468 10.3344 2.91825 11.4035 3.75736 12.2426C4.59648 13.0818 5.66558 13.6532 6.82946 13.8847C7.99335 14.1162 9.19975 13.9974 10.2961 13.5433C11.3925 13.0892 12.3295 12.3201 12.9888 11.3334C13.6481 10.3467 14 9.18669 14 8C13.9982 6.40926 13.3655 4.88419 12.2406 3.75936C11.1158 2.63454 9.59075 2.00182 8 2Z" fill="white"/></svg>
+    </button>
+  </div>
+
+</div>

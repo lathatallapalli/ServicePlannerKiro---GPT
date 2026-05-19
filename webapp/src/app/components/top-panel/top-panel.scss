@@ -1,0 +1,233 @@
+﻿.top-panel {
+  max-width: calc(100% - 240px);
+  width: auto;
+  height: 120px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transition: height 0.2s ease;
+
+  &--collapsed {
+    height: 48px;
+  }
+
+  &__button {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  &__toggle {
+    width: 46px;
+    height: 46px;
+    background: #F4F4F4;
+    border: none;
+    border-bottom: 1px solid #E0E0E0;
+    outline: 1px solid #E0E0E0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &:hover {
+      background: #E0E0E0;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #4C68B1;
+    }
+  }
+
+  &__toggle-icon {
+    transition: transform 0.2s ease;
+    transform: rotate(0deg); // up = collapsed
+
+    &--collapsed {
+      transform: rotate(180deg); // down = expand
+    }
+  }
+
+  &__divider-v {
+    width: 1px;
+    height: 32px;
+    background: #E0E0E0;
+    margin-top: 7px;
+    align-self: flex-start;
+    flex-shrink: 0;
+  }
+
+  &__tiles {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    justify-content: flex-start;
+  }
+
+  &__divider-h {
+    width: 1px;
+    height: 102px;
+    background: #E0E0E0;
+    flex-shrink: 0;
+  }
+
+  &--collapsed &__divider-h {
+    height: 32px;
+  }
+
+  &__tile {
+    width: 222px;
+    min-width: 222px;
+    height: 118px;
+    background: #F4F4F4;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-shrink: 0;
+    border-bottom: 1px solid #E0E0E0;
+  }
+
+  &--collapsed &__tile {
+    height: 46px;
+    justify-content: center;
+  }
+
+  &__tile-body {
+    flex: 1;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  &__tile-primary {
+    color: #161616;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 18px;
+    letter-spacing: 0.16px;
+    margin-bottom: 4px;
+  }
+
+  &__tile-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    span {
+      color: #161616;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 16px;
+      letter-spacing: 0.32px;
+    }
+  }
+
+  &__tile-footer {
+    padding: 4px 8px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+
+    &--collapsed {
+      padding: 8px;
+      flex: 1;
+      align-items: center;
+    }
+
+    &:hover {
+      background: rgba(0,0,0,0.04);
+    }
+  }
+
+  &__tile-label-text {
+    color: #525252;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    letter-spacing: 0.16px;
+  }
+
+  &__tile-label-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  &__tile-label-secondary {
+    color: #525252;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    letter-spacing: 0.32px;
+    word-wrap: break-word;
+  }
+
+  &__tile-label-primary {
+    color: #161616;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 18px;
+    letter-spacing: 0.16px;
+    word-wrap: break-word;
+  }
+
+  &__tile-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__tile-label-text {
+    color: #525252;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    letter-spacing: 0.16px;
+  }
+
+  // Payer tile
+  &__tile-body--payer {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 8px;
+  }
+
+  &__payer-labels,
+  &__payer-values {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+
+    span {
+      color: #161616;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 16px;
+      letter-spacing: 0.32px;
+    }
+  }
+
+  &__payer-values span {
+    text-align: right;
+  }
+}

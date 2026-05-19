@@ -1,0 +1,44 @@
+<div class="stepper" [class.stepper--collapsed]="collapsed">
+
+  <!-- Toggle button -->
+  <div class="stepper__header">
+    <button class="stepper__toggle" (click)="toggle()" type="button" [attr.aria-label]="collapsed ? 'Expand stepper' : 'Collapse stepper'">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"
+        class="stepper__toggle-icon" [class.stepper__toggle-icon--collapsed]="collapsed">
+        <path fill-rule="evenodd" clip-rule="evenodd"
+          d="M11.9799 8L4.97994 15L3.99994 14.02L10.0199 8L3.99994 1.98L4.97994 1L11.9799 8Z"
+          fill="white"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Dashboard icon -->
+  <div class="stepper__dashboard">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 9.375H3.75C3.41848 9.375 3.10054 9.5067 2.86612 9.74112C2.6317 9.97554 2.5 10.2935 2.5 10.625V15.625C2.5 15.9565 2.6317 16.2745 2.86612 16.5089C3.10054 16.7433 3.41848 16.875 3.75 16.875H10C10.3315 16.875 10.6495 16.7433 10.8839 16.5089C11.1183 16.2745 11.25 15.9565 11.25 15.625V10.625C11.25 10.2935 11.1183 9.97554 10.8839 9.74112C10.6495 9.5067 10.3315 9.375 10 9.375Z" fill="white"/>
+      <path d="M16.875 2.5H10.625C10.2935 2.5 9.97554 2.6317 9.74112 2.86612C9.5067 3.10054 9.375 3.41848 9.375 3.75V6.875C9.375 7.20652 9.5067 7.52446 9.74112 7.75888C9.97554 7.9933 10.2935 8.125 10.625 8.125H16.875C17.2065 8.125 17.5245 7.9933 17.7589 7.75888C17.9933 7.52446 18.125 7.20652 18.125 6.875V3.75C18.125 3.41848 17.9933 3.10054 17.7589 2.86612C17.5245 2.6317 17.2065 2.5 16.875 2.5Z" fill="white"/>
+      <path d="M16.875 9.375H13.75C13.4185 9.375 13.1005 9.5067 12.8661 9.74112C12.6317 9.97554 12.5 10.2935 12.5 10.625V13.75C12.5 14.0815 12.6317 14.3995 12.8661 14.6339C13.1005 14.8683 13.4185 15 13.75 15H16.875C17.2065 15 17.5245 14.8683 17.7589 14.6339C17.9933 14.3995 18.125 14.0815 18.125 13.75V10.625C18.125 10.2935 17.9933 9.97554 17.7589 9.74112C17.5245 9.5067 17.2065 9.375 16.875 9.375Z" fill="white"/>
+      <path d="M6.875 2.5H3.75C3.41848 2.5 3.10054 2.6317 2.86612 2.86612C2.6317 3.10054 2.5 3.41848 2.5 3.75V6.875C2.5 7.20652 2.6317 7.52446 2.86612 7.75888C3.10054 7.9933 3.41848 8.125 3.75 8.125H6.875C7.20652 8.125 7.52446 7.9933 7.75888 7.75888C7.9933 7.52446 8.125 7.20652 8.125 6.875V3.75C8.125 3.41848 7.9933 3.10054 7.75888 2.86612C7.52446 2.6317 7.20652 2.5 6.875 2.5Z" fill="white"/>
+    </svg>
+  </div>
+
+  <div class="stepper__divider"></div>
+
+  <!-- Steps -->
+  <div class="stepper__steps">
+    @for (step of steps; track step.label) {
+      <div
+        class="stepper__step"
+        [class.stepper__step--completed]="step.state === 'completed'"
+        [class.stepper__step--active]="step.state === 'active'"
+        [class.stepper__step--open]="step.state === 'open'"
+      >
+        <span class="stepper__step-icon" [innerHTML]="step.safeSvg"></span>
+        @if (!collapsed) {
+          <span class="stepper__step-label">{{ step.label }}</span>
+        }
+      </div>
+    }
+  </div>
+
+</div>

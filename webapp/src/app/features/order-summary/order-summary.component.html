@@ -1,0 +1,80 @@
+<section class="order-summary-page">
+  <main class="order-summary-page__content">
+    <div class="order-summary-frame">
+      @for (job of jobs; track job.title) {
+        <article class="order-job-tile">
+          <div class="order-job-tile__main">
+            <div class="order-job-tile__headline">
+              <span class="order-job-tile__task-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" focusable="false">
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M10.5 15.135L7.8075 12.4425L6.75 13.5L10.5 17.25L17.25 10.5L16.1925 9.435L10.5 15.135ZM18.75 3.75H16.5V3C16.5 2.17157 15.8284 1.5 15 1.5H9C8.17157 1.5 7.5 2.17157 7.5 3V3.75H5.25C4.42157 3.75 3.75 4.42157 3.75 5.25V21C3.75 21.8284 4.42157 22.5 5.25 22.5H18.75C19.5784 22.5 20.25 21.8284 20.25 21V5.25C20.25 4.42157 19.5784 3.75 18.75 3.75ZM9 3H15V6H9V3ZM5.25 21H18.75V5.25H16.5V7.5H7.5V5.25H5.25V21Z" />
+                </svg>
+              </span>
+              <div class="order-job-tile__headline-copy">
+                <p class="order-job-tile__scope">{{ job.scope }}</p>
+                <h2>{{ job.title }}</h2>
+                <p class="order-job-tile__description">{{ job.description }}</p>
+              </div>
+            </div>
+
+            <dl class="order-job-tile__details">
+              <div><dt>Status</dt><dd>OEM Locked</dd></div>
+              <div><dt>Category</dt><dd>{{ job.category }}</dd></div>
+              <div><dt>No. of Quotations</dt><dd>Not Requested</dd></div>
+              <div><dt>Qualification</dt><dd>{{ job.qualification }}</dd></div>
+              <div><dt>Payer</dt><dd>{{ job.payer }}</dd></div>
+            </dl>
+          </div>
+
+          <div class="order-job-tile__content-counts">
+            <p>Content</p>
+            <div><span>Labors:</span><strong>{{ job.labors }}</strong></div>
+            <div><span>Part Lines:</span><strong>{{ job.partLines }}</strong></div>
+            <div><span>Misc. Lines:</span><strong>{{ job.miscLines }}</strong></div>
+          </div>
+
+          <div class="order-job-tile__pricing">
+            <p>Pricing</p>
+            <div><span>Net Amount</span><strong>{{ job.netAmount }}</strong></div>
+            <div><span>Discount</span><span>{{ job.discount }}</span></div>
+          </div>
+
+          <div class="order-job-tile__actions" aria-label="Job actions">
+            <button type="button">
+              <span>Content</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M15 14H1V13H15V14ZM9.5 1.2999C9.9 0.9 10.5004 0.8999 10.9004 1.2999L12.7002 3.0997C13.1002 3.4997 13.1001 4.1001 12.7002 4.5001L5.2002 12H2V8.7999L9.5 1.2999ZM3 9.2003V11H4.7998L9.7998 6.0001L8 4.2003L3 9.2003ZM8.7002 3.5001L10.5 5.2999L12 3.7999L10.2002 2.0001L8.7002 3.5001Z" /></svg>
+            </button>
+            <button type="button">
+              <span>Job</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M15 14H1V13H15V14ZM9.5 1.2999C9.9 0.9 10.5004 0.8999 10.9004 1.2999L12.7002 3.0997C13.1002 3.4997 13.1001 4.1001 12.7002 4.5001L5.2002 12H2V8.7999L9.5 1.2999ZM3 9.2003V11H4.7998L9.7998 6.0001L8 4.2003L3 9.2003ZM8.7002 3.5001L10.5 5.2999L12 3.7999L10.2002 2.0001L8.7002 3.5001Z" /></svg>
+            </button>
+            <button class="order-job-tile__delete" type="button">
+              <span>Delete</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 4H13V14C13 14.5523 12.5523 15 12 15H4C3.44772 15 3 14.5523 3 14V4H2V3H14V4ZM4 14H12V4H4V14ZM7 12H6V6H7V12ZM10 12H9V6H10V12ZM10 2H6V1H10V2Z" /></svg>
+            </button>
+          </div>
+
+          <button class="order-job-tile__expand" type="button" aria-label="Expand job">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 11L3 6L3.7 5.3L8 9.6L12.3 5.3L13 6L8 11Z" /></svg>
+          </button>
+        </article>
+      }
+
+      <article class="order-document-footer">
+        <span class="order-document-footer__icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M19.5 3H4.5C3.67157 3 3 3.67157 3 4.5V19.5C3 20.3284 3.67157 21 4.5 21H19.5C20.3284 21 21 20.3284 21 19.5V4.5C21 3.67157 20.3284 3 19.5 3ZM4.5 19.5V4.5H19.5V19.5H4.5ZM7.5 7.5H16.5V9H7.5V7.5ZM7.5 11.25H16.5V12.75H7.5V11.25ZM7.5 15H13.5V16.5H7.5V15Z" /></svg>
+        </span>
+        <div class="order-document-footer__copy">
+          <p>Document Footer</p>
+          <strong>Only for limited time: 20% discount on winter checks</strong>
+        </div>
+        <button type="button" aria-label="Edit document footer">
+          <svg width="24" height="24" viewBox="0 0 16 16" aria-hidden="true"><path d="M15 14H1V13H15V14ZM9.5 1.2999C9.9 0.9 10.5004 0.8999 10.9004 1.2999L12.7002 3.0997C13.1002 3.4997 13.1001 4.1001 12.7002 4.5001L5.2002 12H2V8.7999L9.5 1.2999ZM3 9.2003V11H4.7998L9.7998 6.0001L8 4.2003L3 9.2003ZM8.7002 3.5001L10.5 5.2999L12 3.7999L10.2002 2.0001L8.7002 3.5001Z" /></svg>
+        </button>
+        <button type="button" aria-label="Delete document footer">
+          <svg width="24" height="24" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 4H13V14C13 14.5523 12.5523 15 12 15H4C3.44772 15 3 14.5523 3 14V4H2V3H14V4ZM4 14H12V4H4V14ZM7 12H6V6H7V12ZM10 12H9V6H10V12ZM10 2H6V1H10V2Z" /></svg>
+        </button>
+      </article>
+    </div>
+  </main>
+</section>

@@ -1,0 +1,47 @@
+/* You can add global styles to this file, and also import other style files */
+@use '@carbon/styles/scss/config' with (
+  $font-path: 'https://1.www.s81c.com/common/carbon/plex'
+);
+@use '@carbon/styles/scss/reset';
+@use '@carbon/styles/scss/theme';
+@use '@carbon/styles/scss/utilities';
+@use '@carbon/styles/scss/components/form';
+@use '@carbon/styles/scss/components/radio-button';
+@use '@carbon/styles/scss/components/date-picker';
+@use '@carbon/styles/scss/components/time-picker';
+@use '@carbon/styles/scss/components/select';
+@use '@carbon/styles/scss/components/toggle';
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  scrollbar-width: none;
+  --cds-focus: #4C68B1;
+  --cds-border-interactive: #4C68B1;
+  --cds-link-primary: #4C68B1;
+  --cds-button-primary: #4C68B1;
+  --cds-button-primary-hover: #405A9F;
+  --cds-button-primary-active: #354C87;
+  --Button-button-primary: #4C68B1;
+  --Focus-focus: #4C68B1;
+  --Border-border-interactive: #4C68B1;
+  --font-size-base: clamp(14px, 2vw, 16px);
+  --font-size-small: clamp(12px, 1.5vw, 14px);
+  --font-size-large: clamp(16px, 2.5vw, 18px);
+  --font-size-xl: clamp(20px, 3vw, 24px);
+  --font-size-2xl: clamp(24px, 5vw, 32px);
+  &::-webkit-scrollbar { display: none; }
+}
+
+app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+* {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}

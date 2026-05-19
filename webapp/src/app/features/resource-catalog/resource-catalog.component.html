@@ -1,0 +1,15 @@
+<section class="resource-catalog">
+  <div class="resource-catalog__tiles" aria-label="Resource catalog groups">
+    @for (group of catalogGroups; track group.id) {
+      <button class="resource-catalog-card" type="button" (click)="openGroup(group.id)">
+        <span class="resource-catalog-card__title">{{ group.label }}</span>
+        <span class="resource-catalog-card__subtitle">{{ group.subtitle }}</span>
+        <span class="resource-catalog-card__arrow" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 20 20" focusable="false">
+            <path d="M11.25 4.375L10.375 5.25L14.5 9.375H2.5V10.625H14.5L10.375 14.75L11.25 15.625L16.875 10L11.25 4.375Z" />
+          </svg>
+        </span>
+      </button>
+    }
+  </div>
+</section>

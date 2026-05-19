@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "figma-developer-mcp-loc": {
+      "type": "http",
+      "url": "http://localhost:3845/mcp"
+    }
+  }
+}

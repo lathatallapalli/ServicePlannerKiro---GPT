@@ -1,0 +1,72 @@
+<div class="top-panel" [class.top-panel--collapsed]="!expanded">
+
+  <!-- Toggle button -->
+  <div class="top-panel__button">
+    <button class="top-panel__toggle" type="button" (click)="toggle()"
+      [attr.aria-label]="expanded ? 'Collapse panel' : 'Expand panel'">
+      <svg width="21" height="21" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg"
+        class="top-panel__toggle-icon" [class.top-panel__toggle-icon--collapsed]="!expanded">
+        <path d="M10.311 6.59125L16.6199 12.7817L15.7533 13.665L10.3276 8.34117L5.00376 13.7669L4.12051 12.9002L10.311 6.59125Z" fill="#161616"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="top-panel__divider-v"></div>
+
+  <div class="top-panel__tiles">
+    @for (tile of tiles; track tile.label; let last = $last) {
+
+      <div class="top-panel__tile">
+
+        @if (expanded) {
+          <div class="top-panel__tile-body" [class.top-panel__tile-body--payer]="tile.type === 'payer'">
+            @if (tile.type === 'payer' && tile.payerRows) {
+              <div class="top-panel__payer-labels">
+                @for (row of tile.payerRows; track row.label) {
+                  <span>{{ row.label }}</span>
+                }
+              </div>
+              <div class="top-panel__payer-values">
+                @for (row of tile.payerRows; track row.label) {
+                  <span>{{ row.value }}</span>
+                }
+              </div>
+            } @else {
+              <div class="top-panel__tile-primary">{{ tile.primaryValue }}</div>
+              <div class="top-panel__tile-details">
+                @for (detail of tile.details; track detail) {
+                  <span>{{ detail }}</span>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <div class="top-panel__tile-footer">
+          <div class="top-panel__tile-label">
+            <span class="top-panel__tile-icon" [innerHTML]="tile.iconSvg" aria-hidden="true"></span>
+            @if (expanded) {
+              <span class="top-panel__tile-label-text">{{ tile.label }}</span>
+            } @else {
+              <div class="top-panel__tile-label-stack">
+                <span class="top-panel__tile-label-secondary">{{ tile.label }}</span>
+                <span class="top-panel__tile-label-primary">{{ tile.primaryValue }}</span>
+              </div>
+            }
+          </div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M9 3L8.285 3.6965L12.075 7.5H2V8.5H12.075L8.285 12.2865L9 13L14 8L9 3Z" fill="#161616"/>
+          </svg>
+        </div>
+
+      </div>
+
+      @if (!last) {
+        <div class="top-panel__divider-h"></div>
+      }
+
+    }
+  </div>
+
+</div>

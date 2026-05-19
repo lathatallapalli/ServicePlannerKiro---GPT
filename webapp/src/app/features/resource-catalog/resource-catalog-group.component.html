@@ -1,0 +1,19 @@
+<section class="resource-catalog-group">
+  @if (group(); as selectedGroup) {
+    <app-generic-list
+      [columns]="columns"
+      [rows]="rows()"
+      [rowActions]="[]"
+      [fitContent]="true"
+      [showAddButton]="false"
+      rowIdKey="id"
+      searchPlaceholder="Search resources"
+      addButtonLabel="Add selected"
+      (selectionChange)="onSelectionChange($event)"
+    >
+      <span generic-list-meta>{{ selectedResources.size }} selected / {{ rows().length }} resources</span>
+    </app-generic-list>
+  } @else {
+    <div class="resource-catalog-group__empty">Resource catalog group not found.</div>
+  }
+</section>

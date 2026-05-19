@@ -1,0 +1,239 @@
+:host {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  background: #ffffff;
+  color: #161616;
+  font-family: 'IBM Plex Sans', Arial, sans-serif;
+}
+
+.appointment-selection-page {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: #ffffff;
+}
+
+.appointment-selection-page__cards {
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  padding: 32px 96px 80px;
+}
+
+.generic-card {
+  width: 100%;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.generic-card__header {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.generic-card__leading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 4px 6px;
+}
+
+.generic-card h2 {
+  margin: 0;
+  color: #161616;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 28px;
+}
+
+.generic-card__toggle {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  color: #161616;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+
+  svg,
+  path {
+    fill: currentColor;
+  }
+}
+
+.generic-card__divider {
+  align-self: stretch;
+  height: 1px;
+  background: #c6c6c6;
+}
+
+.generic-card__content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1504px;
+  padding: 32px 96px 0;
+}
+
+.generic-card__content--work {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 24px;
+}
+
+.carbon-readonly-field {
+  width: 352px;
+  max-width: 352px;
+  min-width: 288px;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.carbon-readonly-field__label {
+  padding-bottom: 8px;
+  color: #525252;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.32px;
+}
+
+.carbon-readonly-field__value {
+  box-sizing: border-box;
+  height: 40px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #c6c6c6;
+  color: #161616;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0.16px;
+}
+
+.generic-card__content--appointments {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 48px;
+  flex-wrap: wrap;
+  overflow: hidden;
+}
+
+.appointment-group {
+  width: 288px;
+  min-width: 256px;
+  max-width: 288px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.appointment-group h3 {
+  align-self: stretch;
+  margin: 0;
+  color: #000000;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.appointment-radio-group {
+  width: 288px;
+  max-width: 288px;
+  min-width: 256px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.appointment-date-picker,
+.appointment-time-picker {
+  width: 288px;
+}
+
+:host ::ng-deep {
+  .appointment-radio-group .cds--radio-button-wrapper {
+    display: flex;
+    width: 100%;
+    margin-block-start: 0;
+  }
+
+  .appointment-radio-group .cds--radio-button-group {
+    gap: 8px;
+  }
+
+  .appointment-radio-group .cds--label {
+    color: #525252;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    letter-spacing: 0.32px;
+  }
+
+  .appointment-date-picker .cds--date-picker,
+  .appointment-date-picker .cds--date-picker-container,
+  .appointment-date-picker .cds--date-picker-input__wrapper,
+  .appointment-date-picker .cds--date-picker__input,
+  .appointment-time-picker .cds--time-picker,
+  .appointment-time-picker .cds--time-picker__input,
+  .appointment-time-picker .cds--time-picker__input-field {
+    width: 288px;
+  }
+
+  .appointment-time-picker .cds--time-picker {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 1px;
+  }
+
+  .appointment-time-picker .cds--time-picker__input,
+  .appointment-time-picker .cds--time-picker__input-field {
+    width: 202px;
+  }
+
+  .appointment-time-picker .cds--select,
+  .appointment-time-picker .cds--select-input {
+    width: 85px;
+    min-width: 85px;
+  }
+
+  .appointment-time-picker .cds--select-input {
+    padding-inline-end: 32px;
+  }
+
+  .appointment-date-picker .cds--date-picker-input__wrapper .cds--date-picker__icon:last-of-type {
+    display: none;
+  }
+}
+
+@media (max-width: 1200px) {
+  .appointment-selection-page__cards {
+    padding: 32px 48px 80px;
+  }
+
+  .generic-card__content {
+    padding-inline: 48px;
+  }
+}
+
+@media (max-width: 768px) {
+  .appointment-selection-page__cards,
+  .generic-card__content {
+    padding-inline: 24px;
+  }
+}

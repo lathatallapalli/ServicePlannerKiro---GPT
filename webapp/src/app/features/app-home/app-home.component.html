@@ -1,0 +1,125 @@
+﻿<section class="landing-page">
+  <div class="landing-page__hero" aria-label="Workspace areas">
+    <a class="landing-hero-card landing-hero-card--sales" href="javascript:void(0)">
+      <span>DIGITAL SALES WORKSPACE</span>
+      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M11.875 3.75L11 4.625L15.75 9.375H2.5V10.625H15.75L11 15.375L11.875 16.25L18.125 10L11.875 3.75Z" fill="currentColor"/>
+      </svg>
+    </a>
+
+    <a class="landing-hero-card landing-hero-card--reporting" href="javascript:void(0)">
+      <span>DASHBOARDS AND REPORTING</span>
+      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M11.875 3.75L11 4.625L15.75 9.375H2.5V10.625H15.75L11 15.375L11.875 16.25L18.125 10L11.875 3.75Z" fill="currentColor"/>
+      </svg>
+    </a>
+
+    <a class="landing-hero-card landing-hero-card--backoffice" href="javascript:void(0)">
+      <span>BACK OFFICE</span>
+      <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M11.875 3.75L11 4.625L15.75 9.375H2.5V10.625H15.75L11 15.375L11.875 16.25L18.125 10L11.875 3.75Z" fill="currentColor"/>
+      </svg>
+    </a>
+  </div>
+
+  <div class="landing-page__workspace">
+    <aside class="landing-profile" aria-label="User and dealer context">
+      <div class="landing-profile__person">
+        <h1>John Alexander<br />Doe Richardson</h1>
+        <p>Service Advisor</p>
+      </div>
+
+      <dl class="landing-profile__context">
+        <div>
+          <dt>Tenant/Company</dt>
+          <dd>BMW Dealer Gmbh</dd>
+        </div>
+        <div>
+          <dt>Workshop</dt>
+          <dd>BMW Munich Ost</dd>
+        </div>
+        <div>
+          <dt>Warehouse</dt>
+          <dd>Munich Giesing</dd>
+        </div>
+      </dl>
+    </aside>
+
+    <main class="landing-dashboard" aria-label="BMW Service dashboard">
+      <div class="landing-dashboard__toolbar">
+        <div class="landing-search">
+          <span class="landing-search__icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16">
+              <path d="M14.5001 13.7929L10.7241 10.0169C11.6314 8.92758 12.0839 7.53038 11.9873 6.11596C11.8908 4.70153 11.2526 3.37879 10.2057 2.42288C9.15867 1.46698 7.78347 0.951515 6.36612 0.983723C4.94877 1.01593 3.5984 1.59333 2.59593 2.59581C1.59345 3.59828 1.01605 4.94865 0.983845 6.366C0.951637 7.78335 1.4671 9.15855 2.423 10.2055C3.37891 11.2525 4.70165 11.8907 6.11608 11.9872C7.5305 12.0838 8.9277 11.6313 10.017 10.7239L13.7931 14.5L14.5001 13.7929ZM2.00012 6.5C2.00012 5.60998 2.26404 4.73995 2.75851 3.99993C3.25297 3.25991 3.95578 2.68313 4.77804 2.34254C5.60031 2.00194 6.50511 1.91283 7.37802 2.08646C8.25094 2.2601 9.05276 2.68868 9.6821 3.31802C10.3114 3.94735 10.74 4.74918 10.9137 5.62209C11.0873 6.495 10.9982 7.3998 10.6576 8.22207C10.317 9.04434 9.7402 9.74714 9.00018 10.2416C8.26016 10.7361 7.39013 11 6.50012 11C5.30705 10.9987 4.16323 10.5241 3.3196 9.68052C2.47597 8.83689 2.00144 7.69306 2.00012 6.5Z" fill="currentColor"/>
+            </svg>
+          </span>
+          <input type="text" value="Search input text" aria-label="Search input text" />
+          <button class="landing-search__button" type="button">
+            <span>Search</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M14.4999 13.793L10.7238 10.0169C12.6088 7.75396 12.3804 4.40868 10.2054 2.42289C8.03043 0.437101 4.67823 0.513277 2.59569 2.59581C0.513155 4.67835 0.436979 8.03055 2.42277 10.2055C4.40855 12.3805 7.75384 12.6089 10.0168 10.724L13.7928 14.5L14.4999 13.793ZM1.99988 6.5C1.99988 4.01472 4.0146 2 6.49988 2C8.98516 2 10.9999 4.01472 10.9999 6.5C10.9999 8.98528 8.98516 11 6.49988 11C4.01574 10.9972 2.00264 8.98414 1.99988 6.5Z" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="landing-toggle" aria-label="My Transactions only">
+          <span>My Transactions only</span>
+          <span class="landing-toggle__row">
+            <span class="landing-toggle__switch" aria-hidden="true"></span>
+            <strong>No</strong>
+          </span>
+        </div>
+      </div>
+
+      <div class="landing-tabs" role="tablist" aria-label="Service areas">
+        @for (tab of tabs; track tab.label) {
+          <button class="landing-tab" type="button" [class.landing-tab--active]="tab.active">
+            <span>{{ tab.label }}</span>
+            @if (!tab.active) {
+              <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M12 2H4C3.4477 2 3 2.4477 3 3V13C3 13.5523 3.4477 14 4 14H12C12.5523 14 13 13.5523 13 13V3C13 2.4477 12.5523 2 12 2ZM12 13H4V3H12V13Z" fill="currentColor"/>
+              </svg>
+            }
+          </button>
+        }
+      </div>
+
+      <section class="landing-process" aria-label="BMW Service process counts">
+        @for (tile of processTiles; track tile.label) {
+          <button
+            class="landing-process-tile"
+            type="button"
+            [class.landing-process-tile--selected]="tile.selected"
+            [class.landing-process-tile--clickable]="tile.route"
+            (click)="openTile(tile)"
+          >
+            @if (tile.selected) {
+              <span class="landing-process-tile__selected-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 16 16">
+                  <path d="M8 1C4.134 1 1 4.134 1 8C1 11.866 4.134 15 8 15C11.866 15 15 11.866 15 8C15 4.134 11.866 1 8 1ZM8 14C4.6863 14 2 11.3137 2 8C2 4.6863 4.6863 2 8 2C11.3137 2 14 4.6863 14 8C14 11.3137 11.3137 14 8 14Z" fill="white"/>
+                  <path d="M8.5 4H7.5V7.5H4V8.5H7.5V12H8.5V8.5H12V7.5H8.5V4Z" fill="white"/>
+                </svg>
+              </span>
+            }
+            <span class="landing-process-tile__number-line">
+              <span class="landing-process-tile__count">{{ tile.count }}</span>
+              <span class="landing-process-tile__arrow" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 32 32">
+                  <path d="M18 6L16.57 7.393L24.15 15H4V17H24.15L16.57 24.573L18 26L28 16L18 6Z" fill="currentColor"/>
+                </svg>
+              </span>
+            </span>
+            @if (tile.selected) {
+              <span class="landing-process-tile__add-button" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24">
+                  <path d="M12 2.25C6.615 2.25 2.25 6.615 2.25 12C2.25 17.385 6.615 21.75 12 21.75C17.385 21.75 21.75 17.385 21.75 12C21.75 6.615 17.385 2.25 12 2.25ZM12 20.25C7.44375 20.25 3.75 16.5562 3.75 12C3.75 7.44375 7.44375 3.75 12 3.75C16.5562 3.75 20.25 7.44375 20.25 12C20.25 16.5562 16.5562 20.25 12 20.25ZM17.25 11.25H12.75V6.75H11.25V11.25H6.75V12.75H11.25V17.25H12.75V12.75H17.25V11.25Z" fill="currentColor"/>
+                </svg>
+              </span>
+            }
+            <span class="landing-process-tile__label">{{ tile.label }}</span>
+          </button>
+        }
+      </section>
+    </main>
+  </div>
+</section>

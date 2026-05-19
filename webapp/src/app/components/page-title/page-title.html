@@ -1,0 +1,15 @@
+<div class="page-title">
+  <div class="page-title__breadcrumbs">
+    @for (crumb of breadcrumbs; track $index) {
+      <div class="page-title__breadcrumb">
+        <span class="page-title__breadcrumb-label">{{ crumb.label }}</span>
+        <span class="page-title__breadcrumb-sep">/</span>
+      </div>
+    }
+  </div>
+
+  <div class="page-title__heading">
+    <h1 class="page-title__title">{{ title }}</h1>
+    <p class="page-title__reference">{{ referenceInfo }}</p>
+  </div>
+</div>

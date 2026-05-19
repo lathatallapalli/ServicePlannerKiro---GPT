@@ -1,0 +1,18 @@
+﻿<section class="transactions-offer">
+  <h1>{{ pageTitle }}</h1>
+
+  <app-generic-list
+    [columns]="columns"
+    [rows]="rows"
+    rowIdKey="id"
+    searchPlaceholder="Search"
+    searchButtonLabel="Search"
+    [showAddButton]="false"
+    [selectable]="isActiveList"
+    [toolbarActions]="toolbarActions"
+    [rowActions]="rowActions"
+    (selectionChange)="onSelectionChange($event)"
+    (toolbarAction)="onToolbarAction($event)"
+    (rowAction)="onRowAction($event)"
+  />
+</section>

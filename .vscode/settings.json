@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd webapp; npx ng build --configuration development$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

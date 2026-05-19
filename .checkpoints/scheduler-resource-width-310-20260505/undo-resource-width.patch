@@ -1,0 +1,6 @@
+﻿*** Begin Patch
+*** Update File: src/app/shared/components/scheduler/custom/custom-scheduler.component.ts
+@@
+-const RESOURCE_COL_WIDTH = 310;
++const RESOURCE_COL_WIDTH = 180;
+*** End Patch

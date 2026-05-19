@@ -1,0 +1,20 @@
+<section class="resource-view-editor">
+  <div class="resource-view-editor__list">
+    <div class="resource-view-editor__list-scroll">
+      <app-generic-list
+        [columns]="columns"
+        [rows]="resourceRows()"
+        [rowActions]="[]"
+        rowIdKey="id"
+        searchPlaceholder="Search resources"
+        addButtonLabel="Add resource"
+        (add)="onAddResource()"
+        (toolbarAction)="onListAction($event)"
+        (rowAction)="onListAction($event)"
+        (selectionChange)="onListAction($event)"
+      >
+        <span generic-list-meta>{{ resourceRows().length }} resources loaded</span>
+      </app-generic-list>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,424 @@
+:host {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  scrollbar-width: auto;
+
+  &::-webkit-scrollbar {
+    display: block;
+    width: 10px;
+    height: 10px;
+  }
+}
+
+.booking-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 72px;
+  overflow: auto;
+  background: rgba(22, 22, 22, 0.5);
+  box-sizing: border-box;
+}
+
+.booking-modal {
+  width: 1185px;
+  max-height: min(1037px, calc(100vh - 96px));
+  display: flex;
+  flex-direction: column;
+  background: #f4f4f4;
+  color: #161616;
+  font-family: 'IBM Plex Sans', Arial, sans-serif;
+}
+
+.booking-modal__header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 48px 16px 16px;
+}
+
+.booking-modal__heading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.booking-modal__reference {
+  color: #525252;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.32px;
+}
+
+.booking-modal__heading h2 {
+  margin: 0;
+  color: #161616;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 28px;
+}
+
+.booking-modal__icon-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  padding: 16px;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  color: #161616;
+  cursor: pointer;
+
+  svg {
+    fill: currentColor;
+  }
+}
+
+.booking-modal__content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-top: 24px;
+}
+
+.booking-modal__inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0 16px;
+  padding-bottom: 24px;
+  box-sizing: border-box;
+}
+
+.booking-accordion {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.booking-accordion__header {
+  height: 32px;
+  border: 0;
+  padding: 0 0 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  color: #161616;
+  cursor: default;
+
+  span {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 28px;
+  }
+
+  svg {
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    fill: currentColor;
+    box-sizing: border-box;
+  }
+}
+
+.booking-accordion__divider {
+  height: 1px;
+  background: #c6c6c6;
+}
+
+.booking-modal__field-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 96px;
+}
+
+.booking-modal__field-grid--three {
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.booking-modal__field-grid--time {
+  justify-content: flex-start;
+  gap: 96px;
+}
+
+.booking-modal__field-column {
+  width: 100%;
+  max-width: 288px;
+  min-width: 256px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.booking-carbon-field {
+  width: 100%;
+  max-width: 288px;
+  min-width: 256px;
+}
+
+.booking-carbon-date-picker {
+  display: block;
+  width: 100%;
+}
+
+.booking-modal__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 48px 16px 16px;
+}
+
+.booking-modal__close,
+.booking-modal__delete {
+  height: 40px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 14px;
+  line-height: 18px;
+  letter-spacing: 0.16px;
+  cursor: pointer;
+
+  svg {
+    margin-left: auto;
+    fill: currentColor;
+  }
+}
+
+.booking-modal__close {
+  min-width: 192px;
+  border: 1px solid #4c68b1;
+  background: #ffffff;
+  color: #4c68b1;
+}
+
+.booking-modal__delete {
+  width: 240px;
+  background: #626469;
+  color: #ffffff;
+}
+
+.service-planner {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  padding: 16px;
+  gap: 0;
+  box-sizing: border-box;
+  position: relative;
+
+  &--full {
+    padding: 0 24px 16px;
+    gap: 0;
+    background: #ffffff;
+  }
+
+  &--order {
+    padding: 16px;
+    gap: 0;
+  }
+
+  &__error {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 325px;
+    z-index: 20;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px 0 16px;
+    background: #FFF1F1;
+    border-left: 3px solid #DA1E28;
+    color: #161616;
+  }
+
+  &__main,
+  app-custom-scheduler {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  app-jobs-panel {
+    display: flex;
+    flex-direction: column;
+    width: 309px;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+}
+
+:host ::ng-deep {
+  .booking-carbon-field.cds--form-item,
+  .booking-carbon-field .cds--form-item,
+  .booking-carbon-field .cds--text-input-wrapper,
+  .booking-carbon-field .cds--select,
+  .booking-carbon-field .cds--select-input,
+  .booking-carbon-field .cds--date-picker,
+  .booking-carbon-field .cds--date-picker-container,
+  .booking-carbon-field .cds--date-picker-input__wrapper,
+  .booking-carbon-field .cds--date-picker__input,
+  .booking-carbon-time-picker .cds--time-picker,
+  .booking-carbon-time-picker .cds--time-picker__input,
+  .booking-carbon-time-picker .cds--time-picker__input-field {
+    width: 100%;
+    max-width: 288px;
+  }
+
+  .booking-carbon-field.cds--form-item,
+  .booking-carbon-field .cds--form-item,
+  .booking-carbon-field .cds--text-input-wrapper,
+  .booking-carbon-field .cds--select,
+  .booking-carbon-field .cds--date-picker-container,
+  .booking-carbon-time-picker.cds--form-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: transparent;
+  }
+
+  .booking-carbon-field .cds--date-picker,
+  .booking-carbon-field .cds--date-picker-input__wrapper,
+  .booking-carbon-time-picker .cds--time-picker,
+  .booking-carbon-time-picker .cds--time-picker__input,
+  .booking-carbon-time-picker .cds--select {
+    background: transparent;
+  }
+
+  .booking-carbon-field .cds--text-input,
+  .booking-carbon-field .cds--select-input,
+  .booking-carbon-field .cds--date-picker__input,
+  .booking-carbon-time-picker .cds--time-picker__input-field {
+    height: 40px;
+    background: #ffffff;
+    color: #161616;
+    border-bottom: 1px solid #8d8d8d;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.16px;
+    line-height: 18px;
+    box-sizing: border-box;
+  }
+
+  .booking-carbon-field .cds--text-input {
+    border-bottom-color: #c6c6c6;
+  }
+
+  .booking-carbon-field .cds--text-input,
+  .booking-carbon-field .cds--select-input {
+    font-family: 'IBM Plex Sans', Arial, sans-serif;
+  }
+
+  .booking-carbon-field .cds--date-picker__input,
+  .booking-carbon-time-picker .cds--time-picker__input-field {
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.32px;
+    line-height: 20px;
+  }
+
+  .booking-carbon-field .cds--label,
+  .booking-carbon-time-picker .cds--label {
+    align-self: stretch;
+    margin: 0;
+    padding-bottom: 8px;
+    color: #525252;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    letter-spacing: 0.32px;
+  }
+
+  .booking-carbon-time-picker .cds--time-picker {
+    display: flex;
+    width: 100%;
+  }
+
+  .booking-carbon-time-picker .cds--time-picker__input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .booking-carbon-time-picker .cds--select,
+  .booking-carbon-time-picker .cds--select-input {
+    width: 85px;
+  }
+
+  .booking-carbon-time-picker .cds--select-input {
+    padding-right: 32px;
+  }
+
+  .booking-carbon-field .cds--date-picker__icon,
+  .booking-carbon-field .cds--select__arrow,
+  .booking-carbon-time-picker .cds--select__arrow {
+    fill: #161616;
+  }
+
+  .booking-carbon-date-picker.cds--date-picker,
+  .booking-carbon-date-picker .cds--date-picker,
+  .booking-carbon-date-picker .cds--date-picker--single,
+  .booking-carbon-date-picker .cds--date-picker-container,
+  .booking-carbon-date-picker .cds--date-picker-input__wrapper,
+  .booking-carbon-date-picker .cds--date-picker__input {
+    width: 288px;
+    min-width: 288px;
+    max-width: 288px;
+  }
+
+  .booking-carbon-date-picker .cds--date-picker__input {
+    padding-right: 48px;
+  }
+
+  .booking-carbon-date-picker .cds--date-picker-input__wrapper .cds--date-picker__icon:not(:last-of-type) {
+    display: none;
+  }
+
+  .scheduler__body,
+  .jobs-panel__scroll-area {
+    scrollbar-width: auto;
+
+    &::-webkit-scrollbar {
+      display: block;
+      width: 8px;
+      height: 8px;
+    }
+  }
+
+  .order-panel .cds--combo-box,
+  .order-panel .cds--list-box,
+  .order-panel .cds--search { width: 100%; }
+}

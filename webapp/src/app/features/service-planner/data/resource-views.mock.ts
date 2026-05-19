@@ -1,0 +1,87 @@
+import { ResourceFavoriteView } from '../services/planner-settings.service';
+
+export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
+  {
+    label: 'Main Workshop',
+    value: 'view-main-workshop',
+    resourceIds: [
+      'mech-mark-owen',
+      'mech-phil-parker',
+      'mech-greg-jackson',
+      'mech-jeff-goldberg',
+      'mech-kelly-hanson',
+      'advisor-ted-phillips',
+      'advisor-frank-miller',
+      'bay-pc-1',
+      'bay-pc-2',
+      'bay-pc-3',
+    ],
+    groups: [
+      { label: 'Mechanics', children: ['Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
+      { label: 'Service Advisors', children: ['Ted Phillips', 'Frank Miller'] },
+      { label: 'Bays', children: ['PC Bay 1', 'PC Bay 2', 'PC Bay 3'] },
+    ],
+  },
+  {
+    label: 'MOT / Emissions',
+    value: 'view-mot-emissions',
+    resourceIds: [
+      'mech-greg-jackson',
+      'mech-jeff-goldberg',
+      'advisor-frank-miller',
+      'bay-pc-1',
+      'bay-pc-2',
+      'bay-pc-3',
+      'device-bea-950',
+    ],
+    groups: [
+      { label: 'Mechanics', children: ['Greg Jackson', 'Jeff Goldberg'] },
+      { label: 'Service Advisors', children: ['Frank Miller'] },
+      { label: 'Bays', children: ['PC Bay 1', 'PC Bay 2', 'PC Bay 3'] },
+      { label: 'Devices', children: ['BEA 950 Emission Tester'] },
+    ],
+  },
+  {
+    label: 'Mobility',
+    value: 'view-mobility',
+    resourceIds: [
+      'advisor-ted-phillips',
+      'advisor-frank-miller',
+      'car-audi-a4-kl657og',
+      'car-audi-a3-kl643ju',
+    ],
+    groups: [
+      { label: 'Service Advisors', children: ['Ted Phillips', 'Frank Miller'] },
+      { label: 'Courtesy Car', children: ['Audi A4 KL 657 OG', 'Audi A3 KL 643 JU'] },
+    ],
+  },
+  {
+    label: 'Full Planner',
+    value: 'view-full',
+    resourceIds: [
+      'mech-mark-owen',
+      'mech-phil-parker',
+      'mech-greg-jackson',
+      'mech-jeff-goldberg',
+      'mech-kelly-hanson',
+      'advisor-ted-phillips',
+      'advisor-frank-miller',
+      'bay-pc-1',
+      'bay-pc-2',
+      'bay-pc-3',
+      'bay-lt-1',
+      'bay-pc-alignment',
+      'device-bea-950',
+      'device-eps-708',
+      'car-audi-a4-kl657og',
+      'car-audi-a3-kl643ju',
+    ],
+    groups: [
+      { label: 'Mechanics', children: ['Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
+      { label: 'Service Advisors', children: ['Ted Phillips', 'Frank Miller'] },
+      { label: 'Bays', children: ['PC Bay 1', 'PC Bay 2', 'PC Bay 3', 'LT Bay 1', 'PC Alignment'] },
+      { label: 'Devices', children: ['BEA 950 Emission Tester', 'EPS 708 Diesel Tester'] },
+      { label: 'Courtesy Car', children: ['Audi A4 KL 657 OG', 'Audi A3 KL 643 JU'] },
+    ],
+  },
+];

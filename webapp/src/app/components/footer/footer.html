@@ -1,0 +1,68 @@
+@if (subpageMode) {
+  <div class="footer footer--subpage">
+    <button class="footer__subpage-close" type="button" (click)="onCloseSubpage()">
+      <span class="footer__btn-label">Close</span>
+      <span class="footer__btn-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M8 1C4.1 1 1 4.1 1 8C1 11.9 4.1 15 8 15C11.9 15 15 11.9 15 8C15 4.1 11.9 1 8 1ZM10.7 11.5L8 8.8L5.3 11.5L4.5 10.7L7.2 8L4.5 5.3L5.3 4.5L8 7.2L10.7 4.5L11.5 5.3L8.8 8L11.5 10.7L10.7 11.5ZM2 8C2 11.3 4.7 14 8 14C11.3 14 14 11.3 14 8C14 4.7 11.3 2 8 2C4.7 2 2 4.7 2 8Z" fill="currentColor"/>
+        </svg>
+      </span>
+    </button>
+
+    @if (!hideSubpagePrimaryAction) {
+      <div class="footer__multi-action" role="group" aria-label="Save actions">
+        <button class="footer__save-close" type="button" (click)="onSaveAndCloseSubpage()">
+          Save And Close
+        </button>
+        <button class="footer__save-menu" type="button" aria-label="More save actions">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+            <path d="M8 11L3 6.00005L3.7 5.30005L8 9.60005L12.3 5.30005L13 6.00005L8 11Z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+    }
+  </div>
+} @else {
+  <div class="footer">
+
+    <!-- Pause Workflow -->
+    <button class="footer__btn footer__btn--secondary" type="button" (click)="onPause()">
+      <span class="footer__btn-label">Pause Workflow</span>
+      <span class="footer__btn-icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 5H6V11H7V5Z" fill="white"/>
+          <path d="M10 5H9V11H10V5Z" fill="white"/>
+          <path d="M8 2C9.18669 2 10.3467 2.35189 11.3334 3.01118C12.3201 3.67047 13.0892 4.60754 13.5433 5.7039C13.9974 6.80026 14.1162 8.00666 13.8847 9.17054C13.6532 10.3344 13.0818 11.4035 12.2426 12.2426C11.4035 13.0818 10.3344 13.6532 9.17054 13.8847C8.00666 14.1162 6.80026 13.9974 5.7039 13.5433C4.60755 13.0892 3.67047 12.3201 3.01119 11.3334C2.3519 10.3467 2 9.18669 2 8C2 6.4087 2.63214 4.88258 3.75736 3.75736C4.88258 2.63214 6.4087 2 8 2ZM8 1C6.61553 1 5.26216 1.41054 4.11101 2.17971C2.95987 2.94888 2.06266 4.04213 1.53285 5.32122C1.00303 6.6003 0.86441 8.00776 1.13451 9.36563C1.4046 10.7235 2.07129 11.9708 3.05026 12.9497C4.02922 13.9287 5.2765 14.5954 6.63437 14.8655C7.99224 15.1356 9.3997 14.997 10.6788 14.4672C11.9579 13.9373 13.0511 13.0401 13.8203 11.889C14.5895 10.7378 15 9.38447 15 8C15 6.14348 14.2625 4.36301 12.9497 3.05025C11.637 1.7375 9.85652 1 8 1Z" fill="white"/>
+        </svg>
+      </span>
+    </button>
+
+    <!-- Right button set -->
+    <div class="footer__btn-set">
+
+      <!-- Previous Task -->
+      <button class="footer__btn footer__btn--secondary" type="button" (click)="onPrevious()">
+        <span class="footer__btn-label">Previous Task</span>
+        <span class="footer__btn-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 4L8.715 4.6965L5.925 7.5H12V8.5H5.925L8.715 11.2865L8 12L4 8L8 4Z" fill="white"/>
+            <path d="M8 15C6.61553 15 5.26216 14.5895 4.11101 13.8203C2.95987 13.0511 2.06266 11.9579 1.53285 10.6788C1.00303 9.3997 0.86441 7.99224 1.13451 6.63437C1.4046 5.2765 2.07129 4.02922 3.05026 3.05026C4.02922 2.07129 5.2765 1.4046 6.63437 1.13451C7.99224 0.86441 9.3997 1.00303 10.6788 1.53285C11.9579 2.06266 13.0511 2.95987 13.8203 4.11101C14.5895 5.26216 15 6.61553 15 8C14.9979 9.85588 14.2597 11.6351 12.9474 12.9474C11.6351 14.2597 9.85588 14.9979 8 15ZM8 2C6.81332 2 5.65328 2.3519 4.66658 3.01119C3.67989 3.67047 2.91085 4.60755 2.45673 5.7039C2.0026 6.80026 1.88378 8.00666 2.11529 9.17054C2.3468 10.3344 2.91825 11.4035 3.75736 12.2426C4.59648 13.0818 5.66558 13.6532 6.82946 13.8847C7.99335 14.1162 9.19975 13.9974 10.2961 13.5433C11.3925 13.0892 12.3295 12.3201 12.9888 11.3334C13.6481 10.3467 14 9.18669 14 8C13.9982 6.40926 13.3655 4.88419 12.2406 3.75936C11.1158 2.63454 9.59075 2.00182 8 2Z" fill="white"/>
+          </svg>
+        </span>
+      </button>
+
+      <!-- Next Task -->
+      <button class="footer__btn footer__btn--primary" type="button" (click)="onNext()">
+        <span class="footer__btn-label">Next Task</span>
+        <span class="footer__btn-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M8 4L7.285 4.6965L10.075 7.5H4V8.5H10.075L7.285 11.2865L8 12L12 8L8 4ZM1 8C1 11.866 4.13401 15 8 15C11.8642 14.9956 14.9956 11.8642 15 8C15 4.13401 11.866 1 8 1C4.13401 1 1 4.13401 1 8ZM2 8C2 4.68629 4.68629 2 8 2C11.3121 2.00377 13.9962 4.68786 14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8Z" fill="white"/>
+          </svg>
+        </span>
+      </button>
+
+    </div>
+  </div>
+}

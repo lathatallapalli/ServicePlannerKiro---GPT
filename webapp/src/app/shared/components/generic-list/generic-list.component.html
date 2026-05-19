@@ -1,0 +1,201 @@
+<div class="generic-list-template-b" [class.generic-list-template-b--fit-content]="fitContent">
+  <div class="generic-list-toolbar">
+    <form class="generic-list-search" role="search" (submit)="$event.preventDefault(); onSearch()">
+      <span class="generic-list-search__icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" focusable="false">
+          <path d="M14.5001 13.7911L10.7241 10.0151C11.6314 8.92575 12.0839 7.52855 11.9873 6.11412C11.8908 4.6997 11.2526 3.37695 10.2057 2.42105C9.15867 1.46515 7.78347 0.949684 6.36612 0.981892C4.94877 1.0141 3.5984 1.5915 2.59593 2.59398C1.59345 3.59645 1.01605 4.94682 0.983845 6.36417C0.951637 7.78152 1.4671 9.15672 2.423 10.2037C3.37891 11.2507 4.70165 11.8888 6.11608 11.9854C7.5305 12.0819 8.9277 11.6295 10.017 10.7221L13.7931 14.4982L14.5001 13.7911ZM2.00012 6.49817C2.00012 4.01289 4.01484 1.99817 6.50012 1.99817C8.98541 1.99817 11.0001 4.01289 11.0001 6.49817C11.0001 8.98345 8.98541 10.9982 6.50012 10.9982C4.01599 10.9954 2.00288 8.98231 2.00012 6.49817Z" />
+        </svg>
+      </span>
+      <input class="generic-list-search__input" type="search" [placeholder]="searchPlaceholder" [(ngModel)]="searchTerm" name="genericListSearch" />
+      <button class="generic-list-button generic-list-button--secondary generic-list-search__button" type="submit">
+        <span>{{ searchButtonLabel }}</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+          <path d="M14.5001 13.7911L10.7241 10.0151C12.609 7.75213 12.3806 4.40684 10.2057 2.42106C8.03067 0.43527 4.67847 0.511446 2.59593 2.59398C0.513399 4.67652 0.437223 8.02872 2.42301 10.2037C4.4088 12.3787 7.75408 12.6071 10.017 10.7221L13.7931 14.4982L14.5001 13.7911ZM2.00012 6.49817C2.00012 4.01289 4.01484 1.99817 6.50012 1.99817C8.98541 1.99817 11.0001 4.01289 11.0001 6.49817C11.0001 8.98345 8.98541 10.9982 6.50012 10.9982C4.01599 10.9954 2.00288 8.98231 2.00012 6.49817Z" />
+        </svg>
+      </button>
+    </form>
+
+    <div class="generic-list-actions" aria-label="List actions">
+      <div class="generic-list-actions__icons">
+        @for (action of toolbarActions; track trackAction($index, action)) {
+          <button class="generic-list-icon-button" type="button" [disabled]="action.disabled" [attr.aria-label]="action.label" (click)="onToolbarAction(action)">
+            <svg width="24" height="24" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              @switch (action.icon) {
+                @case ('settings-view') {
+                  <path d="M17.25 19.5C18.0784 19.5 18.75 18.8284 18.75 18C18.75 17.1716 18.0784 16.5 17.25 16.5C16.4216 16.5 15.75 17.1716 15.75 18C15.75 18.8284 16.4216 19.5 17.25 19.5Z" />
+                  <path d="M23.0827 17.6089C22.6192 16.4284 21.8195 15.4098 20.7827 14.6794C19.7459 13.9491 18.5176 13.539 17.25 13.5C15.9824 13.539 14.754 13.9491 13.7173 14.6794C12.6805 15.4098 11.8808 16.4284 11.4173 17.6089L11.25 18L11.4173 18.3911C11.8808 19.5716 12.6805 20.5902 13.7173 21.3206C14.754 22.0509 15.9824 22.461 17.25 22.5C18.5176 22.461 19.7459 22.0509 20.7827 21.3206C21.8195 20.5902 22.6192 19.5716 23.0827 18.3911L23.25 18L23.0827 17.6089ZM17.25 21C16.6567 21 16.0766 20.8241 15.5833 20.4944C15.0899 20.1648 14.7054 19.6962 14.4784 19.1481C14.2513 18.5999 14.1919 17.9967 14.3076 17.4147C14.4234 16.8328 14.7091 16.2982 15.1287 15.8787C15.5482 15.4591 16.0828 15.1734 16.6647 15.0576C17.2467 14.9419 17.8499 15.0013 18.398 15.2284C18.9462 15.4554 19.4148 15.8399 19.7444 16.3333C20.074 16.8266 20.25 17.4067 20.25 18C20.2491 18.7954 19.9327 19.5579 19.3703 20.1203C18.8079 20.6828 18.0454 20.9991 17.25 21Z" />
+                  <path d="M9.299 15.6C8.685 15.14 8.2 14.53 7.888 13.829C7.576 13.129 7.449 12.36 7.518 11.596C7.587 10.832 7.85 10.098 8.282 9.465C8.714 8.831 9.301 8.319 9.987 7.976C10.673 7.633 11.436 7.471 12.202 7.505C12.968 7.54 13.713 7.769 14.365 8.173C15.018 8.576 15.556 9.139 15.93 9.809C16.303 10.479 16.5 11.233 16.5 12H15C15 11.489 14.869 10.986 14.62 10.539C14.371 10.093 14.012 9.717 13.577 9.448C13.142 9.179 12.645 9.026 12.135 9.003C11.624 8.98 11.115 9.088 10.658 9.317C10.201 9.545 9.809 9.887 9.521 10.31C9.233 10.732 9.058 11.221 9.012 11.731C8.966 12.24 9.051 12.753 9.259 13.22C9.467 13.687 9.791 14.093 10.2 14.4L9.299 15.6Z" />
+                  <path d="M21.978 8.283L20.208 5.217C20.035 4.917 19.763 4.685 19.438 4.563C19.114 4.441 18.757 4.435 18.428 4.546L16.603 5.164C16.288 4.952 15.959 4.762 15.619 4.595L15.241 2.706C15.173 2.366 14.989 2.06 14.721 1.84C14.453 1.62 14.117 1.5 13.77 1.5H10.23C9.883 1.5 9.547 1.62 9.279 1.84C9.011 2.06 8.827 2.366 8.759 2.706L8.381 4.595C8.037 4.76 7.704 4.949 7.386 5.16L5.571 4.546C5.243 4.435 4.886 4.441 4.561 4.563C4.237 4.685 3.965 4.917 3.792 5.217L2.021 8.283C1.848 8.583 1.784 8.934 1.84 9.277C1.897 9.619 2.07 9.931 2.33 10.16L3.778 11.432C3.765 11.621 3.75 11.808 3.75 12C3.75 12.193 3.757 12.385 3.771 12.574L2.33 13.84C2.07 14.069 1.897 14.381 1.84 14.723C1.784 15.066 1.848 15.417 2.021 15.717L3.792 18.783C3.965 19.083 4.237 19.315 4.561 19.437C4.886 19.559 5.243 19.565 5.571 19.454L7.397 18.836C7.711 19.048 8.04 19.238 8.381 19.405L8.759 21.294C8.827 21.634 9.01 21.94 9.279 22.16C9.547 22.38 9.883 22.5 10.23 22.5H11.25V21H10.23L9.697 18.337C8.961 18.063 8.277 17.665 7.676 17.158L5.091 18.033L3.321 14.967L5.364 13.171C5.224 12.395 5.223 11.601 5.359 10.825L3.32 9.033L5.091 5.967L7.661 6.836C8.266 6.33 8.955 5.933 9.697 5.663L10.23 3H13.77L14.302 5.663C15.039 5.937 15.722 6.335 16.323 6.842L18.908 5.967L20.678 9.033L18.58 10.872L19.569 12L21.669 10.16C21.929 9.931 22.103 9.619 22.159 9.277C22.215 8.934 22.151 8.583 21.978 8.283Z" />
+                }
+                @case ('filter-remove') {
+                  <path d="M22.5 8.5605L21.4395 7.5L18 10.9395L14.5605 7.5L13.5 8.5605L16.9395 12L13.5 15.4387L14.5613 16.5L18 13.0605L21.4402 16.5L22.5 15.4402L19.0605 12L22.5 8.5605Z" />
+                  <path d="M3 3C2.60218 3 2.22064 3.15804 1.93934 3.43934C1.65804 3.72064 1.5 4.10218 1.5 4.5V6.87818C1.49998 7.0752 1.53878 7.2703 1.61418 7.45233C1.68958 7.63435 1.8001 7.79974 1.93943 7.93905L7.5 13.5V19.5C7.5 19.8978 7.65804 20.2794 7.93934 20.5607C8.22064 20.842 8.60218 21 9 21H12C12.3978 21 12.7794 20.842 13.0607 20.5607C13.342 20.2794 13.5 19.8978 13.5 19.5V18H12V19.5H9V12.8782L3 6.87818V4.5H18V6H19.5V4.5C19.5 4.10218 19.342 3.72064 19.0607 3.43934C18.7794 3.15804 18.3978 3 18 3H3Z" />
+                }
+                @case ('edit') {
+                  <path d="M22.5 19.5H1.5V21H22.5V19.5Z" />
+                  <path d="M19.05 6.75C19.65 6.15 19.65 5.25 19.05 4.65L16.35 1.95C15.75 1.35 14.85 1.35 14.25 1.95L3 13.2V18H7.8L19.05 6.75ZM15.3 3L18 5.7L15.75 7.95L13.05 5.25L15.3 3ZM4.5 16.5V13.8L12 6.3L14.7 9L7.2 16.5H4.5Z" />
+                }
+                @case ('trash-can') {
+                  <path d="M10.5 9H9V18H10.5V9Z" />
+                  <path d="M15 9H13.5V18H15V9Z" />
+                  <path d="M3 4.5V6H4.5V21C4.5 21.3978 4.65804 21.7794 4.93934 22.0607C5.22064 22.342 5.60218 22.5 6 22.5H18C18.3978 22.5 18.7794 22.342 19.0607 22.0607C19.342 21.7794 19.5 21.3978 19.5 21V6H21V4.5H3ZM6 21V6H18V21H6Z" />
+                  <path d="M15 1.5H9V3H15V1.5Z" />
+                }
+                @case ('save') {
+                  <path d="M20.7825 6.96751L17.0325 3.21751C16.9624 3.148 16.8793 3.09301 16.7879 3.05568C16.6966 3.01836 16.5987 2.99944 16.5 3.00001H4.5C4.10218 3.00001 3.72064 3.15805 3.43934 3.43935C3.15804 3.72066 3 4.10219 3 4.50001V19.5C3 19.8978 3.15804 20.2794 3.43934 20.5607C3.72064 20.842 4.10218 21 4.5 21H19.5C19.8978 21 20.2794 20.842 20.5607 20.5607C20.842 20.2794 21 19.8978 21 19.5V7.50001C21.0006 7.40131 20.9817 7.30346 20.9443 7.21208C20.907 7.12071 20.852 7.03759 20.7825 6.96751ZM9 4.50001H15V7.50001H9V4.50001ZM15 19.5H9V13.5H15V19.5ZM16.5 19.5V13.5C16.5 13.1022 16.342 12.7207 16.0607 12.4394C15.7794 12.158 15.3978 12 15 12H9C8.60218 12 8.22064 12.158 7.93934 12.4394C7.65804 12.7207 7.5 13.1022 7.5 13.5V19.5H4.5V4.50001H7.5V7.50001C7.5 7.89784 7.65804 8.27937 7.93934 8.56067C8.22064 8.84198 8.60218 9.00001 9 9.00001H15C15.3978 9.00001 15.7794 8.84198 16.0607 8.56067C16.342 8.27937 16.5 7.89784 16.5 7.50001V4.80751L19.5 7.80751V19.5H16.5Z" />
+                }
+              }
+            </svg>
+          </button>
+        }
+      </div>
+      @if (showAddButton) {
+        <button class="generic-list-button generic-list-button--primary" type="button" (click)="onAdd()">
+          <span>{{ addButtonLabel }}</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+            <path d="M8.5 7.5V4H7.5V7.5H4V8.5H7.5V12H8.5V8.5H12V7.5H8.5Z" />
+          </svg>
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="generic-list-meta">
+    <ng-content select="[generic-list-meta]"></ng-content>
+  </div>
+
+  <div class="generic-list-table" role="table">
+    <div class="generic-list-row generic-list-row--header" role="row">
+      @if (selectable) {
+        <div class="generic-list-selection-cell" role="columnheader">
+          <button class="generic-list-checkbox" type="button" [class.generic-list-checkbox--checked]="allVisibleSelected" [attr.aria-pressed]="allVisibleSelected" aria-label="Select all rows" (click)="toggleAllVisible()">
+            @if (allVisibleSelected) {
+              <span class="generic-list-checkbox__icon" data-svg-wrapper data-layer="Checkbox--checked--filled" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                  <rect width="16" height="16" />
+                  <path d="M13 2H3C2.73478 2 2.48043 2.10536 2.29289 2.29289C2.10536 2.48043 2 2.73478 2 3V13C2 13.2652 2.10536 13.5196 2.29289 13.7071C2.48043 13.8946 2.73478 14 3 14H13C13.2652 14 13.5196 13.8946 13.7071 13.7071C13.8946 13.5196 14 13.2652 14 13V3C14 2.73478 13.8946 2.48043 13.7071 2.29289C13.5196 2.10536 13.2652 2 13 2ZM7 10.75L4.5 8.27135L5.2954 7.5L7 9.1728L10.7044 5.5L11.5002 6.2886L7 10.75Z" />
+                </svg>
+              </span>
+            } @else {
+              <span class="generic-list-checkbox__icon" data-svg-wrapper data-layer="Checkbox" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                  <rect width="16" height="16" />
+                  <path d="M13 2H3C2.73478 2 2.48043 2.10536 2.29289 2.29289C2.10536 2.48043 2 2.73478 2 3V13C2 13.2652 2.10536 13.5196 2.29289 13.7071C2.48043 13.8946 2.73478 14 3 14H13C13.2652 14 13.5196 13.8946 13.7071 13.7071C13.8946 13.5196 14 13.2652 14 13V3C14 2.73478 13.8946 2.48043 13.7071 2.29289C13.5196 2.10536 13.2652 2 13 2ZM3 13V3H13V13H3Z" />
+                </svg>
+              </span>
+            }
+          </button>
+        </div>
+      }
+
+      @for (column of columns; track trackColumn($index, column)) {
+        <button
+          class="generic-list-header-cell generic-list-header-cell--button"
+          type="button"
+          role="columnheader"
+          data-layer="_Generic list header cell"
+          data-content-alignment="Left-aligned"
+          data-position="Middle"
+          data-state="Enabled"
+          data-table-view="Standard"
+          [attr.data-filterable]="column.filterable ? 'true' : 'false'"
+          [attr.data-sortable]="column.sortable ? 'true' : 'false'"
+          [style.width]="column.width"
+          [style.min-width]="column.minWidth"
+          [style.max-width]="column.maxWidth"
+          [disabled]="!column.sortable"
+          (click)="toggleSort(column)"
+        >
+          <span class="generic-list-header-cell__cell" data-layer="Cell">
+            <span class="generic-list-header-cell__text" data-layer="Text">{{ column.label }}</span>
+            @if (column.sortable) {
+              <span class="generic-list-header-cell__icon-margin" data-layer="Icon margin" aria-hidden="true">
+                <svg class="generic-list-header-cell__sort-icon" width="16" height="16" viewBox="0 0 16 16" focusable="false">
+                  <path d="M13.8 10.3L12 12.1V2H11V12.1L9.2 10.3L8.5 11L11.5 14L14.5 11L13.8 10.3Z" />
+                  <path d="M4.5 2L1.5 5L2.2 5.7L4 3.9V14H5V3.9L6.8 5.7L7.5 5L4.5 2Z" />
+                </svg>
+              </span>
+            }
+            @if (column.filterable) {
+              <span class="generic-list-header-cell__icon-shell" data-layer="Icon shell" data-size="16" aria-hidden="true">
+                <span class="generic-list-header-cell__icon" data-layer="Icon">
+                  <svg class="generic-list-header-cell__filter-icon" width="16" height="16" viewBox="0 0 16 16" focusable="false">
+                    <rect width="16" height="16" />
+                    <path d="M9 14H7C6.44772 14 6 13.5523 6 13V9.205L2.295 5.5C2.10721 5.31332 2.00112 5.05979 2 4.795V3C2 2.44772 2.44772 2 3 2H13C13.5523 2 14 2.44772 14 3V4.795C13.9989 5.05979 13.8928 5.31332 13.705 5.5L10 9.205V13C10 13.5523 9.55228 14 9 14ZM3 3V4.795L7 8.795V13H9V8.795L13 4.795V3H3Z" />
+                  </svg>
+                </span>
+              </span>
+            }
+          </span>
+        </button>
+      }
+
+      @if (rowActions.length) {
+        <div class="generic-list-action-header" role="columnheader"></div>
+      }
+    </div>
+
+    @for (row of filteredRows; track trackRow($index, row)) {
+      <div class="generic-list-row" role="row" [class.generic-list-row--selected]="isSelected(row)">
+        @if (selectable) {
+          <div class="generic-list-selection-cell" role="cell">
+            <button class="generic-list-checkbox" type="button" [class.generic-list-checkbox--checked]="isSelected(row)" [attr.aria-pressed]="isSelected(row)" [attr.aria-label]="isSelected(row) ? 'Deselect row' : 'Select row'" (click)="toggleRow(row)">
+              @if (isSelected(row)) {
+                <span class="generic-list-checkbox__icon" data-svg-wrapper data-layer="Checkbox--checked--filled" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                    <rect width="16" height="16" />
+                    <path d="M13 2H3C2.73478 2 2.48043 2.10536 2.29289 2.29289C2.10536 2.48043 2 2.73478 2 3V13C2 13.2652 2.10536 13.5196 2.29289 13.7071C2.48043 13.8946 2.73478 14 3 14H13C13.2652 14 13.5196 13.8946 13.7071 13.7071C13.8946 13.5196 14 13.2652 14 13V3C14 2.73478 13.8946 2.48043 13.7071 2.29289C13.5196 2.10536 13.2652 2 13 2ZM7 10.75L4.5 8.27135L5.2954 7.5L7 9.1728L10.7044 5.5L11.5002 6.2886L7 10.75Z" />
+                  </svg>
+                </span>
+              } @else {
+                <span class="generic-list-checkbox__icon" data-svg-wrapper data-layer="Checkbox" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                    <rect width="16" height="16" />
+                    <path d="M13 2H3C2.73478 2 2.48043 2.10536 2.29289 2.29289C2.10536 2.48043 2 2.73478 2 3V13C2 13.2652 2.10536 13.5196 2.29289 13.7071C2.48043 13.8946 2.73478 14 3 14H13C13.2652 14 13.5196 13.8946 13.7071 13.7071C13.8946 13.5196 14 13.2652 14 13V3C14 2.73478 13.8946 2.48043 13.7071 2.29289C13.5196 2.10536 13.2652 2 13 2ZM3 13V3H13V13H3Z" />
+                  </svg>
+                </span>
+              }
+            </button>
+          </div>
+        }
+
+        @for (column of columns; track trackColumn($index, column)) {
+          <div class="generic-list-data-cell" role="cell" data-layer="Generic list data cell" [style.width]="column.width" [style.min-width]="column.minWidth" [style.max-width]="column.maxWidth">
+            <span class="generic-list-data-cell__cell" data-layer="Cell">
+              <span class="generic-list-data-cell__text" data-layer="Text">{{ getCellValue(row, column) }}</span>
+            </span>
+          </div>
+        }
+
+        @if (rowActions.length) {
+          <div class="generic-list-action-cell" role="cell">
+            @for (action of rowActions; track trackAction($index, action)) {
+              <button class="generic-list-row-action" type="button" [disabled]="action.disabled" [attr.aria-label]="action.label" (click)="onRowAction(action, row)">
+                @switch (action.icon) {
+                  @case ('play') {
+                    <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                      <path d="M3.5 14C3.36739 14 3.24021 13.9474 3.14645 13.8536C3.05268 13.7598 3 13.6326 3 13.5V2.50004C2.99999 2.41315 3.02263 2.32775 3.06568 2.25228C3.10873 2.1768 3.17071 2.11384 3.2455 2.06962C3.32029 2.02539 3.40532 2.00142 3.4922 2.00006C3.57908 1.99871 3.66481 2.02001 3.74095 2.06189L13.7409 7.56189C13.8194 7.60503 13.8848 7.66845 13.9304 7.74552C13.976 7.82259 14 7.91048 14 8.00001C14 8.08955 13.976 8.17744 13.9304 8.25451C13.8848 8.33158 13.8194 8.39499 13.7409 8.43814L3.74095 13.9381C3.66713 13.9787 3.58425 14 3.5 14ZM4 3.34549V12.6544L12.4624 8.00004L4 3.34549Z" />
+                    </svg>
+                  }
+                  @case ('launch') {
+                    <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                      <path d="M13 14H3C2.44802 13.9993 2.00074 13.552 2 13V3C2.00074 2.44802 2.44802 2.00074 3 2H8V3H3V13H13V8H14V13C13.9993 13.552 13.552 13.9993 13 14ZM10 1V2H13.293L9 6.293L9.707 7L14 2.707V6H15V1H10Z" />
+                    </svg>
+                  }
+                  @default {
+                    <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                      <path d="M13 14H3C2.44802 13.9993 2.00074 13.552 2 13V3C2.00074 2.44802 2.44802 2.00074 3 2H8V3H3V13H13V8H14V13C13.9993 13.552 13.552 13.9993 13 14ZM10 1V2H13.293L9 6.293L9.707 7L14 2.707V6H15V1H10Z" />
+                    </svg>
+                  }
+                }
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+  @if (!filteredRows.length) {
+    <div class="generic-list-empty">No records found.</div>
+  }
+</div>

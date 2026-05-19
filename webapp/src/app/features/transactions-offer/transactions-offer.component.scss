@@ -1,0 +1,111 @@
+﻿:host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  background: #ffffff;
+  color: #161616;
+  font-family: 'IBM Plex Sans', Arial, sans-serif;
+}
+
+.transactions-offer {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 70px 36px 0;
+  overflow: hidden;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+
+  h1 {
+    margin: 0 0 38px;
+    color: #000000;
+    font-size: 34px;
+    font-weight: 400;
+    line-height: 42px;
+    flex: 0 0 auto;
+  }
+
+  app-generic-list {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+  }
+
+  ::ng-deep .generic-list-template-b {
+    gap: 32px;
+    padding-bottom: 0;
+  }
+
+  ::ng-deep .generic-list-toolbar {
+    display: grid;
+    grid-template-columns: minmax(560px, 1088px) max-content;
+    gap: 32px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  ::ng-deep .generic-list-search {
+    width: 100%;
+    max-width: none;
+  }
+
+  ::ng-deep .generic-list-actions {
+    justify-self: end;
+  }
+
+  ::ng-deep .generic-list-actions__icons {
+    gap: 24px;
+  }
+
+  ::ng-deep .generic-list-icon-button {
+    color: #393939;
+  }
+
+  ::ng-deep .generic-list-table {
+    overflow: auto;
+    padding-bottom: 8px;
+  }
+
+  ::ng-deep .generic-list-row {
+    width: fit-content;
+    min-width: 100%;
+  }
+
+  ::ng-deep .generic-list-row--header {
+    margin-bottom: 14px;
+  }
+
+  ::ng-deep .generic-list-header-cell,
+  ::ng-deep .generic-list-action-header {
+    background: #ffffff;
+  }
+
+  ::ng-deep .generic-list-data-cell,
+  ::ng-deep .generic-list-action-cell {
+    background: #f4f4f4;
+  }
+
+  ::ng-deep .generic-list-action-cell {
+    flex: 0 0 96px;
+    width: 96px;
+    gap: 10px;
+    justify-content: center;
+    padding: 8px 16px;
+  }
+
+  ::ng-deep .generic-list-action-header {
+    flex: 0 0 96px;
+    width: 96px;
+  }
+
+  ::ng-deep .generic-list-row-action {
+    width: 32px;
+    height: 32px;
+    background: #626469;
+    color: #ffffff;
+  }
+}

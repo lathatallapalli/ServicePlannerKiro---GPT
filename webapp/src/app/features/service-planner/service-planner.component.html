@@ -1,0 +1,346 @@
+<div class="service-planner" style="display:flex;width:100%;min-width:0;min-height:640px;height:100%;overflow:hidden;box-sizing:border-box;background:#fff" [class.service-planner--full]="isFullPlanner()" [class.service-planner--order]="!isFullPlanner()">
+  @if (schedulingError) {
+    <div class="service-planner__error" role="alert">
+      <span>{{ schedulingError }}</span>
+      <button type="button" aria-label="Close error" (click)="clearSchedulingError()" style="margin-left:auto;width:32px;height:32px;border:0;background:transparent;color:inherit;display:flex;align-items:center;justify-content:center;cursor:pointer">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M12 4.7 11.3 4 8 7.3 4.7 4 4 4.7 7.3 8 4 11.3l.7.7L8 8.7l3.3 3.3.7-.7L8.7 8 12 4.7Z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  }
+
+  @if (!isPlannerReady) {
+    <div style="position:absolute;inset:16px;z-index:1;display:flex;align-items:center;justify-content:center;background:#fff;color:#525252;font-size:14px">
+      Loading service planner...
+    </div>
+  }
+
+  <main class="service-planner__main" style="display:flex;flex:1 1 auto;min-width:0;min-height:0;height:100%;overflow:hidden">
+  <app-custom-scheduler
+    style="display:flex;flex:1 1 auto;min-width:0;min-height:0;height:100%;overflow:hidden"
+    [resources]="visibleSchedulerResources"
+    [events]="events"
+    [groups]="groups"
+    [selectedResourceIds]="selectedResourceIds"
+    [viewStart]="viewStart"
+    [viewEnd]="viewEnd"
+    [slotDurationMinutes]="slotDurationMinutes"
+    [unavailability]="unavailability"
+    [showOrderTiles]="showSchedulerBookingDetails"
+    [preserveRowHeightOnAvailability]="isFullPlanner()"
+    [detailedEventIds]="plannedBookingEventIds"
+    [detailedOrderIds]="detailedOrderIds"
+    [resourceViews]="resourceViews"
+    [selectedResourceView]="selectedResourceView"
+    [rightPaneOpen]="!isFullPlanner() || isOrderPanelOpen"
+    (eventMoved)="onEventMoved($event)"
+    (eventResized)="onEventResized($event)"
+    (eventClicked)="onEventClicked($event)"
+    (eventDropped)="onEventDropped($event)"
+    (resourceSelectionChange)="onResourceSelectionChange($event)"
+    (resourceViewChange)="onResourceViewChange($event)"
+    (resourceViewListRequested)="openResourceViewList($event)"
+    (resourceViewAddRequested)="addResourceView()"
+    (rightPaneToggle)="toggleOrderPanel()"
+  />
+  </main>
+
+  @if (!isFullPlanner() || isOrderPanelOpen) {
+    <aside class="order-panel" aria-label="Orders panel" style="width:342px;height:100%;padding-left:32px;padding-top:0;display:inline-flex;flex-direction:column;gap:16px;overflow:hidden;box-sizing:border-box;flex:0 0 342px">
+      <div class="booking-details-toggle" style="align-self:stretch;background:#fff;padding:0;display:inline-flex;flex-direction:column;align-items:flex-start;gap:8px">
+        <div style="color:var(--Text-text-secondary,#525252);font-size:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:16px;letter-spacing:.32px">Booking details</div>
+        <div style="display:inline-flex;align-items:flex-start;gap:8px">
+          <button type="button" role="switch" [attr.aria-checked]="showBookingDetails" aria-label="Booking details" (click)="toggleBookingDetails()" [style.background]="showBookingDetails ? '#63A375' : 'var(--Icon-icon-on-color-disabled,#8D8D8D)'" [style.justify-content]="showBookingDetails ? 'flex-end' : 'flex-start'" style="width:48px;padding:2px;border:0;overflow:hidden;border-radius:12px;display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+            <span aria-hidden="true" style="width:18px;height:18px;border-radius:9px;background:var(--Icon-icon-on-color,white);display:block"></span>
+          </button>
+          <div style="padding-top:3px;padding-bottom:3px;color:var(--Text-text-primary,#161616);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px">{{ showBookingDetails ? 'Details visible' : 'Availability only' }}</div>
+        </div>
+      </div>
+      <div class="order-panel__search" style="align-self:stretch;background:var(--Field-field-01,#F4F4F4);border-bottom:1px solid var(--Border-border-strong-01,#8D8D8D);display:inline-flex;align-items:center">
+        <span style="padding:8px;display:flex;align-items:center;color:var(--Icon-icon-secondary,#525252)">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.795 10.724 10.019A5.51 5.51 0 1 0 10.017 10.726L13.793 14.5021 14.5 13.795ZM2 6.50208A4.5 4.5 0 1 1 6.5 11.0021 4.505 4.505 0 0 1 2 6.50208Z" fill="currentColor"/></svg>
+        </span>
+        <input type="search" aria-label="Search orders" placeholder="Search orders" [value]="orderPanelSearch" (input)="onOrderPanelSearch($any($event.target).value)" style="flex:1 1 0;min-width:0;height:32px;border:0;background:transparent;color:#161616;font:400 14px/18px 'IBM Plex Sans',sans-serif;letter-spacing:.16px;outline:none" />
+        <button type="button" aria-label="Search" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:var(--Icon-icon-on-color,white);display:flex;align-items:center;justify-content:center;padding:8px">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.795 10.724 10.019A5.51 5.51 0 1 0 10.017 10.726L13.793 14.5021 14.5 13.795ZM2 6.50208A4.5 4.5 0 1 1 6.5 11.0021 4.505 4.505 0 0 1 2 6.50208Z" fill="currentColor"/></svg>
+        </button>
+      </div>
+
+      <section class="order-panel__accordion" style="align-self:stretch;display:flex;flex-direction:column;gap:4px;min-height:0;overflow:hidden">
+        <header class="order-panel__header" style="align-self:stretch;height:42px;display:inline-flex;justify-content:space-between;align-items:flex-end">
+          <div style="padding-left:6px;padding-bottom:4px;display:flex;align-items:center;gap:2px">
+            <h2 style="margin:0;color:var(--Text-text-primary,#161616);font-size:20px;font-weight:400;line-height:28px">Orders</h2>
+          </div>
+        </header>
+        <div class="order-panel__divider" style="align-self:stretch;height:1px;background:var(--Border-border-subtle-01,#C6C6C6)"></div>
+        <div class="order-panel__list" style="min-height:0;overflow:auto;display:flex;flex-direction:column;gap:16px;padding-top:12px;padding-bottom:24px">
+          @for (order of filteredPanelOrders; track order.id) {
+            <article class="order-panel__order-card" draggable="true" (dragstart)="onOrderDragStart($event, order)" style="width:310px;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab">
+              <div style="align-self:stretch;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+                <div style="align-self:stretch;display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                  <strong style="min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getOrderLabel(order) }}</strong>
+                  <span [style.background]="isOrderFullyScheduled(order) ? '#FFE8BF' : 'white'" [style.color]="isOrderFullyScheduled(order) ? '#D38700' : '#161616'" [style.outline]="isOrderFullyScheduled(order) ? '0' : '1px solid #000'" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ isOrderFullyScheduled(order) ? 'Scheduled' : (getOrderFru(order) + ' FRU') }}</span>
+                </div>
+                <div style="align-self:stretch;padding-right:128px;position:relative;display:flex;flex-direction:column;gap:2px">
+                  <span style="color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ order.vehicle?.licensePlate ?? 'No vehicle' }}</span>
+                  <span style="color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ order.customer?.name ?? 'Unknown customer' }}</span>
+                  <span style="position:absolute;left:138px;top:3px;display:inline-flex;justify-content:flex-end;align-items:center;gap:4px">
+                    <button type="button" aria-label="Open order" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 14H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h5v1H3v10h10V8h1v5a1 1 0 0 1-1 1Z" fill="currentColor"/><path d="M10 1v1h3.293L9 6.293 9.707 7 14 2.707V6h1V1h-5Z" fill="currentColor"/></svg></button>
+                    <button type="button" aria-label="Delete order" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 4h-1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4H2V3h12v1ZM4 14h8V4H4v10ZM7 12H6V6h1v6Zm3 0H9V6h1v6Zm0-10H6V1h4v1Z" fill="currentColor"/></svg></button>
+                    <button type="button" aria-label="Undo" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5H3.907L5.701 3.207 5 2.5l-3 3 3 3 .701-.707L3.909 6H10a3 3 0 1 1 0 6H6v1h4a4 4 0 0 0 0-8Z" fill="currentColor"/></svg></button>
+                    <button type="button" aria-label="Collapse" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 5 13 10l-.7.7L8 6.4l-4.3 4.3L3 10l5-5Z" fill="currentColor"/></svg></button>
+                  </span>
+                </div>
+              </div>
+              <div style="align-self:stretch;padding:0 16px 16px;display:flex;flex-direction:column;gap:2px">
+                <div style="align-self:stretch;background:var(--Layer-layer-01,#F4F4F4);display:inline-flex;justify-content:space-between;align-items:center">
+                  <strong style="font-size:16px;font-weight:600;line-height:22px;color:#161616">Jobs</strong>
+                </div>
+                @for (job of order.jobs ?? []; track job.id) {
+                  <div draggable="true" (dragstart)="onJobDragStart($event, job, order)" style="align-self:stretch;background:var(--Layer-layer-02,white);display:flex;flex-direction:column;gap:8px;padding:12px;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);cursor:grab">
+                    <div style="display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                      <strong style="min-width:0;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ job.title }}</strong>
+                      <span [style.background]="isJobScheduled(job) ? '#FFE8BF' : 'white'" [style.color]="isJobScheduled(job) ? '#D38700' : '#161616'" [style.outline]="isJobScheduled(job) ? '0' : '1px solid #000'" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ isJobScheduled(job) ? 'Scheduled' : (getJobFru(job) + ' FRU') }}</span>
+                    </div>
+                    @for (requirement of getJobRequirements(job); track requirement.label) {
+                      @if (getJobRequirementBooking(job, requirement); as booking) {
+                        <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
+                          <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ booking.resourceName }}</span>
+                          <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                          @if (canUndoBooking(booking)) {
+                            <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
+                            </button>
+                          }
+                        </div>
+                      } @else {
+                        <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
+                          <span style="flex:1 1 0;color:var(--Text-text-helper,#6F6F6F);font-size:14px;line-height:18px;letter-spacing:.16px">{{ requirement.label }}</span>
+                          <span style="text-align:right;color:var(--Color-Secondary-70,#919396);font-size:12px;line-height:16px;letter-spacing:.32px">PENDING</span>
+                        </div>
+                      }
+                    }
+                  </div>
+                }
+                <div style="align-self:stretch;padding-top:12px;background:var(--Layer-layer-01,#F4F4F4);display:inline-flex;justify-content:space-between;align-items:center">
+                  <strong style="font-size:16px;font-weight:600;line-height:22px;color:#161616">Activity</strong>
+                </div>
+                @for (activity of getActivitiesForOrder(order); track activity.id) {
+                  <div style="align-self:stretch;background:var(--Layer-layer-02,white);padding:12px 16px;display:flex;flex-direction:column;gap:4px">
+                    <div style="display:inline-flex;justify-content:space-between;gap:8px">
+                      <strong style="font-size:16px;font-weight:600;line-height:22px;color:#161616">{{ activity.title }}</strong>
+                      <span [style.background]="getActivityBooking(activity, order.id) ? '#FFE8BF' : 'white'" [style.color]="getActivityBooking(activity, order.id) ? '#D38700' : '#161616'" [style.outline]="getActivityBooking(activity, order.id) ? '0' : '1px solid #000'" style="border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getActivityBooking(activity, order.id) ? 'Scheduled' : (getActivityFru(activity) + ' FRU') }}</span>
+                    </div>
+                    @if (getActivityBooking(activity, order.id); as booking) {
+                      <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
+                        <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ booking.resourceName }}</span>
+                        <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                        <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
+                        </button>
+                      </div>
+                    } @else {
+                      <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
+                        <span style="flex:1 1 0;color:var(--Text-text-helper,#6F6F6F);font-size:14px;line-height:18px;letter-spacing:.16px">{{ activity.resourceLabel }}</span>
+                        <span style="text-align:right;color:var(--Color-Secondary-70,#919396);font-size:12px;line-height:16px;letter-spacing:.32px">PENDING</span>
+                      </div>
+                    }
+                  </div>
+                }
+                <div style="align-self:stretch;padding-top:16px;display:inline-flex;justify-content:flex-start;align-items:flex-start;gap:8px">
+                  <button type="button" [disabled]="isBookFirstDisabled(order.id)" (click)="onBookFirstAvailabilityForOrder(order)" [style.background]="isBookFirstDisabled(order.id) ? 'var(--Button-button-disabled,#C6C6C6)' : 'var(--Button-button-secondary,#626469)'" [style.color]="isBookFirstDisabled(order.id) ? 'rgba(22,22,22,.25)' : 'var(--Text-text-on-color,white)'" [style.cursor]="isBookFirstDisabled(order.id) ? 'not-allowed' : 'pointer'" style="flex:1 1 0;height:32px;border:0;display:inline-flex;align-items:center;justify-content:flex-start;padding:7px 48px 7px 16px;position:relative;overflow:hidden;font-size:14px;line-height:18px;letter-spacing:.16px;text-align:left">
+                    <span>Book first availability</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style="position:absolute;right:16px;top:8px"><path d="M13 2h-2V1h-1v1H6V1H5v1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Zm0 11H3V6h10v7Zm0-8H3V3h2v1h1V3h4v1h1V3h2v2Z" fill="currentColor"/></svg>
+                  </button>
+                  <button type="button" aria-label="Previous availability" [disabled]="!hasPreviousForOrder(order.id)" (click)="onBookPreviousForOrder(order)" [style.background]="hasPreviousForOrder(order.id) ? 'var(--Button-button-secondary,#626469)' : 'var(--Button-button-disabled,#C6C6C6)'" [style.color]="hasPreviousForOrder(order.id) ? 'var(--Icon-icon-on-color,white)' : 'rgba(22,22,22,.25)'" [style.cursor]="hasPreviousForOrder(order.id) ? 'pointer' : 'not-allowed'" style="width:32px;height:32px;border:0;display:flex;align-items:center;justify-content:center;padding:8px">
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 4 8.715 4.6965 5.925 7.5H12v1H5.925l2.79 2.7865L8 12 4 8l4-4Z" fill="currentColor"/><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/></svg>
+                  </button>
+                  <button type="button" aria-label="Next availability" [disabled]="!canNavigateAvailability(order.id)" (click)="onBookNextForOrder(order)" [style.background]="canNavigateAvailability(order.id) ? 'var(--Button-button-secondary,#626469)' : 'var(--Button-button-disabled,#C6C6C6)'" [style.color]="canNavigateAvailability(order.id) ? 'var(--Icon-icon-on-color,white)' : 'rgba(22,22,22,.25)'" [style.cursor]="canNavigateAvailability(order.id) ? 'pointer' : 'not-allowed'" style="width:32px;height:32px;border:0;display:flex;align-items:center;justify-content:center;padding:8px">
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 4 7.285 4.6965 10.075 7.5H4v1h6.075L7.285 11.2865 8 12l4-4-4-4Z" fill="currentColor"/><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/></svg>
+                  </button>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    </aside>
+  }
+
+</div>
+
+@if (selectedBookingEvent; as bookingEvent) {
+  <div class="booking-modal-overlay" role="presentation" (click)="closeBookingModal()">
+    <section
+      class="booking-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="booking-modal-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="booking-modal__header">
+        <div class="booking-modal__heading">
+          <div class="booking-modal__reference">{{ getBookingReferenceInfo(bookingEvent) }}</div>
+          <h2 id="booking-modal-title">Resource Booking</h2>
+        </div>
+        <button class="booking-modal__icon-button" type="button" aria-label="Close" (click)="closeBookingModal()">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M12 4.7L11.3 4L8 7.3L4.7 4L4 4.7L7.3 8L4 11.3L4.7 12L8 8.7L11.3 12L12 11.3L8.7 8L12 4.7Z" />
+          </svg>
+        </button>
+      </header>
+
+      <div class="booking-modal__content">
+        <div class="booking-modal__inner">
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
+              <span>Order details</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" />
+              </svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid booking-modal__field-grid--three">
+              <ibm-text-label class="booking-carbon-field" size="md">
+                Order
+                <input ibmText type="text" [value]="getBookingOrder(bookingEvent)" readonly />
+              </ibm-text-label>
+              <ibm-text-label class="booking-carbon-field" size="md">
+                Vehicle
+                <input ibmText type="text" [value]="getBookingVehicle(bookingEvent)" readonly />
+              </ibm-text-label>
+              <ibm-text-label class="booking-carbon-field" size="md">
+                Customer
+                <input ibmText type="text" [value]="getBookingCustomer(bookingEvent)" readonly />
+              </ibm-text-label>
+              <ibm-text-label class="booking-carbon-field" size="md">
+                Customer email
+                <input ibmText type="text" [value]="getBookingCustomerEmail(bookingEvent)" readonly />
+              </ibm-text-label>
+              <ibm-text-label class="booking-carbon-field" size="md">
+                Customer phone
+                <input ibmText type="text" [value]="getBookingCustomerPhone(bookingEvent)" readonly />
+              </ibm-text-label>
+            </div>
+          </section>
+
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
+              <span>Resource</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" />
+              </svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid">
+              <ibm-select
+                class="booking-carbon-field"
+                id="booking-technician"
+                label="Technician"
+                size="md"
+                [value]="getBookingResource(bookingEvent)"
+              >
+                <option [value]="getBookingResource(bookingEvent)">{{ getBookingResource(bookingEvent) }}</option>
+              </ibm-select>
+            </div>
+          </section>
+
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
+              <span>Time</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" />
+              </svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid booking-modal__field-grid--time">
+              <div class="booking-modal__field-column">
+                <ibm-date-picker
+                  class="booking-carbon-field booking-carbon-date-picker"
+                  id="booking-start-date"
+                  label="Start date"
+                  placeholder="mm/dd/yyyy"
+                  dateFormat="m/d/Y"
+                  size="md"
+                  [value]="getBookingDateValue(bookingEvent.start)"
+                />
+                <ibm-timepicker
+                  class="booking-carbon-field booking-carbon-time-picker"
+                  id="booking-start-time"
+                  label="Start time"
+                  placeholder="hh:mm"
+                  size="md"
+                  [value]="getBookingTime(bookingEvent.start)"
+                >
+                  <ibm-timepicker-select id="booking-start-period" ariaLabel="Start time period">
+                    <option [selected]="getBookingMeridiem(bookingEvent.start) === 'AM'" value="AM">AM</option>
+                    <option [selected]="getBookingMeridiem(bookingEvent.start) === 'PM'" value="PM">PM</option>
+                  </ibm-timepicker-select>
+                </ibm-timepicker>
+              </div>
+              <div class="booking-modal__field-column">
+                <ibm-date-picker
+                  class="booking-carbon-field booking-carbon-date-picker"
+                  id="booking-end-date"
+                  label="End date"
+                  placeholder="mm/dd/yyyy"
+                  dateFormat="m/d/Y"
+                  size="md"
+                  [value]="getBookingDateValue(bookingEvent.end)"
+                />
+                <ibm-timepicker
+                  class="booking-carbon-field booking-carbon-time-picker"
+                  id="booking-end-time"
+                  label="End time"
+                  placeholder="hh:mm"
+                  size="md"
+                  [value]="getBookingTime(bookingEvent.end)"
+                >
+                  <ibm-timepicker-select id="booking-end-period" ariaLabel="End time period">
+                    <option [selected]="getBookingMeridiem(bookingEvent.end) === 'AM'" value="AM">AM</option>
+                    <option [selected]="getBookingMeridiem(bookingEvent.end) === 'PM'" value="PM">PM</option>
+                  </ibm-timepicker-select>
+                </ibm-timepicker>
+              </div>
+            </div>
+          </section>
+
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
+              <span>Additional Resources</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" />
+              </svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid">
+              <ibm-select
+                class="booking-carbon-field"
+                id="booking-workstation"
+                label="Workstation"
+                size="md"
+                [value]="getBookingWorkstation(bookingEvent)"
+              >
+                <option [value]="getBookingWorkstation(bookingEvent)">{{ getBookingWorkstation(bookingEvent) }}</option>
+              </ibm-select>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <footer class="booking-modal__footer">
+        <button class="booking-modal__close" type="button" (click)="closeBookingModal()">
+          <span>Close</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M12 4.7L11.3 4L8 7.3L4.7 4L4 4.7L7.3 8L4 11.3L4.7 12L8 8.7L11.3 12L12 11.3L8.7 8L12 4.7Z" />
+          </svg>
+        </button>
+        <button class="booking-modal__delete" type="button" (click)="deleteSelectedBooking()">
+          <span>Delete</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M14 4H13V14C13 14.5523 12.5523 15 12 15H4C3.44772 15 3 14.5523 3 14V4H2V3H14V4ZM4 14H12V4H4V14ZM7 12H6V6H7V12ZM10 12H9V6H10V12ZM10 2H6V1H10V2Z" />
+          </svg>
+        </button>
+      </footer>
+    </section>
+  </div>
+}

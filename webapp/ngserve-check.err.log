@@ -1,0 +1,132 @@
+[1m[31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\components\\action-ribbon\\action-ribbon.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\appointment-selection\\appointment-selection.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\resource-catalog\\resource-catalog.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\resource-catalog\\resource-catalog-group.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\components\\menu-bar\\menu-bar.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\shared\\components\\scheduler\\custom\\custom-scheduler.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\transactions-offer\\transactions-offer.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\app.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\components\\page-title\\page-title.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\components\\stepper\\stepper.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\components\\top-panel\\top-panel.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\app-home\\app-home.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\service-planner\\service-planner.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\components\\footer\\footer.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\service-planner\\components\\jobs-panel\\jobs-panel.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\shared\\components\\generic-list\\generic-list.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\transaction-summary\\transaction-summary.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\resource-view-editor\\resource-view-editor.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\app\\features\\order-summary\\order-summary.component.scss"[0m [1m[35m[plugin angular-compiler][0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "C:\\Users\\saisantoshalatha.tal\\OneDrive - Volaris Group\\Desktop\\ServicePlannerKiro - GPT\\webapp\\src\\main.ts"[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCannot read directory "../../../..": Access is denied.[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mCould not resolve "src/styles.scss"[0m
+
+    angular:styles/global:styles:1:8:
+[37m      1 │ @import [32m'src/styles.scss'[37m;
+        ╵         [32m~~~~~~~~~~~~~~~~~[0m
+
+  You can mark the path "src/styles.scss" as external to exclude it from the bundle, which will remove this error and leave the unresolved path in the bundle.
+
+[39m[22m

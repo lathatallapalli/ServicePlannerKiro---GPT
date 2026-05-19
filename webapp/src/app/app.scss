@@ -1,0 +1,74 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+
+  app-stepper {
+    display: block;
+    height: 100%;
+    flex-shrink: 0;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+}
+
+.app-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 0;
+
+  &__header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  app-page-title {
+    display: block;
+    flex: 1;
+  }
+
+  app-top-panel {
+    display: block;
+    flex-shrink: 0;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  router-outlet {
+    display: none;
+  }
+
+  router-outlet ~ * {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  app-service-planner {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+}

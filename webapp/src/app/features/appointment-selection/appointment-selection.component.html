@@ -1,0 +1,136 @@
+﻿<section class="appointment-selection-page">
+  <div class="appointment-selection-page__cards">
+    <article class="generic-card generic-card--work">
+      <header class="generic-card__header">
+        <div class="generic-card__leading">
+          <h2>Work</h2>
+          <button class="generic-card__toggle" type="button" aria-label="Collapse Work card">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="generic-card__divider" aria-hidden="true"></div>
+
+      <div class="generic-card__content generic-card__content--work">
+        <div class="carbon-readonly-field">
+          <span class="carbon-readonly-field__label">Total duration</span>
+          <span class="carbon-readonly-field__value">12 FRU</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="generic-card generic-card--appointments">
+      <header class="generic-card__header">
+        <div class="generic-card__leading">
+          <h2>Appointments</h2>
+          <button class="generic-card__toggle" type="button" aria-label="Collapse Appointments card">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="generic-card__divider" aria-hidden="true"></div>
+
+      <div class="generic-card__content generic-card__content--appointments">
+        <div class="appointment-group">
+          <h3>Communication</h3>
+
+          <ibm-radio-group class="appointment-radio-group" name="communicated" value="" orientation="vertical" legend="Communicated to Customer">
+            <ibm-radio value="yes">Yes</ibm-radio>
+            <ibm-radio value="no">No</ibm-radio>
+          </ibm-radio-group>
+
+          <ibm-radio-group class="appointment-radio-group" name="waiting" value="" orientation="vertical" legend="Customer Is Waiting">
+            <ibm-radio value="yes">Yes</ibm-radio>
+            <ibm-radio value="no">No</ibm-radio>
+          </ibm-radio-group>
+        </div>
+
+        <div class="appointment-group">
+          <h3>Check-In</h3>
+
+          <ibm-date-picker
+            class="appointment-date-picker"
+            id="check-in-date"
+            label="Check-in Date"
+            placeholder="dd/mm/yyyy"
+            dateFormat="d/m/Y"
+            size="md"
+            [value]="getDateValue(workOrder?.appointmentStart)"
+          />
+
+          <ibm-timepicker
+            class="appointment-time-picker"
+            id="check-in-time"
+            label="Check-in Time"
+            placeholder="hh:mm"
+            size="md"
+            [value]="getTimeValue(workOrder?.appointmentStart)"
+          >
+            <ibm-timepicker-select id="check-in-time-period" ariaLabel="Check-in time period">
+              <option value="AM" [selected]="getMeridiem(workOrder?.appointmentStart) === 'AM'">AM</option>
+              <option value="PM" [selected]="getMeridiem(workOrder?.appointmentStart) === 'PM'">PM</option>
+            </ibm-timepicker-select>
+          </ibm-timepicker>
+        </div>
+
+        <div class="appointment-group appointment-group--handover">
+          <h3>Handover</h3>
+
+          <ibm-date-picker
+            class="appointment-date-picker"
+            id="handover-date"
+            label="Handover Date"
+            placeholder="dd/mm/yyyy"
+            dateFormat="d/m/Y"
+            size="md"
+            [value]="getDateValue(workOrder?.appointmentEnd)"
+          />
+
+          <ibm-timepicker
+            class="appointment-time-picker"
+            id="handover-time"
+            label="Handover Time"
+            placeholder="hh:mm"
+            size="md"
+            [value]="getTimeValue(workOrder?.appointmentEnd)"
+          >
+            <ibm-timepicker-select id="handover-time-period" ariaLabel="Handover time period">
+              <option value="AM" [selected]="getMeridiem(workOrder?.appointmentEnd) === 'AM'">AM</option>
+              <option value="PM" [selected]="getMeridiem(workOrder?.appointmentEnd) === 'PM'">PM</option>
+            </ibm-timepicker-select>
+          </ibm-timepicker>
+
+          <ibm-date-picker
+            class="appointment-date-picker"
+            id="agreed-date"
+            label="Agreed Date"
+            placeholder="dd/mm/yyyy"
+            dateFormat="d/m/Y"
+            size="md"
+            [value]="getDateValue(workOrder?.appointmentEnd)"
+          />
+
+          <ibm-timepicker
+            class="appointment-time-picker"
+            id="agreed-time"
+            label="Agreed Time"
+            placeholder="hh:mm"
+            size="md"
+            [value]="getTimeValue(workOrder?.appointmentEnd)"
+          >
+            <ibm-timepicker-select id="agreed-time-period" ariaLabel="Agreed time period">
+              <option value="AM" [selected]="getMeridiem(workOrder?.appointmentEnd) === 'AM'">AM</option>
+              <option value="PM" [selected]="getMeridiem(workOrder?.appointmentEnd) === 'PM'">PM</option>
+            </ibm-timepicker-select>
+          </ibm-timepicker>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>

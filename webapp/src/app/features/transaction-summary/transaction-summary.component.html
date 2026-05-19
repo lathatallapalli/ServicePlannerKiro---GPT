@@ -1,0 +1,103 @@
+<section class="transaction-summary-page">
+  <aside class="transaction-summary-rail" aria-hidden="true">
+    <button type="button">›</button>
+    <button type="button">▦</button>
+    <button type="button">▣</button>
+    <button class="transaction-summary-rail__active" type="button">◩</button>
+    <button type="button">▧</button>
+    <button type="button">▧</button>
+    <button type="button">▧</button>
+  </aside>
+
+  <main class="transaction-summary-page__content">
+    <h1>Transaction Summary</h1>
+
+    <section class="transaction-summary-tiles" aria-label="Transaction details">
+      <article class="transaction-summary-vehicle-tile">
+        <div class="transaction-summary-vehicle-tile__main">
+          <div>
+            <span class="transaction-summary-tile__label">Vehicle</span>
+            <h2>{{ vehicleTitle }}</h2>
+            @for (line of vehicleLines; track line) {
+              <p>{{ line }}</p>
+            }
+          </div>
+          <span class="transaction-summary-tile__arrow" aria-hidden="true">→</span>
+        </div>
+
+        <dl class="transaction-summary-tags">
+          @for (tag of vehicleTags; track tag.label) {
+            <div>
+              <dt>{{ tag.label }}</dt>
+              <dd>{{ tag.value }}</dd>
+            </div>
+          }
+        </dl>
+      </article>
+
+      @for (tile of summaryTiles; track tile.footer) {
+        <article class="transaction-summary-tile">
+          <div class="transaction-summary-tile__identity">
+            <div>
+              <h2>{{ tile.title }}</h2>
+              @for (line of tile.lines; track line) {
+                <p>{{ line }}</p>
+              }
+            </div>
+            @if (tile.badge) {
+              <span class="transaction-summary-tile__badge">{{ tile.badge }}</span>
+            }
+          </div>
+
+          <div class="transaction-summary-tile__footer">
+            <span>{{ tile.footer }}</span>
+            <span aria-hidden="true">→</span>
+          </div>
+
+          <dl class="transaction-summary-tile__metrics">
+            @for (metric of tile.metrics; track metric.label) {
+              <div [class.transaction-summary-tile__metric--positive]="metric.trend === 'positive'" [class.transaction-summary-tile__metric--negative]="metric.trend === 'negative'">
+                <dt>{{ metric.label }}</dt>
+                <dd>{{ metric.value }}</dd>
+              </div>
+            }
+          </dl>
+        </article>
+      }
+    </section>
+
+    <section class="transaction-summary-sections" aria-label="Transaction summary lists">
+      @for (section of sections; track section.title) {
+        <article class="transaction-summary-section">
+          <header class="transaction-summary-section__header">
+            <button type="button" aria-expanded="true">
+              <span>{{ section.title }}</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                <path d="M8 5L13 10L12.3 10.7L8 6.4L3.7 10.7L3 10L8 5Z" />
+              </svg>
+            </button>
+
+            @if (section.chips.length) {
+              <div class="transaction-summary-section__chips">
+                @for (chip of section.chips; track chip) {
+                  <span>{{ chip }}</span>
+                }
+              </div>
+            }
+          </header>
+
+          <app-generic-list
+            [columns]="section.columns"
+            [rows]="section.rows"
+            rowIdKey="id"
+            [showAddButton]="false"
+            [selectable]="false"
+            [toolbarActions]="[]"
+            [rowActions]="section.rowActions"
+            [fitContent]="true"
+          />
+        </article>
+      }
+    </section>
+  </main>
+</section>

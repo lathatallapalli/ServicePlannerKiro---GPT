@@ -1,0 +1,138 @@
+<div class="action-ribbon">
+  <div class="action-ribbon__content">
+    @for (item of items; track item.label; let i = $index) {
+      <button
+        class="action-ribbon__item"
+        [class.action-ribbon__item--dropdown]="item.type === 'dropdown'"
+        [class.action-ribbon__item--open]="openDropdownIndex === i"
+        [disabled]="item.disabled ?? false"
+        (click)="item.type === 'dropdown' ? toggleDropdown(i, $event) : item.action && item.action()"
+        type="button"
+      >
+        <!-- Link: icon left, label right -->
+        @if (item.type === 'link') {
+          <span class="action-ribbon__icon" aria-hidden="true">
+            <svg width="24" height="24" [attr.viewBox]="item.iconViewBox ?? '0 0 24 24'" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="24" height="24" fill="white" style="mix-blend-mode:multiply"/>
+              @for (p of iconPaths(item.icon); track p) {
+                <path fill-rule="evenodd" clip-rule="evenodd" [attr.d]="p" fill="currentColor"/>
+              }
+            </svg>
+          </span>
+          <span class="action-ribbon__label">{{ item.label }}</span>
+        }
+
+        <!-- Dropdown: label left, chevron right -->
+        @if (item.type === 'dropdown') {
+          <span class="action-ribbon__label">{{ item.label }}</span>
+          <span class="action-ribbon__icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" clip-rule="evenodd"
+                [attr.d]="openDropdownIndex === i ? chevronUpPath : chevronPath"
+                fill="currentColor"/>
+            </svg>
+          </span>
+
+          <!-- Dropdown list -->
+          @if (openDropdownIndex === i && item.options && item.variant !== 'resource-view') {
+            <div class="action-ribbon__dropdown-list" (click)="$event.stopPropagation()">
+              @for (option of item.options; track option.value; let first = $first) {
+                <div
+                  class="action-ribbon__dropdown-item"
+                  [class.action-ribbon__dropdown-item--selected]="item.selectedValue === option.value"
+                  [class.action-ribbon__dropdown-item--bordered]="!first"
+                  (click)="selectOption(item, option, $event)"
+                >
+                  <span class="action-ribbon__dropdown-item-label">{{ option.label }}</span>
+                  @if (item.selectedValue === option.value) {
+                    <span class="action-ribbon__dropdown-item-check" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" [attr.d]="checkmarkPath" fill="currentColor"/>
+                      </svg>
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          @if (openDropdownIndex === i && item.options && item.variant === 'resource-view') {
+            <div class="action-ribbon__resource-view-menu" (click)="$event.stopPropagation()">
+              <div class="action-ribbon__resource-view-list">
+                @for (option of item.options; track option.value; let first = $first) {
+                  <div
+                    class="action-ribbon__resource-view-item"
+                    [class.action-ribbon__resource-view-item--selected]="item.selectedValue === option.value"
+                    [class.action-ribbon__resource-view-item--previewed]="previewResourceViewValue === option.value"
+                    [class.action-ribbon__resource-view-item--bordered]="!first"
+                  >
+                    <span class="action-ribbon__resource-view-checkbox" aria-hidden="true" (click)="selectResourceView(item, option, $event)">
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply"/>
+                        <path [attr.d]="item.selectedValue === option.value ? checkedCheckboxPath : checkboxPath" fill="currentColor"/>
+                      </svg>
+                    </span>
+                    <span class="action-ribbon__resource-view-label">{{ option.label }}</span>
+                    <button class="action-ribbon__resource-view-chevron" type="button" aria-label="Show resource view details" (click)="previewResourceView(option, $event)">
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" [attr.d]="chevronRightPath" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </div>
+                }
+                <div class="action-ribbon__resource-view-item action-ribbon__resource-view-item--bordered action-ribbon__resource-view-item--action" role="button" tabindex="0" (click)="addResourceView(item, $event)" (keydown.enter)="addResourceView(item, $event)" (keydown.space)="addResourceView(item, $event)">
+                  <span class="action-ribbon__resource-view-label">Add View</span>
+                  <span class="action-ribbon__resource-view-chevron" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply"/>
+                      <path fill-rule="evenodd" clip-rule="evenodd" [attr.d]="addAltPath" fill="currentColor"/>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+
+              @if (getSelectedResourceView(item); as selectedView) {
+                <div class="action-ribbon__resource-detail-list">
+                  @for (group of selectedView.groups ?? []; track group.label) {
+                    <div class="action-ribbon__resource-detail-section">
+                      <div class="action-ribbon__resource-detail-heading">{{ group.label }}</div>
+                      <div class="action-ribbon__resource-detail-subitems">
+                        @for (child of group.children; track child; let first = $first) {
+                          @if (isResourceViewGroup(child)) {
+                            <div class="action-ribbon__resource-detail-subitem">
+                              <span class="action-ribbon__resource-detail-label">{{ child.label }}</span>
+                            </div>
+                            @for (nestedChild of child.children; track nestedChild) {
+                              <div class="action-ribbon__resource-detail-subitem action-ribbon__resource-detail-subitem--nested">
+                                <span class="action-ribbon__resource-detail-label">{{ nestedChild }}</span>
+                              </div>
+                            }
+                          } @else {
+                            <div class="action-ribbon__resource-detail-subitem">
+                              <span class="action-ribbon__resource-detail-label">{{ child }}</span>
+                            </div>
+                          }
+                        }
+                      </div>
+                    </div>
+                  }
+                  <div class="action-ribbon__resource-detail-section action-ribbon__resource-detail-section--action">
+                    <div class="action-ribbon__resource-detail-heading" role="button" tabindex="0" (click)="editResourceView(item, $event)" (keydown.enter)="editResourceView(item, $event)" (keydown.space)="editResourceView(item, $event)">
+                      <span>Edit View</span>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" [attr.d]="launchPath" fill="currentColor"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        }
+      </button>
+    }
+  </div>
+</div>

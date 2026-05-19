@@ -1,0 +1,12 @@
+<section class="resource-views-list">
+  <app-generic-list
+    [columns]="columns"
+    [rows]="rows"
+    rowIdKey="id"
+    searchPlaceholder="Search resource views"
+    addButtonLabel="Add new"
+    [selectable]="false"
+    [rowActions]="rowActions"
+    (rowAction)="onOpenView($event)"
+  />
+</section>

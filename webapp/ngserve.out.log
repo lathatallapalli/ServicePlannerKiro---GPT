@@ -1,0 +1,9 @@
+
+> webapp@0.0.0 start
+> ng serve --host 127.0.0.1 --port 4200
+
+[33m>[39m Building...
+[32m√[39m Building...
+Application bundle generation failed. [4.291 seconds] - 2026-05-13T11:42:54.285Z
+
+Watch mode enabled. Watching for file changes...
