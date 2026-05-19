@@ -168,7 +168,7 @@
         <div class="scheduler__group-fill" [style.width.px]="totalWidth" [style.height.px]="GROUP_ROW_HEIGHT"></div>
       </div>
 
-      @for (resource of getResourcesForGroup(group.id); track resource.id) {
+      @for (resource of getExpandedResourcesForGroup(group.id); track resource.id) {
         <div class="scheduler__row" [style.height.px]="rowHeight"
           [class.scheduler__row--drop-target]="dropTargetResourceId === resource.id"
           (dragover)="onDragOver($event, resource.id)"

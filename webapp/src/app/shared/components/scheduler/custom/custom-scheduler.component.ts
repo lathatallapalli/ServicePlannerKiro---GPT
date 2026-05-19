@@ -214,7 +214,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   // ── Layout helpers ──────────────────────────────────────────────────────────
 
   getGroupHeight(groupId: string): number {
-    return this.getResourcesForGroup(groupId).length * this.rowHeight + GROUP_ROW_HEIGHT;
+    return this.getExpandedResourcesForGroup(groupId).length * this.rowHeight + GROUP_ROW_HEIGHT;
   }
 
   getEventsForResource(resourceId: string): SchedulerEvent[] {
@@ -515,7 +515,6 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getResourcesForGroup(groupId: string): SchedulerResource[] {
-    if (this.collapsedGroupIds.has(groupId)) return [];
     const query = this.resourceSearch.trim().toLowerCase();
     return this.resources.filter(resource => {
       if (resource.groupId !== groupId) return false;
@@ -524,6 +523,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
       return true;
     });
+  }
+
+  getExpandedResourcesForGroup(groupId: string): SchedulerResource[] {
+    return this.collapsedGroupIds.has(groupId) ? [] : this.getResourcesForGroup(groupId);
   }
 
   getUngroupedResources(): SchedulerResource[] {
@@ -713,7 +716,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     let currentY = 0;
     for (const group of this.visibleGroups) {
       currentY += GROUP_ROW_HEIGHT; // group label height
-      for (const resource of this.getResourcesForGroup(group.id)) {
+      for (const resource of this.getExpandedResourcesForGroup(group.id)) {
         if (y >= currentY && y < currentY + this.rowHeight) return resource;
         currentY += this.rowHeight;
       }
@@ -729,7 +732,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     let currentY = 0;
     for (const group of this.visibleGroups) {
       currentY += GROUP_ROW_HEIGHT;
-      for (const resource of this.getResourcesForGroup(group.id)) {
+      for (const resource of this.getExpandedResourcesForGroup(group.id)) {
         if (resource.id === resourceId) return currentY;
         currentY += this.rowHeight;
       }
