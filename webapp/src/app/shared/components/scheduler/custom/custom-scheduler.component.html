@@ -128,8 +128,10 @@
         <div class="scheduler__day-row" [style.height.px]="DATE_ROW_HEIGHT">
           @for (day of daySlots; track day.getTime()) {
             <div class="scheduler__day-cell" [style.width.px]="getDayWidth()">
-              <span class="scheduler__day-num">{{ formatDay(day) }}</span>
-              <span class="scheduler__day-name">{{ formatWeekday(day) }}</span>
+              <span class="scheduler__day-label">
+                <span class="scheduler__day-num">{{ formatDay(day) }}</span>
+                <span class="scheduler__day-name">{{ formatWeekday(day) }}</span>
+              </span>
             </div>
           }
         </div>
@@ -196,7 +198,9 @@
           <div class="scheduler__timeline-cell" [style.width.px]="totalWidth">
             @for (day of daySlots; track day.getTime()) {
               @for (slot of timeSlots; track slot.getTime()) {
-                <div class="scheduler__slot-line" [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
+                @if (!isFirstHourSlot(slot)) {
+                  <div class="scheduler__slot-line" [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
+                }
               }
               <div class="scheduler__day-line" [style.left.px]="getDayOffsetPx(day)"></div>
             }
@@ -204,9 +208,9 @@
               <div class="scheduler__unavailable"
                 [style.left.px]="getUnavailabilityLeft(block)"
                 [style.width.px]="getUnavailabilityWidth(block)"
-                [style.top.px]="showOrderTiles && !isLunchBlock(block) ? null : 0"
-                [style.bottom.px]="showOrderTiles && !isLunchBlock(block) ? null : 0"
-                [style.background]="showOrderTiles ? null : (isLunchBlock(block) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white')"
+                [style.top.px]="0"
+                [style.bottom.px]="0"
+                [style.background]="showOrderTiles ? null : 'var(--Layer-layer-01,#F4F4F4)'"
                 [style.border-left]="showOrderTiles ? null : '0'"
                 [style.padding]="showOrderTiles ? null : '0'">
                 @if (showOrderTiles) {
@@ -217,10 +221,16 @@
             }
             @for (run of getOrderRunsForResource(resource.id); track run.key + '-' + run.start.getTime()) {
               @if (shouldRenderOrderRun(run)) {
+                <div
+                  class="scheduler__order-run-shadow"
+                  [style.left.px]="getOrderRunLeft(run)"
+                  [style.width.px]="getOrderRunWidth(run)"
+                  style="position:absolute;top:0;height:78px;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
+                </div>
                 <div class="scheduler__order-run"
                   [style.left.px]="getOrderRunLeft(run)"
                   [style.width.px]="getOrderRunWidth(run)"
-                  style="position:absolute;top:0;height:28px;display:flex;align-items:center;gap:2px;padding:6px 16px;background:#E0E0E0;border-left:2px solid #808080;box-sizing:border-box;overflow:hidden;z-index:3;pointer-events:none">
+                  style="position:absolute;top:0;height:28px;display:flex;align-items:flex-start;gap:2px;padding:6px 16px;background:var(--Layer-layer-accent-01,#E0E0E0);border-left:2px solid #808080;box-sizing:border-box;overflow:hidden;z-index:3;pointer-events:none;font-size:14px;line-height:18px;letter-spacing:.32px">
                   <span class="scheduler__event-order-ref">{{ getEventOrderReference(run.firstEvent) }}</span>
                   <span class="scheduler__event-order-count">{{ getOrderRunSequence(run) }}</span>
                 </div>
@@ -236,18 +246,18 @@
                 [class.scheduler__event--continued]="hasContiguousPreviousEvent(event)"
                 [class.scheduler__event--continues]="hasContiguousNextEvent(event)"
                 [class.scheduler__event--preview]="isPreviewingEvent(event)"
-                [class.scheduler__event--order-started]="getEventStatus(event) === 'order-started'"
-                [class.scheduler__event--customer-waiting]="getEventStatus(event) === 'customer-waiting'"
-                [class.scheduler__event--completed]="getEventStatus(event) === 'completed'"
+                [class.scheduler__event--scheduled]="getWorkorderItemStatus(event) === 'scheduled'"
+                [class.scheduler__event--started]="getWorkorderItemStatus(event) === 'started'"
+                [class.scheduler__event--completed]="getWorkorderItemStatus(event) === 'completed'"
                 [style.left.px]="getRenderedEventLeft(event)"
                 [style.width.px]="getRenderedEventWidth(event)"
                 [style.top.px]="shouldShowEventDetails(event) ? getRenderedEventTop(event) : 0"
                 [style.bottom]="shouldShowEventDetails(event) ? 'auto' : null"
                 [style.height.px]="shouldShowEventDetails(event) ? getRenderedEventHeight(event) : null"
                 [style.padding]="shouldShowEventDetails(event) ? null : '0'"
-                [style.background]="shouldShowEventDetails(event) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white'"
+                [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
                 [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
-                [style.box-shadow]="shouldShowEventDetails(event) ? null : 'none'"
+                [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
                 (mousedown)="onEventMouseDown($event, event)"
                 (click)="onEventClick($event, event)">
                 <div class="scheduler__event-handle scheduler__event-handle--left"
@@ -316,7 +326,9 @@
         <div class="scheduler__timeline-cell" [style.width.px]="totalWidth">
           @for (day of daySlots; track day.getTime()) {
             @for (slot of timeSlots; track slot.getTime()) {
-              <div class="scheduler__slot-line" [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
+              @if (!isFirstHourSlot(slot)) {
+                <div class="scheduler__slot-line" [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
+              }
             }
             <div class="scheduler__day-line" [style.left.px]="getDayOffsetPx(day)"></div>
           }
@@ -324,9 +336,9 @@
             <div class="scheduler__unavailable"
               [style.left.px]="getUnavailabilityLeft(block)"
               [style.width.px]="getUnavailabilityWidth(block)"
-              [style.top.px]="showOrderTiles && !isLunchBlock(block) ? null : 0"
-              [style.bottom.px]="showOrderTiles && !isLunchBlock(block) ? null : 0"
-              [style.background]="showOrderTiles ? null : (isLunchBlock(block) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white')"
+              [style.top.px]="0"
+              [style.bottom.px]="0"
+              [style.background]="showOrderTiles ? null : 'var(--Layer-layer-01,#F4F4F4)'"
               [style.border-left]="showOrderTiles ? null : '0'"
               [style.padding]="showOrderTiles ? null : '0'">
               @if (showOrderTiles) {
@@ -337,16 +349,23 @@
           }
           @for (run of getOrderRunsForResource(resource.id); track run.key + '-' + run.start.getTime()) {
             @if (shouldRenderOrderRun(run)) {
+              <div
+                class="scheduler__order-run-shadow"
+                [style.left.px]="getOrderRunLeft(run)"
+                [style.width.px]="getOrderRunWidth(run)"
+                style="position:absolute;top:0;height:78px;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
+              </div>
               <div class="scheduler__order-run"
                 [style.left.px]="getOrderRunLeft(run)"
                 [style.width.px]="getOrderRunWidth(run)"
-                style="position:absolute;top:0;height:28px;display:flex;align-items:center;gap:2px;padding:6px 16px;background:#E0E0E0;border-left:2px solid #808080;box-sizing:border-box;overflow:hidden;z-index:3;pointer-events:none">
+                style="position:absolute;top:0;height:28px;display:flex;align-items:flex-start;gap:2px;padding:6px 16px;background:var(--Layer-layer-accent-01,#E0E0E0);border-left:2px solid #808080;box-sizing:border-box;overflow:hidden;z-index:3;pointer-events:none;font-size:14px;line-height:18px;letter-spacing:.32px">
                 <span class="scheduler__event-order-ref">{{ getEventOrderReference(run.firstEvent) }}</span>
                 <span class="scheduler__event-order-count">{{ getOrderRunSequence(run) }}</span>
               </div>
             }
           }
           @for (event of getEventsForResource(resource.id); track event.id) {
+            @if (shouldRenderEventForResource(event, resource.id)) {
             <div class="scheduler__event"
               [class.scheduler__event--compact]="!shouldShowEventDetails(event)"
               [class.scheduler__event--show-tag]="shouldShowEventTag(event)"
@@ -354,18 +373,18 @@
               [class.scheduler__event--blocked-order]="isBlockedOrderEvent(event)"
               [class.scheduler__event--continued]="hasContiguousPreviousEvent(event)"
               [class.scheduler__event--continues]="hasContiguousNextEvent(event)"
-              [class.scheduler__event--order-started]="getEventStatus(event) === 'order-started'"
-              [class.scheduler__event--customer-waiting]="getEventStatus(event) === 'customer-waiting'"
-              [class.scheduler__event--completed]="getEventStatus(event) === 'completed'"
+              [class.scheduler__event--scheduled]="getWorkorderItemStatus(event) === 'scheduled'"
+              [class.scheduler__event--started]="getWorkorderItemStatus(event) === 'started'"
+              [class.scheduler__event--completed]="getWorkorderItemStatus(event) === 'completed'"
               [style.left.px]="getEventLeft(event)"
               [style.width.px]="getEventWidth(event)"
               [style.top.px]="shouldShowEventDetails(event) ? getRenderedEventTop(event) : 0"
               [style.bottom]="shouldShowEventDetails(event) ? 'auto' : null"
               [style.height.px]="shouldShowEventDetails(event) ? getRenderedEventHeight(event) : null"
               [style.padding]="shouldShowEventDetails(event) ? null : '0'"
-              [style.background]="shouldShowEventDetails(event) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white'"
+              [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
               [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
-              [style.box-shadow]="shouldShowEventDetails(event) ? null : 'none'"
+              [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
               (mousedown)="onEventMouseDown($event, event)"
               (click)="onEventClick($event, event)">
               <div class="scheduler__event-handle scheduler__event-handle--left"
@@ -399,6 +418,7 @@
                 [style.display]="shouldShowEventDetails(event) ? null : 'none'"
                 (mousedown)="onResizeMouseDown($event, event, 'right')"></div>
             </div>
+            }
           }
         </div>
       </div>
@@ -412,16 +432,16 @@
         [class.scheduler__event--blocked-order]="isBlockedOrderEvent(previewEvent)"
         [class.scheduler__event--continued]="hasContiguousPreviousEvent(previewEvent)"
         [class.scheduler__event--continues]="hasContiguousNextEvent(previewEvent)"
-        [class.scheduler__event--order-started]="getEventStatus(previewEvent) === 'order-started'"
-        [class.scheduler__event--customer-waiting]="getEventStatus(previewEvent) === 'customer-waiting'"
-        [class.scheduler__event--completed]="getEventStatus(previewEvent) === 'completed'"
+        [class.scheduler__event--scheduled]="getWorkorderItemStatus(previewEvent) === 'scheduled'"
+        [class.scheduler__event--started]="getWorkorderItemStatus(previewEvent) === 'started'"
+        [class.scheduler__event--completed]="getWorkorderItemStatus(previewEvent) === 'completed'"
         [style.left.px]="getPreviewLeft()"
         [style.top.px]="getPreviewTop()"
         [style.width.px]="getPreviewWidth()"
         [style.height.px]="rowHeight"
         [style.bottom]="'auto'"
         [style.padding]="shouldShowEventDetails(previewEvent) ? null : '0'"
-        [style.background]="shouldShowEventDetails(previewEvent) ? null : 'linear-gradient(0deg, rgba(76, 104, 177, 0.12) 0%, rgba(76, 104, 177, 0.12) 100%), white'"
+        [style.background]="shouldShowEventDetails(previewEvent) ? null : '#E9ECF5'"
         [style.border-left]="shouldShowEventDetails(previewEvent) ? null : '0'"
         [style.box-shadow]="shouldShowEventDetails(previewEvent) ? null : 'none'"
         [style.pointer-events]="'none'"

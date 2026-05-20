@@ -161,9 +161,19 @@
 
         @for (column of columns; track trackColumn($index, column)) {
           <div class="generic-list-data-cell" role="cell" data-layer="Generic list data cell" [style.width]="column.width" [style.min-width]="column.minWidth" [style.max-width]="column.maxWidth">
-            <span class="generic-list-data-cell__cell" data-layer="Cell">
-              <span class="generic-list-data-cell__text" data-layer="Text">{{ getCellValue(row, column) }}</span>
-            </span>
+            @if (isEditingCell(row, column)) {
+              <input
+                class="generic-list-data-cell__input"
+                type="text"
+                [ngModel]="getEditableCellValue(row, column)"
+                (ngModelChange)="editableCellValueChange.emit({ row, value: $event })"
+                aria-label="Edit cell value"
+              />
+            } @else {
+              <span class="generic-list-data-cell__cell" data-layer="Cell">
+                <span class="generic-list-data-cell__text" data-layer="Text">{{ getCellValue(row, column) }}</span>
+              </span>
+            }
           </div>
         }
 

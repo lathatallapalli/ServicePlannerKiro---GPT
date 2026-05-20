@@ -1,9 +1,9 @@
 <app-menu-bar />
-@if (!isHomePage() && !isTransactionsPage()) {
+@if (!isHomePage() && !isTransactionsPage() && !isQuickViewPage()) {
   <app-action-ribbon [items]="visibleActionRibbonItems()" />
 }
 <div class="app-body">
-  <app-stepper [hidden]="isHomePage() || isTransactionsPage() || isTransactionSummaryPage() || isServicePlannerPage() || isResourceEditorPage() || isResourceCatalogPage()" />
+  <app-stepper [hidden]="isHomePage() || isTransactionsPage() || isTransactionSummaryPage() || isServicePlannerPage() || isQuickViewPage() || isResourceEditorPage() || isResourceCatalogPage()" />
   <div class="app-content">
     @if (!isHomePage() && !isTransactionsPage() && !isTransactionSummaryPage()) {
       <div class="app-content__header">
@@ -20,7 +20,7 @@
 </div>
 @if (!isHomePage()) {
   <app-footer
-    [subpageMode]="isTransactionsPage() || isServicePlannerPage() || isResourceEditorPage() || isResourceCatalogPage()"
+    [subpageMode]="isTransactionsPage() || isServicePlannerPage() || isQuickViewPage() || isResourceEditorPage() || isResourceCatalogPage()"
     [hideSubpagePrimaryAction]="isTransactionsOfferPage() || isServicePlannerPage()"
     (pauseWorkflow)="onPause()"
     (previousTask)="onPrevious()"

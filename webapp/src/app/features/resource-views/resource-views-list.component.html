@@ -5,8 +5,14 @@
     rowIdKey="id"
     searchPlaceholder="Search resource views"
     addButtonLabel="Add new"
-    [selectable]="false"
+    [selectable]="true"
     [rowActions]="rowActions"
+    [toolbarActions]="toolbarActions"
+    [editableCell]="editingCell"
+    (add)="onAddView()"
+    (selectionChange)="onSelectionChange($event)"
+    (toolbarAction)="onToolbarAction($event)"
+    (editableCellValueChange)="onEditValueChange($event)"
     (rowAction)="onOpenView($event)"
   />
 </section>

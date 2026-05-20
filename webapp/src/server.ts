@@ -26,13 +26,19 @@ const angularApp = new AngularNodeAppEngine();
  * ```
  */
 
-app.get('/service-planner', (_req, res) => {
+app.get('/service-planner', (_req, res, next) => {
   if (existsSync(servicePlannerIndex)) {
     res.sendFile(servicePlannerIndex);
     return;
   }
 
-  res.sendFile(join(browserDistFolder, 'index.html'));
+  const indexHtml = join(browserDistFolder, 'index.html');
+  if (existsSync(indexHtml)) {
+    res.sendFile(indexHtml);
+    return;
+  }
+
+  next();
 });
 
 /**

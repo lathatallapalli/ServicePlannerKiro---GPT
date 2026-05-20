@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { GenericListColumn, GenericListComponent } from '../../shared/components/generic-list/generic-list.component';
 import { PendingCatalogResource } from '../resource-catalog/data/resource-catalog-selection.service';
 import { RESOURCE_CATALOG_GROUPS } from '../resource-catalog/data/resource-catalog.mock';
-import { DEMO_RESOURCE_VIEWS } from '../service-planner/data/resource-views.mock';
+import { ResourceViewsService } from '../service-planner/services/resource-views.service';
 
 interface ResourceViewGroup {
   label: string;
@@ -37,6 +37,7 @@ interface ResourceRow extends Record<string, unknown> {
 export class ResourceViewEditorComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly resourceViewsService = inject(ResourceViewsService);
   private readonly catalogResourcesByName = new Map(
     RESOURCE_CATALOG_GROUPS.flatMap(group => group.resources.map(resource => [resource.name, resource] as const))
   );
@@ -51,11 +52,11 @@ export class ResourceViewEditorComponent {
   protected readonly resourceView = computed<ResourceViewState>(() => {
     const navigationState = history.state?.resourceView as ResourceViewState | undefined;
     const routeViewId = this.route.snapshot.paramMap.get('viewId') ?? this.route.snapshot.queryParamMap.get('view') ?? undefined;
-    const fallbackView = DEMO_RESOURCE_VIEWS.find(view => view.value === routeViewId);
+    const fallbackView = this.resourceViewsService.getByValue(routeViewId);
 
     return {
-      label: navigationState?.label ?? fallbackView?.label ?? this.route.snapshot.queryParamMap.get('label') ?? 'Resource View',
-      value: navigationState?.value ?? fallbackView?.value ?? routeViewId,
+      label: navigationState?.label ?? fallbackView?.label ?? this.route.snapshot.queryParamMap.get('label') ?? (routeViewId === 'new' ? 'New View' : 'Resource View'),
+      value: navigationState?.value ?? fallbackView?.value ?? (routeViewId === 'new' ? 'new-view' : routeViewId),
       resourceIds: navigationState?.resourceIds ?? fallbackView?.resourceIds ?? [],
       groups: navigationState?.groups ?? fallbackView?.groups ?? [],
     };

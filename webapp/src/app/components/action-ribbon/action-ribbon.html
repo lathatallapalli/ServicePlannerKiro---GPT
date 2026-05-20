@@ -82,14 +82,14 @@
                     </button>
                   </div>
                 }
-                <div class="action-ribbon__resource-view-item action-ribbon__resource-view-item--bordered action-ribbon__resource-view-item--action" role="button" tabindex="0" (click)="addResourceView(item, $event)" (keydown.enter)="addResourceView(item, $event)" (keydown.space)="addResourceView(item, $event)">
-                  <span class="action-ribbon__resource-view-label">Add View</span>
-                  <span class="action-ribbon__resource-view-chevron" aria-hidden="true">
+                <div class="action-ribbon__resource-detail-section action-ribbon__resource-detail-section--action action-ribbon__resource-detail-section--add">
+                  <div class="action-ribbon__resource-detail-heading" role="button" tabindex="0" (click)="addResourceView(item, $event)" (keydown.enter)="addResourceView(item, $event)" (keydown.space)="addResourceView(item, $event)">
+                    <span>Add View</span>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply"/>
                       <path fill-rule="evenodd" clip-rule="evenodd" [attr.d]="addAltPath" fill="currentColor"/>
                     </svg>
-                  </span>
+                  </div>
                 </div>
               </div>
 

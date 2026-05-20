@@ -1,5 +1,6 @@
 import { Job } from './job.model';
 
+export type WorkorderWorkflowState = 'request' | 'offer' | 'preparation' | 'checkin' | 'execution' | 'handover' | 'followup';
 export type WorkOrderStatus = 'new' | 'edit' | 'preparation' | 'complete' | 'settings' | 'handover' | 'follow-up';
 
 export interface Vehicle {
@@ -26,6 +27,7 @@ export interface WorkOrder {
   id: string;
   referenceNumber: string;
   status: WorkOrderStatus;
+  workflowState?: WorkorderWorkflowState;
   vehicle: Vehicle;
   customer: Customer;
   billingParty?: Customer;

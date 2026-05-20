@@ -1,3 +1,5 @@
+import { WorkorderItemCategory, WorkorderItemStatus } from './job.model';
+
 export interface ScheduleEntry {
   id: string;
   jobId: string;
@@ -8,6 +10,8 @@ export interface ScheduleEntry {
   color?: string;
   kind?: 'tentative' | 'blocked-order' | 'scheduled';
   workOrderReference?: string;
+  workorderItemStatus?: WorkorderItemStatus;
+  workorderItemCategory?: WorkorderItemCategory;
 }
 
 export interface ScheduleConflict {

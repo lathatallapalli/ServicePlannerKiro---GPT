@@ -51,6 +51,7 @@ export class GenericListComponent<T extends Record<string, unknown> = Record<str
   @Input() showAddButton = true;
   @Input() selectable = true;
   @Input() fitContent = false;
+  @Input() editableCell?: { rowId?: string; columnKey: string; value?: string } | null = null;
   @Input() rowActions: GenericListRowAction[] = [{ id: 'open', label: 'Open', icon: 'launch' }];
   @Input() toolbarActions: GenericListToolbarAction[] = [
     { id: 'settings', label: 'View settings', icon: 'settings-view' },
@@ -66,6 +67,7 @@ export class GenericListComponent<T extends Record<string, unknown> = Record<str
   @Output() rowAction = new EventEmitter<{ action: GenericListRowAction; row: T }>();
   @Output() selectionChange = new EventEmitter<T[]>();
   @Output() sortChange = new EventEmitter<GenericListSort<T>>();
+  @Output() editableCellValueChange = new EventEmitter<{ row: T; value: string }>();
 
   searchTerm = '';
   selectedRowIds = new Set<string>();
@@ -116,6 +118,16 @@ export class GenericListComponent<T extends Record<string, unknown> = Record<str
 
   onRowAction(action: GenericListRowAction, row: T): void {
     if (!action.disabled) this.rowAction.emit({ action, row });
+  }
+
+  isEditingCell(row: T, column: GenericListColumn<T>): boolean {
+    return this.editableCell?.columnKey === column.key && (!this.editableCell.rowId || this.editableCell.rowId === this.getRowId(row));
+  }
+
+  getEditableCellValue(row: T, column: GenericListColumn<T>): string {
+    return this.editableCell?.rowId === this.getRowId(row) && this.editableCell.value !== undefined
+      ? this.editableCell.value
+      : this.getCellValue(row, column);
   }
 
   toggleSort(column: GenericListColumn<T>): void {

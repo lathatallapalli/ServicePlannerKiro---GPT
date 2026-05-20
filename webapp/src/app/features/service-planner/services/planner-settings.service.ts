@@ -11,6 +11,9 @@ export interface ResourceFavoriteView {
 export class PlannerSettingsService {
   slotDurationMinutes = signal<number>(60);
   selectedResourceView = signal<ResourceFavoriteView | null>(null);
+  isSettingsModalOpen = signal<boolean>(false);
+  viewPersonalCalendarOnTop = signal<boolean>(true);
+  optimizeAdvisorActivityBookingForPersonalCalendar = signal<boolean>(false);
 
   // Incremented each time the user triggers undo from the ribbon.
   // The service planner watches this and pops the last booking.
@@ -26,5 +29,21 @@ export class PlannerSettingsService {
 
   triggerUndo(): void {
     this.undoTrigger.update(n => n + 1);
+  }
+
+  openSettings(): void {
+    this.isSettingsModalOpen.set(true);
+  }
+
+  closeSettings(): void {
+    this.isSettingsModalOpen.set(false);
+  }
+
+  setViewPersonalCalendarOnTop(enabled: boolean): void {
+    this.viewPersonalCalendarOnTop.set(enabled);
+  }
+
+  setOptimizeAdvisorActivityBookingForPersonalCalendar(enabled: boolean): void {
+    this.optimizeAdvisorActivityBookingForPersonalCalendar.set(enabled);
   }
 }

@@ -21,7 +21,7 @@ export interface SchedulerEvent {
   end: Date;
   title: string;
   color?: string;
-  meta?: { job: Job; entry: ScheduleEntry };
+  meta?: { job?: Job; order?: unknown; entry?: ScheduleEntry };
 }
 
 export interface SchedulerGroup {
@@ -62,6 +62,10 @@ export interface EventClickPayload {
 export interface ResourceSelectionChangePayload {
   resourceId: string;
   selected: boolean;
+}
+
+export interface ResourceTypeSelectionChangePayload {
+  groupIds: string[];
 }
 
 // ── The contract every scheduler implementation must satisfy ─────────────────

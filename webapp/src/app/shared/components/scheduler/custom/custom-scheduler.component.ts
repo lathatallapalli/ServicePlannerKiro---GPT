@@ -6,11 +6,15 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UnavailabilityBlock } from '../../../../core/models/availability.model';
+import { WorkorderItemStatus } from '../../../../core/models/job.model';
 import {
   SchedulerResource, SchedulerEvent, SchedulerGroup,
-  EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, ResourceSelectionChangePayload
+  EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload,
+  ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload
 } from '../scheduler.interface';
 import { ResourceFavoriteView } from '../../../../features/service-planner/services/planner-settings.service';
+
+const MINUTES_PER_FRU = 60;
 
 const SLOT_WIDTH = 60;        // px per slot (fixed — one slot always = 60px)
 const ROW_HEIGHT = 78;        // px per resource row
@@ -67,6 +71,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Output() public eventDropped = new EventEmitter<EventDropPayload>();
   @Output() public eventClicked = new EventEmitter<EventClickPayload>();
   @Output() public resourceSelectionChange = new EventEmitter<ResourceSelectionChangePayload>();
+  @Output() public resourceTypeSelectionChange = new EventEmitter<ResourceTypeSelectionChangePayload>();
   @Output() public resourceViewChange = new EventEmitter<ResourceFavoriteView | null>();
   @Output() public resourceViewListRequested = new EventEmitter<ResourceFavoriteView | null>();
   @Output() public resourceViewAddRequested = new EventEmitter<void>();
@@ -153,9 +158,17 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (changes['viewStart'] || changes['viewEnd'] || changes['slotDurationMinutes']) {
       this.buildTimeSlots();
     }
-    if (changes['groups'] && !this.hasInitializedGroupSelection) {
-      this.selectedGroupIds = this.groups.map(group => group.id);
-      this.hasInitializedGroupSelection = true;
+    if (changes['groups']) {
+      const groupIds = this.groups.map(group => group.id);
+      if (!this.hasInitializedGroupSelection) {
+        this.selectedGroupIds = groupIds;
+        this.hasInitializedGroupSelection = true;
+      } else {
+        this.selectedGroupIds = [
+          ...groupIds.filter(groupId => !this.selectedGroupIds.includes(groupId)),
+          ...this.selectedGroupIds.filter(groupId => groupIds.includes(groupId)),
+        ];
+      }
     }
     if (changes['scrollToEventId'] && this.scrollToEventId) {
       queueMicrotask(() => this.scrollToEvent(this.scrollToEventId));
@@ -207,6 +220,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return (hour.getHours() - 9) * this.HOUR_WIDTH;
   }
 
+  isFirstHourSlot(slot: Date): boolean {
+    return slot.getHours() === 9 && slot.getMinutes() === 0;
+  }
+
   formatDay(day: Date): string {
     return day.getDate().toString();
   }
@@ -244,7 +261,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getUnavailabilityDetail(block: UnavailabilityBlock): string {
-    return `${this.formatEventTime(block.start)}–${this.formatEventTime(block.end)}`;
+    return `${this.formatDateRange(block.start, block.end)} | ${this.formatDuration(block.start, block.end)}`;
+  }
+
+  private getBlockDuration(block: UnavailabilityBlock): string {
+    return this.formatDuration(block.start, block.end);
   }
 
   isLunchBlock(block: UnavailabilityBlock): boolean {
@@ -291,7 +312,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       cursor.setHours(9, 0, 0, 0);
     }
 
-    const visualGap = this.hasContiguousNextEvent(event) ? 0 : 4;
+    const isActivity = event.meta?.entry?.workorderItemCategory === 'activity';
+    const visualGap = this.hasContiguousNextEvent(event) || isActivity ? 0 : 4;
     return Math.max(visibleHours * this.HOUR_WIDTH - visualGap, 20);
   }
 
@@ -428,30 +450,19 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getEventTagLabel(event: SchedulerEvent): string {
-    const status = this.getEventStatus(event);
-    if (status === 'order-started') return 'Order started';
-    if (status === 'customer-waiting') return 'Customer waiting';
+    const status = this.getWorkorderItemStatus(event);
+    if (status === 'scheduled') return 'Scheduled';
+    if (status === 'started') return 'Started';
     if (status === 'completed') return 'Completed';
-
-    const kind = event.meta?.entry?.kind;
-    if (!kind || kind === 'tentative') return 'Tentative';
-    if (kind === 'blocked-order') return 'Booked';
-    return kind
-      .split('-')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
+    return 'Scheduled';
   }
 
-  getEventStatus(event: SchedulerEvent): 'order-started' | 'customer-waiting' | 'completed' | null {
-    const jobStatus = event.meta?.job?.status;
-    const order = (event.meta as any)?.order;
-    const orderStatus = order?.status;
-    const customerWaiting = order?.customerWaiting ?? order?.isCustomerWaiting;
-
-    if (jobStatus === 'completed' || orderStatus === 'complete') return 'completed';
-    if (customerWaiting) return 'customer-waiting';
-    if (jobStatus === 'in-progress' || orderStatus === 'preparation') return 'order-started';
-    return null;
+  getWorkorderItemStatus(event: SchedulerEvent): WorkorderItemStatus {
+    const entryStatus = event.meta?.entry?.workorderItemStatus;
+    const jobStatus = event.meta?.job?.workorderItemStatus;
+    if (entryStatus === 'started' || entryStatus === 'completed' || entryStatus === 'scheduled') return entryStatus;
+    if (jobStatus === 'started' || jobStatus === 'completed' || jobStatus === 'scheduled') return jobStatus;
+    return 'scheduled';
   }
 
   isBlockedOrderEvent(event: SchedulerEvent): boolean {
@@ -459,13 +470,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getEventDetail(event: SchedulerEvent): string {
-    if (this.isBlockedOrderEvent(event)) {
-      return event.meta?.entry?.title ?? event.meta?.entry?.workOrderReference ?? this.formatEventTimeRange(event);
-    }
-
-    const job = event.meta?.job;
-    const detailParts = [job?.description ?? job?.title, this.getEventDuration(event)].filter(Boolean);
-    return detailParts.join(' | ');
+    return `${this.formatEventTimeRange(event)} | ${this.getEventDuration(event)}`;
   }
 
   getEventOrderReference(event: SchedulerEvent): string {
@@ -479,13 +484,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   getEventOrderSequence(event: SchedulerEvent): string {
     const order = (event.meta as any)?.order;
     const totalJobs = order?.jobs?.length ?? 1;
-    const eventJobId = event.meta?.entry?.jobId ?? event.meta?.job?.id ?? event.id;
     const visibleJobs = new Set(
       this.events
         .filter(candidate => this.getEventOrderKey(candidate) === this.getEventOrderKey(event))
         .map(candidate => candidate.meta?.entry?.jobId ?? candidate.meta?.job?.id ?? candidate.id)
     );
-    return `${visibleJobs.has(eventJobId) ? 1 : 0}/${totalJobs}`;
+    return `${visibleJobs.size}/${totalJobs}`;
   }
 
   getOrderRunSequence(run: SchedulerOrderRun): string {
@@ -496,13 +500,25 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getEventDuration(event: SchedulerEvent): string {
-    const durationMinutes = event.meta?.job?.estimatedDurationMinutes
-      ?? Math.round((event.end.getTime() - event.start.getTime()) / 60000);
-    return `${durationMinutes} min`;
+    return this.formatDuration(event.start, event.end);
   }
 
   formatEventTimeRange(event: SchedulerEvent): string {
-    return `${this.formatEventTime(event.start)}–${this.formatEventTime(event.end)}`;
+    return this.formatDateRange(event.start, event.end);
+  }
+
+  private formatDateRange(start: Date, end: Date): string {
+    return `${this.formatEventTime(start)} - ${this.formatEventTime(end)}`;
+  }
+
+  private formatDuration(start: Date, end: Date): string {
+    const durationMinutes = Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+    const hours = Math.floor(durationMinutes / MINUTES_PER_FRU);
+    const minutes = durationMinutes % MINUTES_PER_FRU;
+    return [
+      hours ? `${hours}hr` : '',
+      minutes ? `${minutes}min` : '',
+    ].filter(Boolean).join(' ') || '0min';
   }
 
   private formatEventTime(date: Date): string {
@@ -534,13 +550,23 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getUngroupedResources(): SchedulerResource[] {
-    return this.resources.filter(r => !r.groupId);
+    const visibleGroupIds = new Set(this.visibleGroups.map(group => group.id));
+    return this.resources.filter(resource => !resource.groupId || !visibleGroupIds.has(resource.groupId));
   }
 
   get visibleGroups(): SchedulerGroup[] {
     return this.groups.filter(group => {
       if (!this.selectedGroupIds.includes(group.id)) return false;
-      return this.getResourcesForGroup(group.id).length > 0;
+      return this.hasResourcesForGroup(group.id);
+    });
+  }
+
+  private hasResourcesForGroup(groupId: string): boolean {
+    const query = this.resourceSearch.trim().toLowerCase();
+    return this.resources.some(resource => {
+      if (resource.groupId !== groupId) return false;
+      if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
+      return true;
     });
   }
 
@@ -604,11 +630,13 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.selectedGroupIds = this.selectedGroupIds.includes(groupId)
       ? this.selectedGroupIds.filter(id => id !== groupId)
       : [...this.selectedGroupIds, groupId];
+    this.resourceTypeSelectionChange.emit({ groupIds: [...this.selectedGroupIds] });
   }
 
   clearGroupSelection(event: Event): void {
     event.stopPropagation();
     this.selectedGroupIds = this.groups.map(group => group.id);
+    this.resourceTypeSelectionChange.emit({ groupIds: [...this.selectedGroupIds] });
   }
 
   toggleGroupCollapsed(groupId: string): void {
@@ -628,6 +656,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       this.showSelectedOnlyByGroup.delete(groupId);
       return;
     }
+    if (!this.resources.some(resource => resource.groupId === groupId && this.isResourceSelected(resource.id))) return;
     this.showSelectedOnlyByGroup.add(groupId);
   }
 
@@ -857,7 +886,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const jobId = e.dataTransfer?.getData('jobId');
     const orderId = e.dataTransfer?.getData('orderId') || undefined;
     const dropType = (e.dataTransfer?.getData('dropType') || (orderId ? 'order' : 'job')) as 'job' | 'order';
-    const durationMinutes = parseInt(e.dataTransfer?.getData('durationMinutes') ?? '60', 10);
+    const durationFru = parseFloat(e.dataTransfer?.getData('fru') ?? '1');
     const resourceType = e.dataTransfer?.getData('resourceType') || undefined;
     const droppedResource = this.resources.find(resource => resource.id === resourceId);
     const droppedResourceType = (droppedResource?.meta as any)?.type;
@@ -892,7 +921,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const snappedTotalMins = Math.round(totalMins / slotMins) * slotMins;
     start.setHours(Math.floor(snappedTotalMins / 60), snappedTotalMins % 60, 0, 0);
 
-    const end = new Date(start.getTime() + durationMinutes * 60000);
+    const end = new Date(start.getTime() + durationFru * MINUTES_PER_FRU * 60000);
 
     this.zone.run(() => {
       this.eventDropped.emit({ jobId: jobId || `order-${orderId}`, orderId, dropType, resourceId, resourceType, droppedResourceType, start, end });

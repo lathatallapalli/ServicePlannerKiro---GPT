@@ -4,6 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { DatePickerModule, RadioModule, TimePickerModule, TimePickerSelectModule } from 'carbon-components-angular';
 import { WorkOrder } from '../../core/models/work-order.model';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
+import { QuickViewSelectionService } from '../quick-view/quick-view-selection.service';
 
 @Component({
   selector: 'app-appointment-selection',
@@ -18,6 +19,7 @@ export class AppointmentSelectionComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private workOrderRepo: WorkOrderRepository,
+    private quickViewSelection: QuickViewSelectionService,
   ) {}
 
   ngOnInit(): void {
@@ -26,6 +28,14 @@ export class AppointmentSelectionComponent implements OnInit {
 
     this.workOrderRepo.getAll().subscribe(orders => {
       this.workOrder = orders.find(order => order.id === orderId || order.referenceNumber === orderId) ?? null;
+      const selection = this.workOrder ? this.quickViewSelection.getSelection(this.workOrder.id) : null;
+      if (this.workOrder && selection) {
+        this.workOrder = {
+          ...this.workOrder,
+          appointmentStart: new Date(selection.checkinStart),
+          appointmentEnd: new Date(selection.handoverEnd),
+        };
+      }
     });
   }
 
@@ -48,5 +58,19 @@ export class AppointmentSelectionComponent implements OnInit {
       hour: 'numeric',
       hour12: true,
     }).formatToParts(date).find(part => part.type === 'dayPeriod')?.value ?? 'AM';
+  }
+
+  protected getTotalDurationHours(): number {
+    return this.workOrder?.jobs.reduce((total, job) => total + this.getJobHours(job), 0) ?? 0;
+  }
+
+  protected getTotalDurationLabel(): string {
+    const hours = this.getTotalDurationHours();
+    const formatted = hours % 1 === 0 ? String(hours) : hours.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+    return `${formatted} hrs`;
+  }
+
+  private getJobHours(job: WorkOrder['jobs'][number]): number {
+    return Number(job.fru ?? (job as any).durationFru ?? Math.max(0.25, job.estimatedDurationMinutes / 60));
   }
 }

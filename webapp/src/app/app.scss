@@ -41,11 +41,13 @@
   app-page-title {
     display: block;
     flex: 1;
+    min-width: 0;
   }
 
   app-top-panel {
     display: block;
     flex-shrink: 0;
+    margin-right: 64px;
 
     &[hidden] {
       display: none;

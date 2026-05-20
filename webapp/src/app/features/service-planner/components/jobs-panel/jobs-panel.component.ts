@@ -11,9 +11,12 @@ export interface JobTile {
 
 export interface ActivityTile {
   id: string;
+  templateId?: string;
+  orderId?: string;
   title: string;
   resourceType: string;
   resourceLabel: string;
+  fru: number;
   estimatedDurationMinutes: number;
 }
 
@@ -64,10 +67,10 @@ export class JobsPanelComponent {
     });
   }
 
-  onDragStart(event: DragEvent, id: string, resourceType: string, durationMinutes: number): void {
+  onDragStart(event: DragEvent, id: string, resourceType: string, fru: number): void {
     event.dataTransfer?.setData('jobId', id);
     event.dataTransfer?.setData('dropType', 'job');
-    event.dataTransfer?.setData('durationMinutes', durationMinutes.toString());
+    event.dataTransfer?.setData('fru', fru.toString());
     event.dataTransfer?.setData('resourceType', resourceType);
   }
 
@@ -85,9 +88,8 @@ export class JobsPanelComponent {
     return this.bookings.find(b => b.jobId === jobId && b.resourceType === resourceType);
   }
 
-  getFruLabel(durationMinutes: number): string {
-    const hours = durationMinutes / 60;
-    return `${hours % 1 === 0 ? hours : hours.toFixed(1)} FRU`;
+  getFruLabel(fru: number): string {
+    return `${fru % 1 === 0 ? fru : fru.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} hrs`;
   }
 
   isFullyBooked(job: Job): boolean {

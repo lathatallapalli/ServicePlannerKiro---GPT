@@ -119,6 +119,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         workOrderId: 'wo-014826312',
         title: 'Tire Change',
         description: 'Replace customer tires while the customer waits at the dealership.',
+        fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic',
         requiredQualifications: [QUALIFICATIONS.tyres],
@@ -133,6 +134,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         workOrderId: 'wo-014826312',
         title: 'Battery Replacement',
         description: 'Replace the vehicle battery; this may be extended during execution in Scenario 4.',
+        fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic',
         requiredQualifications: [QUALIFICATIONS.battery],
@@ -174,6 +176,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         workOrderId: 'wo-014826455',
         title: 'Standard Service every 25,000km / Yearly',
         description: 'Routine yearly/25,000km service.',
+        fru: 1.5,
         estimatedDurationMinutes: 90,
         requiredResourceType: 'mechanic',
         requiredQualifications: [QUALIFICATIONS.generalService],
@@ -188,6 +191,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         workOrderId: 'wo-014826455',
         title: 'MOT Check - Emission Test',
         description: 'MOT emission measurement using the BEA 950 Emission Tester.',
+        fru: 0.25,
         estimatedDurationMinutes: 15,
         requiredResourceType: 'mechanic',
         requiredQualifications: [QUALIFICATIONS.emissions],
@@ -203,6 +207,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         workOrderId: 'wo-014826455',
         title: 'MOT Check - Brake Test',
         description: 'MOT brake system test and safety check.',
+        fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic',
         requiredQualifications: [QUALIFICATIONS.brakes],
@@ -250,6 +255,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         id: `job-${id}-1`,
         workOrderId: id,
         title: firstJob,
+        fru: 0.75,
         estimatedDurationMinutes: 45,
         requiredResourceType: 'mechanic' as const,
         requiredQualifications: [QUALIFICATIONS.generalService],
@@ -260,6 +266,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         id: `job-${id}-2`,
         workOrderId: id,
         title: secondJob,
+        fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic' as const,
         requiredQualifications: [QUALIFICATIONS.generalService],
@@ -269,88 +276,128 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
     ],
     createdAt: baseDate,
     updatedAt: baseDate,
-  })),
+  })).map(order => order.referenceNumber === '014826500'
+    ? {
+        ...order,
+        jobs: order.jobs.map(job => {
+          const { assignedResourceId, ...unscheduledJob } = job;
+          return {
+            ...unscheduledJob,
+            status: 'unscheduled' as const,
+          };
+        }),
+      }
+    : order),
 ];
 
 export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
-  { id: 'sch-bg-1001-mark-1', jobId: 'job-wo-bg-1001-1', resourceId: 'mech-mark-owen', start: new Date('2024-04-15T08:30:00'), end: new Date('2024-04-15T09:15:00'), title: 'Oil Leak Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-bay-1', jobId: 'job-wo-bg-1001-1', resourceId: 'bay-pc-1', start: new Date('2024-04-15T08:30:00'), end: new Date('2024-04-15T09:15:00'), title: 'Oil Leak Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-mark-2', jobId: 'job-wo-bg-1001-2', resourceId: 'mech-mark-owen', start: new Date('2024-04-15T09:15:00'), end: new Date('2024-04-15T10:00:00'), title: 'Engine Bay Inspection', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-bay-2', jobId: 'job-wo-bg-1001-2', resourceId: 'bay-pc-1', start: new Date('2024-04-15T09:15:00'), end: new Date('2024-04-15T10:00:00'), title: 'Engine Bay Inspection', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1002-phil-1', jobId: 'job-wo-bg-1002-1', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T10:00:00'), end: new Date('2024-04-15T10:30:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-bay-1', jobId: 'job-wo-bg-1002-1', resourceId: 'bay-pc-2', start: new Date('2024-04-15T10:00:00'), end: new Date('2024-04-15T10:30:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-phil-2', jobId: 'job-wo-bg-1002-2', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T10:30:00'), end: new Date('2024-04-15T10:45:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-bay-2', jobId: 'job-wo-bg-1002-2', resourceId: 'bay-pc-2', start: new Date('2024-04-15T10:30:00'), end: new Date('2024-04-15T10:45:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1003-greg-1', jobId: 'job-wo-bg-1003-1', resourceId: 'mech-greg-jackson', start: new Date('2024-04-15T11:00:00'), end: new Date('2024-04-15T11:45:00'), title: 'Air Conditioning Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1003-bay-1', jobId: 'job-wo-bg-1003-1', resourceId: 'bay-pc-3', start: new Date('2024-04-15T11:00:00'), end: new Date('2024-04-15T11:45:00'), title: 'Air Conditioning Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1003-greg-2', jobId: 'job-wo-bg-1003-2', resourceId: 'mech-greg-jackson', start: new Date('2024-04-15T11:45:00'), end: new Date('2024-04-15T12:00:00'), title: 'Cabin Filter Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1003-bay-2', jobId: 'job-wo-bg-1003-2', resourceId: 'bay-pc-3', start: new Date('2024-04-15T11:45:00'), end: new Date('2024-04-15T12:00:00'), title: 'Cabin Filter Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1004-jeff-1', jobId: 'job-wo-bg-1004-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T14:00:00'), title: 'Suspension Noise Investigation', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1004-bay-1', jobId: 'job-wo-bg-1004-1', resourceId: 'bay-lt-1', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T14:00:00'), title: 'Suspension Noise Investigation', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1004-jeff-2', jobId: 'job-wo-bg-1004-2', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-15T14:00:00'), end: new Date('2024-04-15T14:30:00'), title: 'Shock Absorber Inspection', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1005-kelly-1', jobId: 'job-wo-bg-1005-1', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:15:00'), title: 'Control Unit Scan', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1005-bay-1', jobId: 'job-wo-bg-1005-1', resourceId: 'bay-pc-1', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:15:00'), title: 'Control Unit Scan', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1005-eps-1', jobId: 'job-wo-bg-1005-1', resourceId: 'device-eps-708', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:15:00'), title: 'Control Unit Scan', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1005-kelly-2', jobId: 'job-wo-bg-1005-2', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-15T15:15:00'), end: new Date('2024-04-15T15:45:00'), title: 'Software Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1005-bay-2', jobId: 'job-wo-bg-1005-2', resourceId: 'bay-pc-1', start: new Date('2024-04-15T15:15:00'), end: new Date('2024-04-15T15:45:00'), title: 'Software Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1006-mark-1', jobId: 'job-wo-bg-1006-1', resourceId: 'mech-mark-owen', start: new Date('2024-04-16T08:30:00'), end: new Date('2024-04-16T09:15:00'), title: 'Door Lock Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1006-bay-1', jobId: 'job-wo-bg-1006-1', resourceId: 'bay-pc-2', start: new Date('2024-04-16T08:30:00'), end: new Date('2024-04-16T09:15:00'), title: 'Door Lock Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1006-mark-2', jobId: 'job-wo-bg-1006-2', resourceId: 'mech-mark-owen', start: new Date('2024-04-16T09:15:00'), end: new Date('2024-04-16T09:45:00'), title: 'Key Fob Programming', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1006-eps-1', jobId: 'job-wo-bg-1006-2', resourceId: 'device-eps-708', start: new Date('2024-04-16T09:15:00'), end: new Date('2024-04-16T09:45:00'), title: 'Key Fob Programming', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1007-phil-1', jobId: 'job-wo-bg-1007-1', resourceId: 'mech-phil-parker', start: new Date('2024-04-16T10:00:00'), end: new Date('2024-04-16T10:45:00'), title: 'Coolant Leak Check', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
-  { id: 'sch-bg-1007-bay-1', jobId: 'job-wo-bg-1007-1', resourceId: 'bay-pc-3', start: new Date('2024-04-16T10:00:00'), end: new Date('2024-04-16T10:45:00'), title: 'Coolant Leak Check', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
-  { id: 'sch-bg-1007-phil-2', jobId: 'job-wo-bg-1007-2', resourceId: 'mech-phil-parker', start: new Date('2024-04-16T10:45:00'), end: new Date('2024-04-16T11:15:00'), title: 'Pressure Test', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
-  { id: 'sch-bg-1008-greg-1', jobId: 'job-wo-bg-1008-1', resourceId: 'mech-greg-jackson', start: new Date('2024-04-16T13:00:00'), end: new Date('2024-04-16T13:45:00'), title: 'Noise From Rear Axle', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1008-bay-1', jobId: 'job-wo-bg-1008-1', resourceId: 'bay-lt-1', start: new Date('2024-04-16T13:00:00'), end: new Date('2024-04-16T13:45:00'), title: 'Noise From Rear Axle', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1008-greg-2', jobId: 'job-wo-bg-1008-2', resourceId: 'mech-greg-jackson', start: new Date('2024-04-16T13:45:00'), end: new Date('2024-04-16T14:15:00'), title: 'Road Test', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1009-jeff-1', jobId: 'job-wo-bg-1009-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-16T14:30:00'), end: new Date('2024-04-16T15:00:00'), title: 'Navigation System Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
-  { id: 'sch-bg-1009-eps-1', jobId: 'job-wo-bg-1009-1', resourceId: 'device-eps-708', start: new Date('2024-04-16T14:30:00'), end: new Date('2024-04-16T15:00:00'), title: 'Navigation System Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
-  { id: 'sch-bg-1009-jeff-2', jobId: 'job-wo-bg-1009-2', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-16T15:00:00'), end: new Date('2024-04-16T15:30:00'), title: 'Connectivity Check', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
-  { id: 'sch-bg-1010-kelly-1', jobId: 'job-wo-bg-1010-1', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-16T16:00:00'), end: new Date('2024-04-16T16:45:00'), title: 'Seat Heating Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1010-bay-1', jobId: 'job-wo-bg-1010-1', resourceId: 'bay-pc-1', start: new Date('2024-04-16T16:00:00'), end: new Date('2024-04-16T16:45:00'), title: 'Seat Heating Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1010-kelly-2', jobId: 'job-wo-bg-1010-2', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-16T16:45:00'), end: new Date('2024-04-16T17:15:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1010-bay-2', jobId: 'job-wo-bg-1010-2', resourceId: 'bay-pc-1', start: new Date('2024-04-16T16:45:00'), end: new Date('2024-04-16T17:15:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1001-ted-checkin', jobId: 'job-wo-bg-1001-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T09:00:00'), end: new Date('2024-04-15T09:15:00'), title: 'Check-In 014826500', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-ted-handover', jobId: 'job-wo-bg-1001-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T10:00:00'), end: new Date('2024-04-15T10:15:00'), title: 'Handover 014826500', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-courtesy', jobId: 'job-wo-bg-1001-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T09:00:00'), end: new Date('2024-04-15T10:15:00'), title: 'Courtesy Car 014826500', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1002-frank-checkin', jobId: 'job-wo-bg-1002-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T09:45:00'), end: new Date('2024-04-15T10:00:00'), title: 'Check-In 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-frank-handover', jobId: 'job-wo-bg-1002-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:00:00'), title: 'Handover 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-courtesy', jobId: 'job-wo-bg-1002-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T17:00:00'), end: new Date('2024-04-15T18:15:00'), title: 'Courtesy Car 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1003-ted-checkin', jobId: 'job-wo-bg-1003-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:00:00'), title: 'Check-In 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1003-ted-handover', jobId: 'job-wo-bg-1003-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T12:15:00'), title: 'Handover 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1003-courtesy', jobId: 'job-wo-bg-1003-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T12:15:00'), title: 'Courtesy Car 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1004-frank-checkin', jobId: 'job-wo-bg-1004-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T12:45:00'), end: new Date('2024-04-15T13:00:00'), title: 'Check-In 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1004-frank-handover', jobId: 'job-wo-bg-1004-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T14:45:00'), title: 'Handover 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1004-courtesy', jobId: 'job-wo-bg-1004-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T12:45:00'), end: new Date('2024-04-15T14:45:00'), title: 'Courtesy Car 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1005-ted-checkin', jobId: 'job-wo-bg-1005-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T14:15:00'), end: new Date('2024-04-15T14:30:00'), title: 'Check-In 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1005-ted-handover', jobId: 'job-wo-bg-1005-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T15:45:00'), end: new Date('2024-04-15T16:00:00'), title: 'Handover 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1006-frank-handover', jobId: 'job-wo-bg-1006-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T16:45:00'), end: new Date('2024-04-16T17:15:00'), title: 'Handover 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1005-courtesy', jobId: 'job-wo-bg-1005-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T14:15:00'), end: new Date('2024-04-15T16:00:00'), title: 'Courtesy Car 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1006-frank-checkin', jobId: 'job-wo-bg-1006-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T08:45:00'), end: new Date('2024-04-16T09:00:00'), title: 'Check-In 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1006-courtesy', jobId: 'job-wo-bg-1006-1', resourceId: 'car-bmw-320-mw112ab', start: new Date('2024-04-16T08:45:00'), end: new Date('2024-04-16T17:15:00'), title: 'Courtesy Car 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1007-ted-checkin', jobId: 'job-wo-bg-1007-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T09:45:00'), end: new Date('2024-04-16T10:00:00'), title: 'Check-In 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
-  { id: 'sch-bg-1007-ted-handover', jobId: 'job-wo-bg-1007-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T11:15:00'), end: new Date('2024-04-16T11:30:00'), title: 'Handover 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
-  { id: 'sch-bg-1007-courtesy', jobId: 'job-wo-bg-1007-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-16T09:45:00'), end: new Date('2024-04-16T11:30:00'), title: 'Courtesy Car 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
-  { id: 'sch-bg-1008-ted-checkin', jobId: 'job-wo-bg-1008-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T12:45:00'), end: new Date('2024-04-16T13:00:00'), title: 'Check-In 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1008-ted-handover', jobId: 'job-wo-bg-1008-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T16:45:00'), end: new Date('2024-04-16T17:15:00'), title: 'Handover 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1008-courtesy', jobId: 'job-wo-bg-1008-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-16T12:45:00'), end: new Date('2024-04-16T17:15:00'), title: 'Courtesy Car 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1009-frank-checkin', jobId: 'job-wo-bg-1009-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T14:15:00'), end: new Date('2024-04-16T14:30:00'), title: 'Check-In 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
-  { id: 'sch-bg-1009-frank-handover', jobId: 'job-wo-bg-1009-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T15:30:00'), end: new Date('2024-04-16T15:45:00'), title: 'Handover 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
-  { id: 'sch-bg-1009-courtesy', jobId: 'job-wo-bg-1009-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-16T14:15:00'), end: new Date('2024-04-16T15:45:00'), title: 'Courtesy Car 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
-  { id: 'sch-bg-1010-ted-checkin', jobId: 'job-wo-bg-1010-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T15:45:00'), end: new Date('2024-04-16T16:00:00'), title: 'Check-In 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1010-ted-handover', jobId: 'job-wo-bg-1010-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T17:15:00'), end: new Date('2024-04-16T17:30:00'), title: 'Handover 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1010-courtesy', jobId: 'job-wo-bg-1010-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-16T15:45:00'), end: new Date('2024-04-16T17:30:00'), title: 'Courtesy Car 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1002-phil-1', jobId: 'job-wo-bg-1002-1', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T10:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-bay-1', jobId: 'job-wo-bg-1002-1', resourceId: 'bay-pc-2', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T10:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-phil-2', jobId: 'job-wo-bg-1002-2', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:00:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-bay-2', jobId: 'job-wo-bg-1002-2', resourceId: 'bay-pc-2', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:00:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1003-greg-1', jobId: 'job-wo-bg-1003-1', resourceId: 'mech-greg-jackson', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T14:15:00'), title: 'Air Conditioning Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1003-bay-1', jobId: 'job-wo-bg-1003-1', resourceId: 'bay-pc-3', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T14:15:00'), title: 'Air Conditioning Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1003-greg-2', jobId: 'job-wo-bg-1003-2', resourceId: 'mech-greg-jackson', start: new Date('2024-04-15T14:15:00'), end: new Date('2024-04-15T14:30:00'), title: 'Cabin Filter Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1003-bay-2', jobId: 'job-wo-bg-1003-2', resourceId: 'bay-pc-3', start: new Date('2024-04-15T14:15:00'), end: new Date('2024-04-15T14:30:00'), title: 'Cabin Filter Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1004-jeff-1', jobId: 'job-wo-bg-1004-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T14:30:00'), title: 'Suspension Noise Investigation', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1004-bay-1', jobId: 'job-wo-bg-1004-1', resourceId: 'bay-lt-1', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T14:30:00'), title: 'Suspension Noise Investigation', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1004-jeff-2', jobId: 'job-wo-bg-1004-2', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Shock Absorber Inspection', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1005-kelly-1', jobId: 'job-wo-bg-1005-1', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-15T16:00:00'), end: new Date('2024-04-15T16:45:00'), title: 'Control Unit Scan', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1005-bay-1', jobId: 'job-wo-bg-1005-1', resourceId: 'bay-pc-1', start: new Date('2024-04-15T16:00:00'), end: new Date('2024-04-15T16:45:00'), title: 'Control Unit Scan', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1005-eps-1', jobId: 'job-wo-bg-1005-1', resourceId: 'device-eps-708', start: new Date('2024-04-15T16:00:00'), end: new Date('2024-04-15T16:45:00'), title: 'Control Unit Scan', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1005-kelly-2', jobId: 'job-wo-bg-1005-2', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-15T16:45:00'), end: new Date('2024-04-15T17:15:00'), title: 'Software Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1005-bay-2', jobId: 'job-wo-bg-1005-2', resourceId: 'bay-pc-1', start: new Date('2024-04-15T16:45:00'), end: new Date('2024-04-15T17:15:00'), title: 'Software Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1006-mark-1', jobId: 'job-wo-bg-1006-1', resourceId: 'mech-mark-owen', start: new Date('2024-04-16T09:15:00'), end: new Date('2024-04-16T10:00:00'), title: 'Door Lock Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1006-bay-1', jobId: 'job-wo-bg-1006-1', resourceId: 'bay-pc-2', start: new Date('2024-04-16T09:15:00'), end: new Date('2024-04-16T10:00:00'), title: 'Door Lock Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1006-mark-2', jobId: 'job-wo-bg-1006-2', resourceId: 'mech-mark-owen', start: new Date('2024-04-16T10:00:00'), end: new Date('2024-04-16T10:30:00'), title: 'Key Fob Programming', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1006-eps-1', jobId: 'job-wo-bg-1006-2', resourceId: 'device-eps-708', start: new Date('2024-04-16T10:00:00'), end: new Date('2024-04-16T10:30:00'), title: 'Key Fob Programming', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1007-phil-1', jobId: 'job-wo-bg-1007-1', resourceId: 'mech-phil-parker', start: new Date('2024-04-16T10:15:00'), end: new Date('2024-04-16T11:00:00'), title: 'Coolant Leak Check', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
+  { id: 'sch-bg-1007-bay-1', jobId: 'job-wo-bg-1007-1', resourceId: 'bay-pc-3', start: new Date('2024-04-16T10:15:00'), end: new Date('2024-04-16T11:00:00'), title: 'Coolant Leak Check', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
+  { id: 'sch-bg-1007-phil-2', jobId: 'job-wo-bg-1007-2', resourceId: 'mech-phil-parker', start: new Date('2024-04-16T11:00:00'), end: new Date('2024-04-16T11:30:00'), title: 'Pressure Test', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
+  { id: 'sch-bg-1008-greg-1', jobId: 'job-wo-bg-1008-1', resourceId: 'mech-greg-jackson', start: new Date('2024-04-16T13:15:00'), end: new Date('2024-04-16T14:00:00'), title: 'Noise From Rear Axle', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1008-bay-1', jobId: 'job-wo-bg-1008-1', resourceId: 'bay-lt-1', start: new Date('2024-04-16T13:15:00'), end: new Date('2024-04-16T14:00:00'), title: 'Noise From Rear Axle', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1008-greg-2', jobId: 'job-wo-bg-1008-2', resourceId: 'mech-greg-jackson', start: new Date('2024-04-16T14:00:00'), end: new Date('2024-04-16T14:30:00'), title: 'Road Test', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1009-jeff-1', jobId: 'job-wo-bg-1009-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-16T14:45:00'), end: new Date('2024-04-16T15:15:00'), title: 'Navigation System Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
+  { id: 'sch-bg-1009-eps-1', jobId: 'job-wo-bg-1009-1', resourceId: 'device-eps-708', start: new Date('2024-04-16T14:45:00'), end: new Date('2024-04-16T15:15:00'), title: 'Navigation System Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
+  { id: 'sch-bg-1009-jeff-2', jobId: 'job-wo-bg-1009-2', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-16T15:15:00'), end: new Date('2024-04-16T15:45:00'), title: 'Connectivity Check', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
+  { id: 'sch-bg-1010-kelly-1', jobId: 'job-wo-bg-1010-1', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-16T16:15:00'), end: new Date('2024-04-16T17:00:00'), title: 'Seat Heating Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1010-bay-1', jobId: 'job-wo-bg-1010-1', resourceId: 'bay-pc-1', start: new Date('2024-04-16T16:15:00'), end: new Date('2024-04-16T17:00:00'), title: 'Seat Heating Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1010-kelly-2', jobId: 'job-wo-bg-1010-2', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-16T17:00:00'), end: new Date('2024-04-16T17:30:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1010-bay-2', jobId: 'job-wo-bg-1010-2', resourceId: 'bay-pc-1', start: new Date('2024-04-16T17:00:00'), end: new Date('2024-04-16T17:30:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1002-frank-checkin', jobId: 'job-wo-bg-1002-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T09:45:00'), end: new Date('2024-04-15T10:15:00'), title: 'Check-In 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-frank-handover', jobId: 'job-wo-bg-1002-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T11:00:00'), end: new Date('2024-04-15T11:30:00'), title: 'Handover 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-courtesy', jobId: 'job-wo-bg-1002-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T11:30:00'), title: 'Courtesy Car 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1003-ted-checkin', jobId: 'job-wo-bg-1003-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T13:30:00'), title: 'Check-In 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1003-ted-handover', jobId: 'job-wo-bg-1003-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Handover 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1003-courtesy', jobId: 'job-wo-bg-1003-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Courtesy Car 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1004-frank-checkin', jobId: 'job-wo-bg-1004-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T13:30:00'), title: 'Check-In 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1004-frank-handover', jobId: 'job-wo-bg-1004-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T15:00:00'), end: new Date('2024-04-15T15:30:00'), title: 'Handover 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1004-courtesy', jobId: 'job-wo-bg-1004-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T15:30:00'), title: 'Courtesy Car 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1005-ted-checkin', jobId: 'job-wo-bg-1005-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T15:30:00'), end: new Date('2024-04-15T16:00:00'), title: 'Check-In 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1005-ted-handover', jobId: 'job-wo-bg-1005-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T17:15:00'), end: new Date('2024-04-15T17:45:00'), title: 'Handover 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1006-frank-handover', jobId: 'job-wo-bg-1006-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T10:30:00'), end: new Date('2024-04-16T11:00:00'), title: 'Handover 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1005-courtesy', jobId: 'job-wo-bg-1005-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T16:00:00'), end: new Date('2024-04-15T17:45:00'), title: 'Courtesy Car 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1006-frank-checkin', jobId: 'job-wo-bg-1006-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T08:45:00'), end: new Date('2024-04-16T09:15:00'), title: 'Check-In 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1006-courtesy', jobId: 'job-wo-bg-1006-1', resourceId: 'car-bmw-320-mw112ab', start: new Date('2024-04-16T09:15:00'), end: new Date('2024-04-16T11:00:00'), title: 'Courtesy Car 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1007-ted-checkin', jobId: 'job-wo-bg-1007-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T09:45:00'), end: new Date('2024-04-16T10:15:00'), title: 'Check-In 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
+  { id: 'sch-bg-1007-ted-handover', jobId: 'job-wo-bg-1007-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T11:30:00'), end: new Date('2024-04-16T12:00:00'), title: 'Handover 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
+  { id: 'sch-bg-1007-courtesy', jobId: 'job-wo-bg-1007-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-16T10:15:00'), end: new Date('2024-04-16T12:00:00'), title: 'Courtesy Car 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
+  { id: 'sch-bg-1008-ted-checkin', jobId: 'job-wo-bg-1008-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T12:45:00'), end: new Date('2024-04-16T13:15:00'), title: 'Check-In 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1008-ted-handover', jobId: 'job-wo-bg-1008-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T14:30:00'), end: new Date('2024-04-16T15:00:00'), title: 'Handover 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1008-courtesy', jobId: 'job-wo-bg-1008-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-16T13:15:00'), end: new Date('2024-04-16T15:00:00'), title: 'Courtesy Car 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1009-frank-checkin', jobId: 'job-wo-bg-1009-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T14:15:00'), end: new Date('2024-04-16T14:45:00'), title: 'Check-In 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
+  { id: 'sch-bg-1009-frank-handover', jobId: 'job-wo-bg-1009-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T15:45:00'), end: new Date('2024-04-16T16:15:00'), title: 'Handover 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
+  { id: 'sch-bg-1009-courtesy', jobId: 'job-wo-bg-1009-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-16T14:45:00'), end: new Date('2024-04-16T16:15:00'), title: 'Courtesy Car 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
+  { id: 'sch-bg-1010-ted-checkin', jobId: 'job-wo-bg-1010-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T15:45:00'), end: new Date('2024-04-16T16:15:00'), title: 'Check-In 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1010-ted-handover', jobId: 'job-wo-bg-1010-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T17:30:00'), end: new Date('2024-04-16T18:00:00'), title: 'Handover 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1010-courtesy', jobId: 'job-wo-bg-1010-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-16T16:15:00'), end: new Date('2024-04-16T18:00:00'), title: 'Courtesy Car 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
 ];
+
+MOCK_WORK_ORDERS.forEach(order => {
+  order.workflowState ??= order.status === 'handover'
+    ? 'handover'
+    : order.status === 'follow-up'
+      ? 'followup'
+      : order.status === 'preparation'
+        ? 'preparation'
+        : 'offer';
+
+  order.jobs.forEach(job => {
+    job.workorderItemCategory ??= 'job';
+    job.workorderItemStatus ??= job.status === 'completed'
+      ? 'completed'
+      : job.status === 'in-progress'
+        ? 'started'
+        : 'scheduled';
+  });
+});
+
+MOCK_SCHEDULE_ENTRIES.forEach(entry => {
+  const title = (entry.title ?? '').toLowerCase();
+  if (title.startsWith('check-in') || title.startsWith('handover')) {
+    entry.end = new Date(entry.start.getTime() + 30 * 60000);
+  }
+  entry.workorderItemStatus ??= 'scheduled';
+  entry.workorderItemCategory ??= title.startsWith('check-in') ||
+    title.startsWith('handover') ||
+    title.startsWith('courtesy car')
+      ? 'activity'
+      : 'job';
+});
 
 export const MOCK_UNAVAILABILITY: UnavailabilityBlock[] = [
   { resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T08:30:00'), end: new Date('2024-04-15T09:00:00'), reason: 'Team Meeting', title: 'Team Meeting', color: '#A6C8FF' },
   { resourceId: 'device-bea-950', start: new Date('2024-04-15T15:00:00'), end: new Date('2024-04-15T16:00:00'), reason: 'Calibration', title: 'Calibration', color: '#A6C8FF' },
   { resourceId: 'bay-pc-3', start: new Date('2024-04-16T08:00:00'), end: new Date('2024-04-16T08:30:00'), reason: 'Cleaning', title: 'Cleaning', color: '#A6C8FF' },
   { resourceId: 'mech-kelly-hanson', start: new Date('2024-04-16T13:00:00'), end: new Date('2024-04-16T14:00:00'), reason: 'Training', title: 'Training', color: '#A6C8FF' },
-  { resourceId: 'mech-mark-owen', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T12:30:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
-  { resourceId: 'mech-phil-parker', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T12:30:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
-  { resourceId: 'mech-greg-jackson', start: new Date('2024-04-15T12:30:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
-  { resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-15T12:30:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
-  { resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T12:00:00'), end: new Date('2024-04-16T12:30:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
-  { resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T12:30:00'), end: new Date('2024-04-16T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
+  { resourceId: 'mech-mark-owen', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
+  { resourceId: 'mech-phil-parker', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
+  { resourceId: 'mech-greg-jackson', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
+  { resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
+  { resourceId: 'mech-kelly-hanson', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
+  { resourceId: 'mech-scenario-flex', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
+  { resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
+  { resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
+  { resourceId: 'advisor-scenario-lead', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
 ];
+

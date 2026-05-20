@@ -21,7 +21,7 @@
           <div class="job-tile__top">
             <span class="job-tile__title">{{ tile.job.title }}</span>
             <span class="job-tile__tag" [class.job-tile__tag--scheduled]="isFullyBooked(tile.job)">
-              {{ isFullyBooked(tile.job) ? 'Scheduled' : getFruLabel(tile.job.estimatedDurationMinutes) }}
+              {{ isFullyBooked(tile.job) ? 'Scheduled' : getFruLabel(tile.job.fru) }}
             </span>
           </div>
           <div class="job-tile__resources">
@@ -37,7 +37,7 @@
               } @else {
                 <div class="job-tile__resource-row job-tile__resource-row--draggable"
                   draggable="true"
-                  (dragstart)="onDragStart($event, tile.job.id, req.resourceType, tile.job.estimatedDurationMinutes)">
+                  (dragstart)="onDragStart($event, tile.job.id, req.resourceType, tile.job.fru)">
                   <span class="job-tile__resource-name">{{ getRequirementLabel(req) }}</span>
                   <span class="job-tile__resource-status">PENDING</span>
                 </div>
@@ -70,7 +70,7 @@
             <div class="job-tile__resource-row"
               [class.job-tile__resource-row--draggable]="!getActivityBooking(act.id)"
               [attr.draggable]="!getActivityBooking(act.id) ? true : null"
-              (dragstart)="!getActivityBooking(act.id) && onDragStart($event, act.id, act.resourceType, act.estimatedDurationMinutes)">
+              (dragstart)="!getActivityBooking(act.id) && onDragStart($event, act.id, act.resourceType, act.fru)">
               <span class="job-tile__resource-name"
                 [class.job-tile__resource-name--booked]="getActivityBooking(act.id)">
                 {{ getActivityBooking(act.id)?.resourceName ?? act.resourceLabel }}

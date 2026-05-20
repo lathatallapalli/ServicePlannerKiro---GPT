@@ -1,0 +1,116 @@
+<section class="quick-view-page">
+  <div class="quick-view-page__cards">
+    <article class="generic-card generic-card--work">
+      <header class="generic-card__header">
+        <div class="generic-card__leading">
+          <h2>Work</h2>
+          <button class="generic-card__toggle" type="button" aria-label="Collapse Work card">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="generic-card__divider" aria-hidden="true"></div>
+
+      <div class="generic-card__content generic-card__content--work">
+        <div class="carbon-readonly-field">
+          <span class="carbon-readonly-field__label">Total duration</span>
+          <span class="carbon-readonly-field__value">{{ getTotalDurationLabel() }}</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="timeslots-card">
+      <header class="timeslots-card__header">
+        <div class="timeslots-card__leading">
+          <h2>Timeslots</h2>
+          <button class="timeslots-card__toggle" type="button" aria-label="Collapse Timeslots card">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="timeslots-card__divider" aria-hidden="true"></div>
+
+      <div class="timeslots-card__content">
+        <div class="timeslots-month">
+          <button class="timeslots-icon-button" type="button" aria-label="Previous month" (click)="previousMonth()">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M5 8L10 3L10.7 3.7L6.4 8L10.7 12.3L10 13L5 8Z" />
+            </svg>
+          </button>
+          <div class="timeslots-month__label">{{ getMonthYearLabel() }}</div>
+          <button class="timeslots-icon-button" type="button" aria-label="Next month" (click)="nextMonth()">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M10.9998 8L5.9998 13L5.2998 12.3L9.5998 8L5.2998 3.7L5.9998 3L10.9998 8Z" />
+            </svg>
+          </button>
+        </div>
+
+        @if (isLoading) {
+          <p class="quick-view-page__empty">Calculating probable fulfillment windows...</p>
+        } @else if (days.length) {
+          <div class="timeslots-tabs" role="tablist" aria-label="Appointment days">
+            <button class="timeslots-tabs__nav" type="button" aria-label="Previous week" (click)="previousWeek()">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M5 8L10 3L10.7 3.7L6.4 8L10.7 12.3L10 13L5 8Z" />
+              </svg>
+            </button>
+
+            <div class="timeslots-tabs__items">
+              @for (day of days; track day.dateLabel; let index = $index) {
+                <button
+                  class="timeslots-tab"
+                  [class.timeslots-tab--selected]="index === selectedDayIndex"
+                  type="button"
+                  role="tab"
+                  [attr.aria-selected]="index === selectedDayIndex"
+                  (click)="selectDay(index)"
+                >
+                  <span class="timeslots-tab__date">{{ day.dateLabel }}</span>
+                  <span class="timeslots-tab__day">{{ day.dayLabel }}</span>
+                </button>
+              }
+            </div>
+
+            <button class="timeslots-tabs__nav" type="button" aria-label="Next week" (click)="nextWeek()">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M10.9998 8L5.9998 13L5.2998 12.3L9.5998 8L5.2998 3.7L5.9998 3L10.9998 8Z" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="timeslots-grid" aria-label="Available appointment timeslots">
+            @for (day of days; track day.dateLabel; let dayIndex = $index) {
+              <div class="timeslots-column" [class.timeslots-column--selected]="dayIndex === selectedDayIndex">
+                @if (day.slots.length) {
+                  @for (slot of day.slots; track slot.label) {
+                    <button
+                      class="timeslot-button"
+                      [class.timeslot-button--selected]="slot.key === selectedSlotKey"
+                      type="button"
+                      [attr.title]="slot.title"
+                      (click)="selectDay(dayIndex); selectSlot(slot)"
+                    >
+                      @for (line of getSlotLines(slot); track line) {
+                        <span>{{ line }}</span>
+                      }
+                    </button>
+                  }
+                } @else {
+                  <button class="timeslot-button timeslot-button--empty" type="button" disabled>-</button>
+                }
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="quick-view-page__empty">No probable fulfillment windows found.</p>
+        }
+      </div>
+    </article>
+  </div>
+</section>

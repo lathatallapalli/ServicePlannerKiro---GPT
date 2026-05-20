@@ -8,11 +8,14 @@ import { TopPanel, TopPanelTile } from './components/top-panel/top-panel';
 import { Footer } from './components/footer/footer';
 import { PageTitle } from './components/page-title/page-title';
 import { ResourceCatalogSelectionService } from './features/resource-catalog/data/resource-catalog-selection.service';
+import { QuickViewSelectionService } from './features/quick-view/quick-view-selection.service';
 import { PlannerSettingsService } from './features/service-planner/services/planner-settings.service';
-import { DEMO_RESOURCE_VIEWS } from './features/service-planner/data/resource-views.mock';
+import { ResourceViewsService } from './features/service-planner/services/resource-views.service';
 import { MOCK_WORK_ORDERS } from './core/services/mock/mock-data';
 import { findTransactionById, findWorkOrderByIdOrReference } from './core/services/mock/mock-transactions';
 import { WorkOrder } from './core/models/work-order.model';
+import { WorkOrderRepository } from './core/services/work-order.repository';
+import { AppointmentSyncService } from './core/services/appointment-sync.service';
 
 @Component({
   selector: 'app-root',
@@ -28,6 +31,7 @@ export class App implements OnInit {
   protected readonly isTransactionSummaryPage = signal(false);
   protected readonly isOrderWorkflowPage = signal(false);
   protected readonly isAppointmentSelectionPage = signal(false);
+  protected readonly isQuickViewPage = signal(false);
   protected readonly isOrderSummaryPage = signal(false);
   protected readonly isServicePlannerPage = signal(false);
   protected readonly isOrderServicePlannerPage = signal(false);
@@ -40,7 +44,7 @@ export class App implements OnInit {
   protected readonly resourceEditorReference = signal('');
   protected readonly activeOrder = signal<WorkOrder | null>(findWorkOrderByIdOrReference('014826312') ?? null);
   protected readonly visibleActionRibbonItems = computed(() =>
-    this.isHomePage() || this.isTransactionsPage()
+    this.isHomePage() || this.isTransactionsPage() || this.isQuickViewPage()
       ? []
       : this.isTransactionSummaryPage()
         ? this.transactionSummaryActionRibbonItems
@@ -172,13 +176,17 @@ export class App implements OnInit {
 
   constructor(
     private plannerSettings: PlannerSettingsService,
+    private resourceViewsService: ResourceViewsService,
     private router: Router,
     private resourceCatalogSelection: ResourceCatalogSelectionService,
+    private quickViewSelection: QuickViewSelectionService,
+    private workOrderRepo: WorkOrderRepository,
+    private appointmentSync: AppointmentSyncService,
   ) {}
 
   ngOnInit(): void {
-    const defaultView = this.canonicalResourceViews.find(view => view.value === 'view-full') ?? this.canonicalResourceViews[0];
-    this.plannerSettings.setResourceView({ label: defaultView.label, resourceIds: defaultView.resourceIds });
+    const defaultView = this.resourceViewsService.getByValue('view-full') ?? this.resourceViewsService.getAll()[0];
+    this.plannerSettings.setResourceView(defaultView);
     this.updateShellForUrl(this.router.url);
     this.router.events
       .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
@@ -218,6 +226,7 @@ export class App implements OnInit {
         'M27,16.76c0-.25,0-.5,0-.76s0-.51,0-.77l1.92-1.68A2,2,0,0,0,29.3,11L26.94,7a2,2,0,0,0-1.73-1,2,2,0,0,0-.64.1l-2.43.82a11.35,11.35,0,0,0-1.31-.75l-.51-2.52a2,2,0,0,0-2-1.61H13.64a2,2,0,0,0-2,1.61l-.51,2.52a11.48,11.48,0,0,0-1.32.75L7.43,6.06A2,2,0,0,0,6.79,6,2,2,0,0,0,5.06,7L2.7,11a2,2,0,0,0,.41,2.51L5,15.24c0,.25,0,.5,0,.76s0,.51,0,.77L3.11,18.45A2,2,0,0,0,2.7,21L5.06,25a2,2,0,0,0,1.73,1,2,2,0,0,0,.64-.1l2.43-.82a11.35,11.35,0,0,0,1.31.75l.51,2.52a2,2,0,0,0,2,1.61h4.72a2,2,0,0,0,2-1.61l.51-2.52a11.48,11.48,0,0,0,1.32-.75l2.42.82a2,2,0,0,0,.64.1,2,2,0,0,0,1.73-1L29.3,21a2,2,0,0,0-.41-2.51ZM25.21,24l-3.43-1.16a8.86,8.86,0,0,1-2.71,1.57L18.36,28H13.64l-.71-3.55a9.36,9.36,0,0,1-2.7-1.57L6.79,24,4.43,20l2.72-2.4a8.9,8.9,0,0,1,0-3.13L4.43,12,6.79,8l3.43,1.16a8.86,8.86,0,0,1,2.71-1.57L13.64,4h4.72l.71,3.55a9.36,9.36,0,0,1,2.7,1.57L25.21,8,27.57,12l-2.72,2.4a8.9,8.9,0,0,1,0,3.13L27.57,20Z',
         'M16,22a6,6,0,1,1,6-6A5.94,5.94,0,0,1,16,22Zm0-10a3.91,3.91,0,0,0-4,4,3.91,3.91,0,0,0,4,4,3.91,3.91,0,0,0,4-4A3.91,3.91,0,0,0,16,12Z',
       ],
+      action: () => this.plannerSettings.openSettings(),
     },
   ];
 
@@ -250,7 +259,7 @@ export class App implements OnInit {
       label: 'Quick view', type: 'link' as const,
       iconViewBox: '0 0 24 24',
       icon: ['M12 22.5C9.9233 22.5 7.89323 21.8842 6.16652 20.7304C4.4398 19.5767 3.09399 17.9368 2.29927 16.0182C1.50455 14.0996 1.29661 11.9884 1.70176 9.95156C2.1069 7.91476 3.10693 6.04383 4.57538 4.57538C6.04383 3.10693 7.91476 2.1069 9.95156 1.70176C11.9884 1.29661 14.0996 1.50455 16.0182 2.29927C17.9368 3.09399 19.5767 4.4398 20.7304 6.16652C21.8842 7.89323 22.5 9.9233 22.5 12C22.5 14.7848 21.3938 17.4555 19.4246 19.4246C17.4555 21.3938 14.7848 22.5 12 22.5ZM12 3C10.22 3 8.47992 3.52785 6.99987 4.51678C5.51983 5.50571 4.36628 6.91132 3.68509 8.55585C3.0039 10.2004 2.82567 12.01 3.17294 13.7558C3.5202 15.5016 4.37737 17.1053 5.63604 18.364C6.89472 19.6226 8.49836 20.4798 10.2442 20.8271C11.99 21.1743 13.7996 20.9961 15.4442 20.3149C17.0887 19.6337 18.4943 18.4802 19.4832 17.0001C20.4722 15.5201 21 13.78 21 12C21 9.61306 20.0518 7.32387 18.364 5.63604C16.6761 3.94822 14.387 3 12 3Z', 'M15.4425 16.5L11.25 12.3075V5.25H12.75V11.685L16.5 15.4425L15.4425 16.5Z'],
-      action: () => console.log('Quick view'),
+      action: () => this.router.navigate(['/orders', this.currentOrderReference(), 'quick-view']),
     },
   ];
   resourceEditorActionRibbonItems = [
@@ -258,7 +267,7 @@ export class App implements OnInit {
       label: 'Add Resource', type: 'link' as const,
       iconViewBox: '0 0 20 20',
       icon: 'M15.25 9.625H10.875V5.25H9.625V9.625H5.25V10.875H9.625V15.25H10.875V10.875H15.25V9.625Z',
-      action: () => console.log('Add resource'),
+      action: () => this.openResourceCatalogForCurrentView(),
     },
     {
       label: 'Filter', type: 'link' as const,
@@ -357,7 +366,7 @@ export class App implements OnInit {
 
     this.router.navigate(['/resource-views', option.value, 'edit'], {
       queryParams: { label: option.label, returnTo },
-      state: { resourceView: option },
+      state: { resourceView: this.resourceViewsService.getByValue(option.value) ?? option },
     });
   }
 
@@ -377,13 +386,39 @@ export class App implements OnInit {
     return typeof returnTo === 'string' && returnTo.startsWith('/') ? returnTo : '/service-planner';
   }
 
+  private openResourceCatalogForCurrentView(): void {
+    const cleanUrl = this.router.url.split('?')[0].split('#')[0];
+    const newView = cleanUrl.startsWith('/resource-views/') ? null : this.resourceViewsService.createNewView();
+    const returnTo = cleanUrl.startsWith('/resource-views/') ? cleanUrl : `/resource-views/${newView!.value}/edit`;
+    const queryParams = this.router.parseUrl(this.router.url).queryParams;
+    const plannerReturnTo = queryParams['plannerReturnTo'] ?? queryParams['returnTo'] ?? '/service-planner';
+    const viewId = returnTo.match(/^\/resource-views\/([^/]+)\/edit/)?.[1];
+    const resourceView = this.resourceViewsService.getByValue(viewId) ?? newView ?? this.resourceViewsService.createNewView();
+
+    this.router.navigate(['/resource-catalog'], {
+      queryParams: { returnTo, plannerReturnTo, listReturnTo: '/resource-views' },
+      state: { resourceView },
+    });
+  }
+
   private currentOrderReference(): string {
     return this.activeOrder()?.referenceNumber ?? '014826312';
   }
 
   private resolveOrderForUrl(cleanUrl: string): WorkOrder | null {
     const orderId = cleanUrl.match(/^\/orders\/([^/]+)/)?.[1];
-    if (orderId) return findWorkOrderByIdOrReference(decodeURIComponent(orderId)) ?? null;
+    if (orderId) {
+      const decodedOrderId = decodeURIComponent(orderId);
+      this.workOrderRepo.getById(decodedOrderId).subscribe(order => {
+        if (!order) return;
+        this.activeOrder.set(order);
+        this.topPanelTiles = this.buildTopPanelTiles(order);
+      });
+      const activeOrder = this.activeOrder();
+      return activeOrder?.id === decodedOrderId || activeOrder?.referenceNumber === decodedOrderId
+        ? activeOrder
+        : findWorkOrderByIdOrReference(decodedOrderId) ?? null;
+    }
 
     const transactionId = cleanUrl.match(/^\/transactions\/([^/]+)\/summary/)?.[1];
     const transaction = findTransactionById(transactionId);
@@ -403,6 +438,7 @@ export class App implements OnInit {
     const isTransactionsOffer = cleanUrl === '/transactions/offer';
     const isOrderWorkflow = cleanUrl.startsWith('/orders/');
     const isAppointmentSelection = cleanUrl.includes('/appointment-selection');
+    const isQuickView = /^\/orders\/[^/]+\/quick-view$/.test(cleanUrl);
     const isOrderSummary = isOrderWorkflow && cleanUrl.includes('/summary');
     const isFullServicePlanner = cleanUrl === '/service-planner';
     const isOrderServicePlanner = /^\/orders\/[^/]+\/service-planner$/.test(cleanUrl);
@@ -416,6 +452,7 @@ export class App implements OnInit {
     this.isTransactionSummaryPage.set(isTransactionSummary);
     this.isOrderWorkflowPage.set(isOrderWorkflow);
     this.isAppointmentSelectionPage.set(isAppointmentSelection);
+    this.isQuickViewPage.set(isQuickView);
     this.isOrderSummaryPage.set(isOrderSummary);
     this.isServicePlannerPage.set(isServicePlanner);
     this.isOrderServicePlannerPage.set(isOrderServicePlanner);
@@ -423,7 +460,7 @@ export class App implements OnInit {
     this.isResourceEditorPage.set(isResourceEditor || isResourceViewsList);
     this.isResourceCatalogPage.set(isResourceCatalog);
     const viewId = cleanUrl.match(/^\/resource-views\/([^/?#]+)\/edit/)?.[1];
-    const view = this.canonicalResourceViews.find(resourceView => resourceView.value === viewId);
+    const view = this.resourceViewsService.getByValue(viewId);
     this.resourceEditorReference.set(view?.label ?? '');
 
     if (isResourceViewsList) {
@@ -487,6 +524,13 @@ export class App implements OnInit {
       return;
     }
 
+    if (isQuickView) {
+      this.shellTitle.set('Appointment Timeslots - Quick view');
+      this.shellReference.set(this.currentOrderReference());
+      this.shellBreadcrumbs.set([]);
+      return;
+    }
+
     this.shellTitle.set('Service Planner');
     this.shellReference.set(this.currentOrderReference());
     this.shellBreadcrumbs.set([]);
@@ -497,6 +541,11 @@ export class App implements OnInit {
 
     if (/^\/orders\/[^/]+\/service-planner$/.test(cleanUrl)) {
       this.router.navigate(['/orders', this.currentOrderReference(), 'appointment-selection']);
+      return;
+    }
+
+    if (/^\/orders\/[^/]+\/quick-view$/.test(cleanUrl)) {
+      this.saveQuickViewSelectionAndReturn();
       return;
     }
 
@@ -511,6 +560,8 @@ export class App implements OnInit {
     }
 
     if (cleanUrl.startsWith('/resource-views/')) {
+      const viewId = cleanUrl.match(/^\/resource-views\/([^/]+)\/edit/)?.[1];
+      const resourceView = viewId ? this.resourceViewsService.getByValue(decodeURIComponent(viewId)) : undefined;
       this.router.navigateByUrl(this.getResourceEditorReturnTarget());
       return;
     }
@@ -540,6 +591,11 @@ export class App implements OnInit {
       return;
     }
 
+    if (/^\/orders\/[^/]+\/quick-view$/.test(cleanUrl)) {
+      this.router.navigate(['/orders', this.currentOrderReference(), 'appointment-selection']);
+      return;
+    }
+
     if (cleanUrl === '/resource-views') {
       this.router.navigateByUrl(this.getResourceViewsListReturnTarget());
       return;
@@ -551,17 +607,21 @@ export class App implements OnInit {
     }
 
     if (this.router.url.startsWith('/resource-catalog')) {
-      const returnTo = this.router.parseUrl(this.router.url).queryParams['returnTo'];
-      const plannerReturnTo = this.router.parseUrl(this.router.url).queryParams['plannerReturnTo'];
+      const queryParams = this.router.parseUrl(this.router.url).queryParams;
+      const returnTo = queryParams['returnTo'];
+      const plannerReturnTo = queryParams['plannerReturnTo'];
+      const listReturnTo = queryParams['listReturnTo'];
       const selectedResources = this.resourceCatalogSelection.consumeSelection();
       const updatedView = this.addResourcesToCurrentView(returnTo, selectedResources);
+      const isNewResourceView = typeof returnTo === 'string' && /^\/resource-views\/new-\d+\/edit$/.test(returnTo);
       const navigationState = {
         ...(selectedResources.length ? { addedResources: selectedResources } : {}),
         ...(updatedView ? { resourceView: updatedView } : {}),
         ...(typeof plannerReturnTo === 'string' ? { plannerReturnTo } : {}),
       };
 
-      this.router.navigateByUrl(returnTo || '/', {
+      const target = isNewResourceView && typeof listReturnTo === 'string' ? listReturnTo : returnTo;
+      this.router.navigateByUrl(target || '/', {
         state: Object.keys(navigationState).length ? navigationState : undefined,
       });
       return;
@@ -574,37 +634,51 @@ export class App implements OnInit {
     return value.replace(/\b\w/g, character => character.toUpperCase());
   }
 
-  private addResourcesToCurrentView(returnTo: unknown, selectedResources: Array<{ id: string; name: string; group: string }>): any | null {
-    if (!selectedResources.length || typeof returnTo !== 'string') return null;
-    const viewId = returnTo.match(/^\/resource-views\/([^/]+)\/edit/)?.[1];
-    const views = [
-      this.canonicalResourceViews.find(candidate => candidate.value === viewId),
-      DEMO_RESOURCE_VIEWS.find(candidate => candidate.value === viewId),
-    ].filter(Boolean) as any[];
-    if (!views.length) return null;
+  private addResourcesToCurrentView(returnTo: unknown, selectedResources: Array<{ id: string; name: string; group: string; subgroup?: string }>): any | null {
+    if (!selectedResources.length) return null;
+    const viewId = typeof returnTo === 'string' ? returnTo.match(/^\/resource-views\/([^/]+)\/edit/)?.[1] : undefined;
+    const existingView = this.resourceViewsService.getByValue(viewId);
+    const navigationView = history.state?.resourceView;
+    const baseView = existingView ?? navigationView ?? this.resourceViewsService.createNewView();
+    const ids = new Set(baseView.resourceIds ?? []);
+    const groups: Array<{ label: string; children: string[] }> = (baseView.groups ?? []).map((group: { label: string; children: string[] }) => ({ ...group, children: [...group.children] }));
 
-    for (const view of views) {
-      const ids = new Set(view.resourceIds ?? []);
-      selectedResources.forEach(resource => ids.add(resource.id));
-      view.resourceIds = Array.from(ids);
+    selectedResources.forEach(resource => {
+      ids.add(resource.id);
+      const group = groups.find((candidate: { label: string; children: string[] }) => candidate.label === resource.group);
+      if (!group) {
+        groups.push({ label: resource.group, children: [resource.name] });
+        return;
+      }
+      if (!group.children.some((child: string) => child === resource.name)) group.children.push(resource.name);
+    });
 
-      const groups = view.groups ?? [];
-      selectedResources.forEach(resource => {
-        const group = groups.find((candidate: any) => candidate.label === resource.group);
-        if (!group) {
-          groups.push({ label: resource.group, children: [resource.name] });
-          return;
-        }
+    const updatedView = this.resourceViewsService.upsert({
+      ...baseView,
+      label: baseView.label || 'New 1',
+      value: baseView.value ?? viewId,
+      resourceIds: [...ids],
+      groups,
+    });
+    return updatedView;
+  }
 
-        if (!group.children.some((child: any) => child === resource.name)) {
-          group.children.push(resource.name);
-        }
-      });
-      view.groups = groups;
+  private saveQuickViewSelectionAndReturn(): void {
+    const order = this.activeOrder();
+    const selection = order ? this.quickViewSelection.consumeSelection(order.id) : null;
+    const target = ['/orders', this.currentOrderReference(), 'appointment-selection'];
+
+    if (!order || !selection) {
+      this.router.navigate(target);
+      return;
     }
 
-    const updatedView = DEMO_RESOURCE_VIEWS.find(candidate => candidate.value === viewId) ?? views[0];
-    this.plannerSettings.setResourceView(updatedView);
-    return updatedView;
+    this.appointmentSync.updateAppointment(order.id, selection.checkinStart, selection.handoverEnd).subscribe(savedOrder => {
+      if (savedOrder) {
+        this.activeOrder.set(savedOrder);
+        this.topPanelTiles = this.buildTopPanelTiles(savedOrder);
+      }
+      this.router.navigate(target);
+    });
   }
 }

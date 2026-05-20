@@ -243,18 +243,6 @@
   }
 
   &__error {
-    position: absolute;
-    top: 16px;
-    left: 16px;
-    right: 325px;
-    z-index: 20;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    padding: 0 8px 0 16px;
-    background: #FFF1F1;
-    border-left: 3px solid #DA1E28;
-    color: #161616;
   }
 
   &__main,

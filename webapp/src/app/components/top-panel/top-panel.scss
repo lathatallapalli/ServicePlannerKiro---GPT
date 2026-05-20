@@ -1,6 +1,6 @@
 ﻿.top-panel {
-  max-width: calc(100% - 240px);
-  width: auto;
+  width: max-content;
+  max-width: none;
   height: 120px;
   background: transparent;
   display: flex;

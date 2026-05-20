@@ -4,13 +4,15 @@
   height: 96px;
   padding: 16px clamp(16px, 5vw, 216px) 0;
   background: white;
-  box-shadow: none;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12);
   display: inline-flex;
   align-items: flex-start;
   justify-content: space-between;
   flex-shrink: 0;
   box-sizing: border-box;
   overflow-x: auto;
+  position: relative;
+  z-index: 2;
 
   &__btn-set {
     display: flex;
