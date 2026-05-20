@@ -1,0 +1,346 @@
+I scanned the repo structure, routes, feature components, shared scheduler/list components, planner services, models, and mock repositories. Implemented features currently include:
+
+**Application Shell**
+- Route-aware app shell with menu bar, action ribbon, stepper, top panel, page title, footer, and router outlet.
+- Action ribbon supports workflow-style actions such as pause, previous, next, close subpage, and save/close.
+- Shell hides/suppresses certain chrome on planner/resource/quick-view style pages.
+- Header/action-ribbon overlays are designed to appear above page content.
+- Footer includes top shadow.
+- Page title/breadcrumb component exists.
+
+**Routing / Pages**
+- Home page.
+- Transactions active list route.
+- Transactions offer list route.
+- Static transaction summary route.
+- Parameterized transaction summary route.
+- Parameterized order summary route.
+- Parameterized appointment selection route.
+- Parameterized quick view route.
+- Workflow service planner route: `orders/:orderId/service-planner`.
+- Full planner route: `service-planner`.
+- Resource views list route.
+- Resource view editor route.
+- Resource catalog root route.
+- Resource catalog group route.
+- Wildcard redirect to home.
+
+**SSR / Server**
+- Angular SSR configured.
+- Server routes configured for transaction summary, order summary, appointment selection, quick view, workflow planner, resource editor, resource catalog, and wildcard.
+- `/service-planner` has a safe static/prerender fallback:
+  - checks prerendered service-planner index
+  - checks browser index
+  - falls through to Angular SSR if neither exists
+- Static browser assets served with long cache headers.
+- Production build currently passes after CSS budget trimming.
+
+**Domain Models**
+- Workorder model with:
+  - reference number
+  - status
+  - workflow state
+  - vehicle
+  - customer
+  - billing party
+  - jobs
+  - appointment start/end
+  - notes
+- Workorder workflow states:
+  - `request`
+  - `offer`
+  - `preparation`
+  - `checkin`
+  - `execution`
+  - `handover`
+  - `followup`
+- Workorder item statuses:
+  - `scheduled`
+  - `started`
+  - `completed`
+- Resource model with:
+  - mechanic
+  - bay
+  - advisor
+  - driver
+  - device
+  - qualifications
+  - group ID
+  - avatar URL
+- Schedule entries with:
+  - job/activity ID
+  - resource ID
+  - start/end
+  - kind
+  - workorder reference
+  - workorder item status
+  - workorder item category
+
+**Mock Data / Repositories**
+- Mock workorders, transactions, resources, schedules, and unavailability.
+- Mock schedule repository supports:
+  - get entries
+  - assign
+  - unassign
+  - reschedule
+- Mock schedule repository normalizes Check-In and Handover to 30 minutes.
+- Appointment sync service updates workorder appointment start/end.
+- Mock lunch/unavailability data exists for resource downtime/non-productive time.
+- Order `6500` is intended as the unbooked planning/test order.
+- Seeded schedule logic supports Check-In, jobs, Handover, and Mobility relationships.
+
+**Service Planner**
+- Full planner and workflow planner modes.
+- Full planner shows wider resource schedule.
+- Workflow planner focuses on one active workorder.
+- Active workorder resolution from:
+  - selected panel order
+  - route order ID
+  - current workflow order fallback
+- Planner loads resources, workorders, schedule entries, and maps entries to scheduler events.
+- Planner supports selected resource view.
+- Planner supports selected resource type filters.
+- Planner supports resource eligibility based on view/type/requirements.
+- Planner supports resource row collapse behavior for auto proposals.
+- Manual drag/drop does not collapse unselected resources.
+- Quick View full-order scheduling collapses to booked resources in workflow context.
+- Resource-level undo keeps/pins the row visible in workflow context.
+- Workflow undo is scoped to active order and does not touch other orders.
+
+**Custom Scheduler**
+- Sticky month bar.
+- Sticky date/hour header.
+- Sticky resource corner.
+- Synchronized horizontal scrolling between header and body.
+- Fixed resource column.
+- Horizontal time grid from working hours.
+- Configurable slot duration through planner settings.
+- Resource View dropdown in scheduler corner.
+- Resource Type dropdown in scheduler corner.
+- Resource search in scheduler corner.
+- Right-pane opener/toggle button.
+- Grouped resources by resource type.
+- Resource group collapse/expand chevrons.
+- “See selected” / “See all” per group.
+- Resource checkbox selection state.
+- Resource selection no longer controls row visibility.
+- Group headers remain visible when resources are unselected.
+- Group headers are removed only when excluded by view/type/search filters.
+- Scheduler scrolls to event when `scrollToEventId` changes.
+- Day boundary border duplication fixed by skipping first hour slot line.
+- Day boundary lines render as 1px.
+- Sticky date/day cell has 16px left padding.
+
+**Scheduler Interactions**
+- Drag/drop onto resources.
+- Drag preview snapping horizontally to slot duration.
+- Drop target row highlighting.
+- Existing events movable on timeline.
+- Existing events resizable from left/right handles.
+- Event click opens booking details modal.
+- Event move updates schedule entry times.
+- Event resize updates schedule entry times.
+- Same-job sibling bookings can synchronize start/end where applicable.
+- Activity events are excluded from mechanical same-job sibling sync.
+- Cross-resource snap exists for multi-resource jobs.
+
+**Booking / Scheduling**
+- Book First Availability.
+- Book Next.
+- Book Previous.
+- Per-order proposal history.
+- Proposal state stored/restored per order.
+- Auto booking tracks latest created schedule entry IDs.
+- Auto booking scrolls planner to created/proposed booking.
+- Auto booking creates:
+  - job bookings
+  - Check-In
+  - Handover
+  - Mobility
+- Auto booking respects:
+  - selected resource view
+  - selected resource types
+  - resource qualifications/requirements
+  - existing bookings
+  - unavailability
+  - Check-In/job/Handover/Mobility sequencing
+- Scheduling error state exists for failed first availability.
+- Check-In must precede jobs.
+- Jobs shift after Check-In if dropped too early.
+- Handover shifts after latest job if dropped too early.
+- Mobility spans Check-In end to Handover end.
+- Mobility resyncs when Check-In/Handover changes.
+- Appointment start/end syncs from Check-In start to Handover end.
+
+**Right Order Panel**
+- Order list.
+- Order search field.
+- Current implemented search filters orders by:
+  - order reference / ID
+  - license plate
+  - customer name
+- Booking details toggle.
+- Order cards show order/customer/vehicle/duration/scheduled state.
+- Job tiles show:
+  - job title
+  - scheduled/duration tag
+  - requirements
+  - booked resource names
+  - pending labels
+  - undo action where applicable
+- Activity section shows:
+  - Check-In
+  - Handover
+  - Mobility Service
+- Activity tiles are independently draggable.
+- Activity tiles have dividers.
+- Job drag and activity drag stop propagation so the whole order card does not drag.
+- Per-order Book First, Book Previous, Book Next actions.
+- Book First disabled when order is fully scheduled or scheduling error applies.
+
+**Booking Details Modal**
+- Opens by clicking planner booking tile.
+- Shows booking reference/title context.
+- Shows order/customer/vehicle/resource info.
+- Supports primary resource selection.
+- Supports start/end date and time editing.
+- Supports additional required resource selectors.
+- Save updates selected booking.
+- Delete removes selected booking.
+- Uses Carbon date/time/form controls.
+
+**Undo**
+- Resource-level undo from right panel.
+- Global/ribbon undo via planner settings undo trigger.
+- Latest auto proposal undo removes tracked latest proposal entries.
+- Workflow global undo scopes to active order.
+- Fallback undo removes latest active-order booking in workflow context.
+- Undo removes data from:
+  - schedule repository
+  - planner events
+  - local schedule entries
+  - latest auto booking tracking
+
+**Tile Rendering**
+- Productive bookings render as booking tiles.
+- Non-productive blocks render as grey unavailability blocks.
+- Productive bookings are not duplicated into unavailability.
+- Details ON:
+  - full productive details
+  - grey non-productive detail tiles
+- Details OFF:
+  - active/current order remains detailed
+  - unrelated productive bookings become compact bars
+  - non-productive blocks become grey bars
+- Compact productive bars use `#E9ECF5`.
+- Non-productive details-off bars use Carbon layer-01.
+- Grouped order strip uses Carbon layer-accent-01.
+- Grouped order strip has dark left border.
+- Grouped order number is 14px.
+- One combined shadow for grouped order/job tile.
+- Compact bars have no shadow.
+- Tile second line shows time range and duration.
+- Status tags support scheduled/started/completed.
+- Narrow tiles support icon-only tag behavior.
+
+**Quick View**
+- Loads workorder, resources, schedule entries.
+- Calculates available slots using auto scheduler.
+- Shows week/day slot choices.
+- Supports month navigation.
+- Supports week navigation.
+- Selecting a slot stores:
+  - order ID
+  - Check-In start
+  - Handover end
+- Selecting a slot persists appointment start/end.
+- Selecting a slot removes existing schedule entries for that order.
+- Selecting a slot creates:
+  - Check-In
+  - jobs
+  - Handover
+  - Mobility
+- Selection stored via `QuickViewSelectionService`.
+- Appointment updated via `AppointmentSyncService`.
+- Returning to workflow planner applies selected schedule and scroll/collapse behavior.
+
+**Appointment Selection**
+- Parameterized order appointment selection page.
+- Loads workorder by order ID/reference.
+- Applies Quick View selection if present.
+- Displays appointment date/time fields.
+- Computes total duration from job FRU/duration.
+- Uses Carbon date/time/radio modules.
+
+**Resource Views**
+- Resource views service stores demo/resource favorite views.
+- Planner Resource View dropdown uses selected resource view.
+- Resource views list uses generic list.
+- Resource views list supports:
+  - add view
+  - selection
+  - toolbar actions
+  - editable view name
+  - row open/edit action
+- Resource view editor shows resources in selected view.
+- Resource view editor can navigate to resource catalog to add resources.
+- Added resources merge into existing rows without duplicate IDs.
+- Planner return context is passed through route query parameters.
+
+**Resource Catalog**
+- Resource catalog root lists resource groups.
+- Resource catalog group route displays resources in a group.
+- Resource catalog group uses generic list.
+- Resource catalog group columns include:
+  - resource
+  - code
+  - description
+  - status
+- Resource catalog group supports row selection.
+- Selection stored in `ResourceCatalogSelectionService`.
+- Catalog navigation preserves return context and navigation state.
+
+**Generic List Component**
+- Reusable table/list component.
+- Configurable columns.
+- Configurable row ID key.
+- Configurable toolbar actions.
+- Configurable row actions.
+- Search across columns.
+- Sorting.
+- Row selection.
+- Select all visible rows.
+- Add button support.
+- Editable cell support.
+- Fit-content option.
+- Emits:
+  - search
+  - add
+  - toolbar action
+  - row action
+  - selection change
+  - sort change
+  - editable cell value change
+
+**Transactions / Summaries**
+- Transactions active route.
+- Transactions offer route.
+- Transaction summary route.
+- Parameterized transaction summary route.
+- Order summary route.
+- Mock transaction/workorder data lookup.
+- SSR support for summaries.
+
+**Planner Settings**
+- Slot duration setting signal.
+- Selected resource view signal.
+- Settings modal open state.
+- View personal calendar on top setting.
+- Optimize advisor activity booking for personal calendar setting.
+- Undo trigger signal.
+- Personal Calendar group behavior for logged-in advisor.
+
+**Documents**
+- Main requirements document exists: `webapp/docs/requirements.md`.
+- Separate remaining backlog exists: `webapp/docs/service-planner-backlog.md`.
+

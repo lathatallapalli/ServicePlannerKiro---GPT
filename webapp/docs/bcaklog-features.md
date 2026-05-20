@@ -1,0 +1,63 @@
+Captured. Here’s the remaining requirements list in a clean implementation-ready form.
+
+**Prio 1**
+- **Planner search / find booking**
+  - Implement in the right-panel search bar.
+  - Search by:
+    - customer name
+    - job description
+    - job id
+    - order number
+    - vehicle/license plate
+  - Results should allow navigation/scrolling to the matching booking on the planner.
+  - Applies especially at full planner level.
+- **Split jobs**
+  - Right-click a job booking tile to split/view split details.
+  - Split details should show:
+    - from/to timings
+    - assigned resources
+  - User should be able to navigate easily to each split event on the planner.
+- **Grid highlights and snap while dragging**
+  - Current drag/drop only highlights row.
+  - Add grid/time-slot highlight while dragging.
+  - Add clear snapping feedback to slot/resource target.
+- **Tile visible information**
+  - Planner tiles should immediately show:
+    - license plate
+    - customer name
+    - job description
+    - order number
+  - Avoid hiding critical info behind modal/tooltip only.
+- **Copy customer info**
+  - Make customer details easy to copy.
+  - Especially:
+    - phone
+    - email
+
+**Prio 2**
+- **Related booking hover highlight**
+  - Hovering one tile should highlight all related bookings for the same order/job/activity set.
+- **Tooltip for truncated tile text**
+  - Hovering truncated text should show booking information in a tooltip.
+- **Partial resource selection then drag/drop**
+  - Support selecting only some resources and dragging/dropping with that partial selection context.
+- **Move/drag validation**
+  - Validate while moving bookings around.
+  - Examples:
+    - jobs cannot move before corresponding Check-In is complete
+    - Handover should move if the last job is moved
+    - throw/show error for resource qualification mismatch
+    - block moves if resource is booked/unavailable at target time
+    - clarify/implement whether moving Check-In moves the full order
+- **Duplicate resource in view**
+  - If a resource is already part of a view, adding it again should be blocked or clearly tell the user it already exists.
+- **Reorder resources in view**
+  - Allow ordering resources in a view.
+  - Possible UI: order number column or dropdown.
+- **Resource view save/close return behavior**
+  - Save and Close in resource views should return to the planner context it came from:
+    - workflow planner or full planner
+  - The selected view before edit should persist after returning.
+- **Straighten visible/booked resources concept**
+  - Needs concept cleanup/definition.
+  - Likely about making the distinction between visible resources, selected resources, filtered resources, and booked resources consistent and understandable.
