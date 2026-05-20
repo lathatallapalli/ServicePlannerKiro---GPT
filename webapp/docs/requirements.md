@@ -396,25 +396,12 @@ The primary business domain is a workshop/service planner where workorders are s
   - update planner selection state
 - Returning to workflow planner from Quick View shall apply the selected full-order schedule.
 - Quick View full-order scheduling shall collapse planner resources to booked resources in workflow context.
-- Quick View shall load workorder, resources, and schedule entries.
-- Quick View shall calculate available slots for a visible week using the auto scheduler.
-- Quick View shall support week and month navigation.
-- Quick View shall display days and selectable time slots.
-- Quick View shall persist selected slot state through QuickViewSelectionService.
-- Quick View shall update appointment start/end through AppointmentSyncService.
-- Quick View shall remove previous schedule entries for the same order before saving the selected slot.
-- Quick View shall create schedule entries with generated IDs and scheduled item metadata.
-- Quick View shall restore the selected slot when revisiting the same order.
 
 ## 14. Appointment Selection Requirements
 
 - The system shall support an appointment selection route for an order.
 - Appointment selection shall integrate with appointment synchronization so order appointment start/end can be saved and reused.
 - Appointment selections shall be available to planner/quick-view flows.
-- Appointment selection shall load the workorder by order ID or reference number.
-- Appointment selection shall apply any stored Quick View selection to displayed appointment start/end.
-- Appointment selection shall display total job duration based on FRU/duration data.
-- Appointment selection shall use Carbon date/time/radio controls.
 
 ## 15. Resource Catalog Requirements
 
@@ -422,11 +409,6 @@ The primary business domain is a workshop/service planner where workorders are s
 - The resource catalog shall list resource groups and resources.
 - The resource catalog shall support group-specific routes.
 - The resource catalog shall allow selecting resources for resource-view editing workflows.
-- The resource catalog root page shall list catalog groups and navigate to group-specific resource lists.
-- Resource catalog navigation shall preserve editor return route, planner return route, list return route, and navigation state.
-- Resource catalog group pages shall use the generic list component.
-- Resource catalog group rows shall include resource name, code, description, and status.
-- Resource catalog group pages shall support selecting resources and storing that selection in ResourceCatalogSelectionService.
 
 ## 16. Generic List Requirements
 
@@ -438,15 +420,6 @@ The primary business domain is a workshop/service planner where workorders are s
   - row actions
   - edit/delete/save/add-style actions
 - Resource views shall use a generic list page.
-- The generic list shall support text search across configured columns.
-- The generic list shall support sortable columns.
-- The generic list shall support select-all visible rows and row selection.
-- The generic list shall support configurable row ID key.
-- The generic list shall support configurable row actions and toolbar actions.
-- The generic list shall support an optional Add button.
-- The generic list shall support editable cell mode and editable cell value change events.
-- The generic list shall support fit-content mode.
-- The generic list shall emit search, add, toolbar action, row action, selection change, sort change, and editable-cell value change events.
 
 ## 17. Transaction and Order Summary Requirements
 
@@ -454,10 +427,6 @@ The primary business domain is a workshop/service planner where workorders are s
 - The system shall support transaction summary.
 - The system shall support order summary.
 - Summary routes shall work with SSR/server rendering.
-- The application shall support active and offer transaction list routes.
-- Transaction summary shall support both static and parameterized routes.
-- Order summary shall support parameterized order routes.
-- Transaction and order data shall be served from mock repositories/data in the current implementation.
 
 ## 18. Navigation and Layout
 
@@ -473,11 +442,6 @@ The primary business domain is a workshop/service planner where workorders are s
 - Job details modal overlays shall not show app header or action ribbon inside the overlay.
 - The footer shall have a top shadow.
 - The right pane opener shall match the specified open/closed ghost button styling.
-- The app shell shall hide or suppress standard shell chrome when planner overlays require full-page/modal focus.
-- Header menu and action-ribbon overlays shall use a z-index strategy that places menus above scheduler/page content.
-- The right pane opener shall indicate open state with layer-01 background and focus-colored right border.
-- The closed right pane opener shall use a white ghost icon-only button.
-- The application shall preserve route/query context when navigating between planner, resource views, and resource catalog.
 
 ## 19. Server-Side Rendering
 
@@ -494,8 +458,6 @@ The primary business domain is a workshop/service planner where workorders are s
 - The server shall check for a prerendered service-planner index.
 - If unavailable, the server shall check for the browser index.
 - If neither exists, the server shall fall through to Angular SSR.
-- The service planner route shall be lazy-loaded on the client route table.
-- The server shall serve static browser assets with long-lived cache headers and no directory index redirect.
 
 ## 20. Mock Data and Test Scenarios
 
@@ -510,20 +472,7 @@ The primary business domain is a workshop/service planner where workorders are s
 - Scenario mechanic/advisor and Kelly Hanson shall have lunch.
 - Lunch shall be one hour: `12:00–13:00`.
 
-- Mock resources shall include multiple resource types and groups for mechanics, advisors, bays, drivers, devices, and courtesy/courtesy-car scenarios.
-- Mock workorders shall include customer, vehicle, jobs, requirements, workflow state, and appointment metadata.
-- Mock schedule entries shall include productive bookings and workorder item metadata.
-- Mock unavailability shall include non-productive time blocks such as lunch, training, meetings, and downtime.
-- Mock schedule repository shall normalize Check-In and Handover durations when loading or assigning entries.
-- Mock schedule repository shall support assign, unassign, and reschedule operations.
-- Mock appointment sync shall update workorder appointment start/end in the workorder repository.
-
 ## 21. Validation Requirements
 
-- Type-check validation shall pass with:
-  - `npx tsc --noEmit -p tsconfig.app.json`
 - Production build should pass with:
   - `npm run build`
-- Build warnings for existing budgets/CommonJS dependencies may exist, but the scheduler component shall not exceed the configured error budget.
-- The built server shall return HTTP 200 for `/service-planner`.
-
