@@ -2,6 +2,7 @@ import { UnavailabilityBlock } from '../../models/availability.model';
 import { Qualification, Resource, ResourceGroup } from '../../models/resource.model';
 import { ScheduleEntry } from '../../models/schedule.model';
 import { WorkOrder } from '../../models/work-order.model';
+import { JobResourceRequirement } from '../../models/job.model';
 
 export const QUALIFICATIONS = {
   generalService: { id: 'q-general-service', name: 'General Service' },
@@ -82,6 +83,51 @@ export const MOCK_RESOURCES: Resource[] = [
 ];
 
 const baseDate = new Date('2024-04-10');
+
+const defaultBackgroundJobRequirements: JobResourceRequirement[] = [
+  { resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' },
+  { resourceType: 'bay' as const, requiredQualifications: [], label: 'PC Bay' },
+];
+
+const backgroundJobRequirementsByOrder: Record<string, [JobResourceRequirement[], JobResourceRequirement[]]> = {
+  '014826500': [defaultBackgroundJobRequirements, defaultBackgroundJobRequirements],
+  '014826501': [defaultBackgroundJobRequirements, defaultBackgroundJobRequirements],
+  '014826502': [defaultBackgroundJobRequirements, defaultBackgroundJobRequirements],
+  '014826503': [
+    defaultBackgroundJobRequirements,
+    [{ resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' }],
+  ],
+  '014826504': [
+    [
+      ...defaultBackgroundJobRequirements,
+      { resourceType: 'device' as const, requiredQualifications: [QUALIFICATIONS.diagnostics], label: 'EPS 708 Diesel Tester' },
+    ],
+    defaultBackgroundJobRequirements,
+  ],
+  '014826505': [
+    defaultBackgroundJobRequirements,
+    [
+      { resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' },
+      { resourceType: 'device' as const, requiredQualifications: [QUALIFICATIONS.diagnostics], label: 'EPS 708 Diesel Tester' },
+    ],
+  ],
+  '014826506': [
+    defaultBackgroundJobRequirements,
+    [{ resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' }],
+  ],
+  '014826507': [
+    defaultBackgroundJobRequirements,
+    [{ resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' }],
+  ],
+  '014826508': [
+    [
+      { resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' },
+      { resourceType: 'device' as const, requiredQualifications: [QUALIFICATIONS.diagnostics], label: 'EPS 708 Diesel Tester' },
+    ],
+    [{ resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' }],
+  ],
+  '014826509': [defaultBackgroundJobRequirements, defaultBackgroundJobRequirements],
+};
 
 export const MOCK_WORK_ORDERS: WorkOrder[] = [
   {
@@ -259,6 +305,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         estimatedDurationMinutes: 45,
         requiredResourceType: 'mechanic' as const,
         requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: backgroundJobRequirementsByOrder[referenceNumber][0],
         status: 'scheduled' as const,
         assignedResourceId: resourceId,
       },
@@ -270,6 +317,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic' as const,
         requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: backgroundJobRequirementsByOrder[referenceNumber][1],
         status: 'scheduled' as const,
         assignedResourceId: resourceId,
       },
@@ -324,33 +372,33 @@ export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
   { id: 'sch-bg-1010-bay-1', jobId: 'job-wo-bg-1010-1', resourceId: 'bay-pc-1', start: new Date('2024-04-16T16:15:00'), end: new Date('2024-04-16T17:00:00'), title: 'Seat Heating Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
   { id: 'sch-bg-1010-kelly-2', jobId: 'job-wo-bg-1010-2', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-16T17:00:00'), end: new Date('2024-04-16T17:30:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
   { id: 'sch-bg-1010-bay-2', jobId: 'job-wo-bg-1010-2', resourceId: 'bay-pc-1', start: new Date('2024-04-16T17:00:00'), end: new Date('2024-04-16T17:30:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1002-frank-checkin', jobId: 'job-wo-bg-1002-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T09:45:00'), end: new Date('2024-04-15T10:15:00'), title: 'Check-In 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-frank-handover', jobId: 'job-wo-bg-1002-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T11:00:00'), end: new Date('2024-04-15T11:30:00'), title: 'Handover 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-courtesy', jobId: 'job-wo-bg-1002-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T11:30:00'), title: 'Courtesy Car 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1003-ted-checkin', jobId: 'job-wo-bg-1003-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T13:30:00'), title: 'Check-In 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1003-ted-handover', jobId: 'job-wo-bg-1003-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Handover 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1003-courtesy', jobId: 'job-wo-bg-1003-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Courtesy Car 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
-  { id: 'sch-bg-1004-frank-checkin', jobId: 'job-wo-bg-1004-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T13:30:00'), title: 'Check-In 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1004-frank-handover', jobId: 'job-wo-bg-1004-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T15:00:00'), end: new Date('2024-04-15T15:30:00'), title: 'Handover 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1004-courtesy', jobId: 'job-wo-bg-1004-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T15:30:00'), title: 'Courtesy Car 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1005-ted-checkin', jobId: 'job-wo-bg-1005-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T15:30:00'), end: new Date('2024-04-15T16:00:00'), title: 'Check-In 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1005-ted-handover', jobId: 'job-wo-bg-1005-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T17:15:00'), end: new Date('2024-04-15T17:45:00'), title: 'Handover 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1006-frank-handover', jobId: 'job-wo-bg-1006-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T10:30:00'), end: new Date('2024-04-16T11:00:00'), title: 'Handover 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1005-courtesy', jobId: 'job-wo-bg-1005-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T16:00:00'), end: new Date('2024-04-15T17:45:00'), title: 'Courtesy Car 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
-  { id: 'sch-bg-1006-frank-checkin', jobId: 'job-wo-bg-1006-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T08:45:00'), end: new Date('2024-04-16T09:15:00'), title: 'Check-In 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1006-courtesy', jobId: 'job-wo-bg-1006-1', resourceId: 'car-bmw-320-mw112ab', start: new Date('2024-04-16T09:15:00'), end: new Date('2024-04-16T11:00:00'), title: 'Courtesy Car 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
-  { id: 'sch-bg-1007-ted-checkin', jobId: 'job-wo-bg-1007-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T09:45:00'), end: new Date('2024-04-16T10:15:00'), title: 'Check-In 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
-  { id: 'sch-bg-1007-ted-handover', jobId: 'job-wo-bg-1007-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T11:30:00'), end: new Date('2024-04-16T12:00:00'), title: 'Handover 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
-  { id: 'sch-bg-1007-courtesy', jobId: 'job-wo-bg-1007-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-16T10:15:00'), end: new Date('2024-04-16T12:00:00'), title: 'Courtesy Car 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
-  { id: 'sch-bg-1008-ted-checkin', jobId: 'job-wo-bg-1008-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T12:45:00'), end: new Date('2024-04-16T13:15:00'), title: 'Check-In 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1008-ted-handover', jobId: 'job-wo-bg-1008-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T14:30:00'), end: new Date('2024-04-16T15:00:00'), title: 'Handover 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1008-courtesy', jobId: 'job-wo-bg-1008-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-16T13:15:00'), end: new Date('2024-04-16T15:00:00'), title: 'Courtesy Car 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1009-frank-checkin', jobId: 'job-wo-bg-1009-1', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T14:15:00'), end: new Date('2024-04-16T14:45:00'), title: 'Check-In 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
-  { id: 'sch-bg-1009-frank-handover', jobId: 'job-wo-bg-1009-2', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T15:45:00'), end: new Date('2024-04-16T16:15:00'), title: 'Handover 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
-  { id: 'sch-bg-1009-courtesy', jobId: 'job-wo-bg-1009-1', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-16T14:45:00'), end: new Date('2024-04-16T16:15:00'), title: 'Courtesy Car 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
-  { id: 'sch-bg-1010-ted-checkin', jobId: 'job-wo-bg-1010-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T15:45:00'), end: new Date('2024-04-16T16:15:00'), title: 'Check-In 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1010-ted-handover', jobId: 'job-wo-bg-1010-2', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T17:30:00'), end: new Date('2024-04-16T18:00:00'), title: 'Handover 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1010-courtesy', jobId: 'job-wo-bg-1010-1', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-16T16:15:00'), end: new Date('2024-04-16T18:00:00'), title: 'Courtesy Car 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1002-frank-checkin', jobId: 'wo-bg-1002:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T09:45:00'), end: new Date('2024-04-15T10:15:00'), title: 'Check-In 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-frank-handover', jobId: 'wo-bg-1002:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T11:00:00'), end: new Date('2024-04-15T11:30:00'), title: 'Handover 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-courtesy', jobId: 'wo-bg-1002:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T11:30:00'), title: 'Courtesy Car 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1003-ted-checkin', jobId: 'wo-bg-1003:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T13:30:00'), title: 'Check-In 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1003-ted-handover', jobId: 'wo-bg-1003:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Handover 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1003-courtesy', jobId: 'wo-bg-1003:act-mobility', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Courtesy Car 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
+  { id: 'sch-bg-1004-frank-checkin', jobId: 'wo-bg-1004:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T13:30:00'), title: 'Check-In 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1004-frank-handover', jobId: 'wo-bg-1004:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T15:00:00'), end: new Date('2024-04-15T15:30:00'), title: 'Handover 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1004-courtesy', jobId: 'wo-bg-1004:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T15:30:00'), title: 'Courtesy Car 014826503', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1005-ted-checkin', jobId: 'wo-bg-1005:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T15:30:00'), end: new Date('2024-04-15T16:00:00'), title: 'Check-In 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1005-ted-handover', jobId: 'wo-bg-1005:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T17:15:00'), end: new Date('2024-04-15T17:45:00'), title: 'Handover 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1006-frank-handover', jobId: 'wo-bg-1006:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T10:30:00'), end: new Date('2024-04-16T11:00:00'), title: 'Handover 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1005-courtesy', jobId: 'wo-bg-1005:act-mobility', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T16:00:00'), end: new Date('2024-04-15T17:45:00'), title: 'Courtesy Car 014826504', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
+  { id: 'sch-bg-1006-frank-checkin', jobId: 'wo-bg-1006:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T08:45:00'), end: new Date('2024-04-16T09:15:00'), title: 'Check-In 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1006-courtesy', jobId: 'wo-bg-1006:act-mobility', resourceId: 'car-bmw-320-mw112ab', start: new Date('2024-04-16T09:15:00'), end: new Date('2024-04-16T11:00:00'), title: 'Courtesy Car 014826505', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826505' },
+  { id: 'sch-bg-1007-ted-checkin', jobId: 'wo-bg-1007:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T09:45:00'), end: new Date('2024-04-16T10:15:00'), title: 'Check-In 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
+  { id: 'sch-bg-1007-ted-handover', jobId: 'wo-bg-1007:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T11:30:00'), end: new Date('2024-04-16T12:00:00'), title: 'Handover 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
+  { id: 'sch-bg-1007-courtesy', jobId: 'wo-bg-1007:act-mobility', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-16T10:15:00'), end: new Date('2024-04-16T12:00:00'), title: 'Courtesy Car 014826506', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
+  { id: 'sch-bg-1008-ted-checkin', jobId: 'wo-bg-1008:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T12:45:00'), end: new Date('2024-04-16T13:15:00'), title: 'Check-In 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1008-ted-handover', jobId: 'wo-bg-1008:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T14:30:00'), end: new Date('2024-04-16T15:00:00'), title: 'Handover 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1008-courtesy', jobId: 'wo-bg-1008:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-16T13:15:00'), end: new Date('2024-04-16T15:00:00'), title: 'Courtesy Car 014826507', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1009-frank-checkin', jobId: 'wo-bg-1009:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T14:15:00'), end: new Date('2024-04-16T14:45:00'), title: 'Check-In 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
+  { id: 'sch-bg-1009-frank-handover', jobId: 'wo-bg-1009:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-16T15:45:00'), end: new Date('2024-04-16T16:15:00'), title: 'Handover 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
+  { id: 'sch-bg-1009-courtesy', jobId: 'wo-bg-1009:act-mobility', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-16T14:45:00'), end: new Date('2024-04-16T16:15:00'), title: 'Courtesy Car 014826508', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
+  { id: 'sch-bg-1010-ted-checkin', jobId: 'wo-bg-1010:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T15:45:00'), end: new Date('2024-04-16T16:15:00'), title: 'Check-In 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1010-ted-handover', jobId: 'wo-bg-1010:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-16T17:30:00'), end: new Date('2024-04-16T18:00:00'), title: 'Handover 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
+  { id: 'sch-bg-1010-courtesy', jobId: 'wo-bg-1010:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-16T16:15:00'), end: new Date('2024-04-16T18:00:00'), title: 'Courtesy Car 014826509', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
 ];
 
 MOCK_WORK_ORDERS.forEach(order => {
@@ -400,4 +448,5 @@ export const MOCK_UNAVAILABILITY: UnavailabilityBlock[] = [
   { resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
   { resourceId: 'advisor-scenario-lead', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
 ];
+
 

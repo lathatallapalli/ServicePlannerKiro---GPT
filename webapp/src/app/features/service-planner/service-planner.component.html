@@ -107,6 +107,21 @@
           </div>
         </header>
         <div class="order-panel__divider" style="align-self:stretch;height:1px;background:var(--Border-border-subtle-01,#C6C6C6)"></div>
+        @if (isFullPlanner()) {
+          <div class="order-panel__tabs" role="tablist" aria-label="Order planning status" style="align-self:stretch;justify-content:flex-start;align-items:flex-start;gap:1px;display:inline-flex">
+            <div style="flex:1 1 0;overflow:hidden;justify-content:flex-start;align-items:flex-start;gap:1px;display:flex">
+              <button type="button" role="tab" [attr.aria-selected]="orderPanelTab === 'pending'" (click)="selectOrderPanelTab('pending')" [style.border-bottom-color]="orderPanelTab === 'pending' ? 'var(--Border-border-interactive,#4C68B1)' : 'var(--Border-border-subtle-01,#C6C6C6)'" [style.color]="orderPanelTab === 'pending' ? 'var(--Text-text-primary,#161616)' : 'var(--Text-text-secondary,#525252)'" [style.font-weight]="orderPanelTab === 'pending' ? '600' : '400'" style="flex:1 1 0;padding:11px 16px;background:var(--Background-background,white);border:0;border-bottom:2px solid;justify-content:flex-start;align-items:center;gap:8px;display:flex;text-align:left;cursor:pointer">
+                <span style="height:18px;overflow:hidden;color:inherit;font-size:14px;font-family:'IBM Plex Sans',sans-serif;line-height:18px;letter-spacing:.16px;white-space:nowrap">Pending</span>
+              </button>
+              <button type="button" role="tab" [attr.aria-selected]="orderPanelTab === 'scheduled'" (click)="selectOrderPanelTab('scheduled')" [style.border-bottom-color]="orderPanelTab === 'scheduled' ? 'var(--Border-border-interactive,#4C68B1)' : 'var(--Border-border-subtle-01,#C6C6C6)'" [style.color]="orderPanelTab === 'scheduled' ? 'var(--Text-text-primary,#161616)' : 'var(--Text-text-secondary,#525252)'" [style.font-weight]="orderPanelTab === 'scheduled' ? '600' : '400'" style="flex:1 1 0;padding:11px 16px;background:var(--Background-background,white);border:0;border-bottom:2px solid;justify-content:flex-start;align-items:center;gap:8px;display:flex;text-align:left;cursor:pointer">
+                <span style="height:18px;overflow:hidden;color:inherit;font-size:14px;font-family:'IBM Plex Sans',sans-serif;line-height:18px;letter-spacing:.16px;white-space:nowrap">Scheduled</span>
+              </button>
+              <button type="button" role="tab" [attr.aria-selected]="orderPanelTab === 'all'" (click)="selectOrderPanelTab('all')" [style.border-bottom-color]="orderPanelTab === 'all' ? 'var(--Border-border-interactive,#4C68B1)' : 'var(--Border-border-subtle-01,#C6C6C6)'" [style.color]="orderPanelTab === 'all' ? 'var(--Text-text-primary,#161616)' : 'var(--Text-text-secondary,#525252)'" [style.font-weight]="orderPanelTab === 'all' ? '600' : '400'" style="padding:11px 16px;background:var(--Background-background,white);border:0;border-bottom:2px solid;justify-content:flex-start;align-items:center;gap:8px;display:flex;text-align:left;cursor:pointer">
+                <span style="height:18px;overflow:hidden;color:inherit;font-size:14px;font-family:'IBM Plex Sans',sans-serif;line-height:18px;letter-spacing:.16px;white-space:nowrap">All</span>
+              </button>
+            </div>
+          </div>
+        }
         <div class="order-panel__list" style="min-height:0;overflow:auto;display:flex;flex-direction:column;gap:16px;padding-top:12px;padding-bottom:24px">
           @for (order of filteredPanelOrders; track order.id) {
             <article class="order-panel__order-card" draggable="true" (dragstart)="onOrderDragStart($event, order)" style="width:310px;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab">
@@ -136,18 +151,27 @@
                       <strong style="min-width:0;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ job.title }}</strong>
                       <span [style.background]="isJobScheduled(job) ? '#FFE8BF' : 'white'" [style.color]="isJobScheduled(job) ? '#D38700' : '#161616'" [style.outline]="isJobScheduled(job) ? '0' : '1px solid #000'" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ isJobScheduled(job) ? 'Scheduled' : (formatHours(getJobFru(job)) + ' hrs') }}</span>
                     </div>
-                    @for (requirement of getJobRequirements(job); track requirement.label) {
-                      @if (getJobRequirementBooking(job, requirement); as booking) {
-                        <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
-                          <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ booking.resourceName }}</span>
-                          <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
-                          @if (canUndoBooking(booking)) {
-                            <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
-                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
-                            </button>
+                    @if (getJobBookingSets(job, order); as bookingSets) {
+                      @for (bookingSet of bookingSets; track bookingSet.id) {
+                        <div style="display:flex;flex-direction:column;gap:2px">
+                          <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px">{{ bookingSet.summary }}</div>
+                          @for (booking of bookingSet.bookings; track booking.entryId) {
+                            <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
+                              <button type="button" aria-label="Show booking on planner" (click)="scrollToBookingInAvailabilityView(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M6 1V2H10V1H11V2H13C13.2652 2 13.5195 2.10543 13.707 2.29297C13.8946 2.48051 14 2.73478 14 3V6H13V3H11V4H10V3H6V4H5V3H3V13H5V14H3C2.73478 14 2.48051 13.8946 2.29297 13.707C2.10543 13.5195 2 13.2652 2 13V3C2 2.73478 2.10543 2.48051 2.29297 2.29297C2.48051 2.10543 2.73478 2 3 2H5V1H6ZM10.5 8.5L8.5 10.7002H14.2002V11.6602L8.5 11.5L10.5 13.5L10 14L7 11L10 8L10.5 8.5Z" fill="currentColor"/></svg>
+                              </button>
+                              <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ booking.resourceName }}</span>
+                              <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                              @if (canUndoBooking(booking)) {
+                                <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
+                                </button>
+                              }
+                            </div>
                           }
                         </div>
-                      } @else {
+                      }
+                      @for (requirement of getJobPendingRequirements(job, bookingSets); track requirement.label) {
                         <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
                           <span style="flex:1 1 0;color:var(--Text-text-helper,#6F6F6F);font-size:14px;line-height:18px;letter-spacing:.16px">{{ requirement.label }}</span>
                           <span style="text-align:right;color:var(--Color-Secondary-70,#919396);font-size:12px;line-height:16px;letter-spacing:.32px">PENDING</span>
@@ -166,12 +190,18 @@
                       <span [style.background]="getActivityBooking(activity, order.id) ? '#FFE8BF' : 'white'" [style.color]="getActivityBooking(activity, order.id) ? '#D38700' : '#161616'" [style.outline]="getActivityBooking(activity, order.id) ? '0' : '1px solid #000'" style="border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getActivityBooking(activity, order.id) ? 'Scheduled' : (formatHours(getActivityFru(activity)) + ' hrs') }}</span>
                     </div>
                     @if (getActivityBooking(activity, order.id); as booking) {
-                      <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
-                        <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ booking.resourceName }}</span>
-                        <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
-                        <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
-                        </button>
+                      <div style="display:flex;flex-direction:column;gap:2px">
+                        <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px">{{ getBookingScheduleSummary(booking) }}</div>
+                        <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
+                          <button type="button" aria-label="Show booking on planner" (click)="scrollToBookingInAvailabilityView(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M6 1V2H10V1H11V2H13C13.2652 2 13.5195 2.10543 13.707 2.29297C13.8946 2.48051 14 2.73478 14 3V6H13V3H11V4H10V3H6V4H5V3H3V13H5V14H3C2.73478 14 2.48051 13.8946 2.29297 13.707C2.10543 13.5195 2 13.2652 2 13V3C2 2.73478 2.10543 2.48051 2.29297 2.29297C2.48051 2.10543 2.73478 2 3 2H5V1H6ZM10.5 8.5L8.5 10.7002H14.2002V11.6602L8.5 11.5L10.5 13.5L10 14L7 11L10 8L10.5 8.5Z" fill="currentColor"/></svg>
+                          </button>
+                          <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ booking.resourceName }}</span>
+                          <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                          <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
+                          </button>
+                        </div>
                       </div>
                     } @else {
                       <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">

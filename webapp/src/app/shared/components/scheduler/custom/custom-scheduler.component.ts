@@ -108,7 +108,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  selectedMonth: number = new Date().getMonth();
+  selectedMonth = this.viewStart.getMonth();
   resourceSearch = '';
   selectedGroupIds: string[] = [];
   isGroupDropdownOpen = false;
@@ -142,11 +142,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   constructor(private zone: NgZone) {}
 
   ngOnInit(): void {
+    this.selectedMonth = this.viewStart.getMonth();
     this.buildTimeSlots();
   }
 
   ngAfterViewInit(): void {
-    this.selectedMonth = this.viewStart.getMonth();
     this.zone.runOutsideAngular(() => {
       if (this.bodyScrollRef) {
         this.bodyScrollRef.nativeElement.addEventListener('scroll', () => this.syncHeaderScroll());
@@ -156,6 +156,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['viewStart'] || changes['viewEnd'] || changes['slotDurationMinutes']) {
+      this.selectedMonth = this.viewStart.getMonth();
       this.buildTimeSlots();
     }
     if (changes['groups']) {
