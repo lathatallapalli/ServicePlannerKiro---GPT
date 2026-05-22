@@ -29,6 +29,18 @@ export interface SchedulerGroup {
   label: string;
 }
 
+export interface SchedulerInvalidDropRange {
+  resourceId: string;
+  start: Date;
+  end: Date;
+}
+
+export interface SchedulerDropVisualContext {
+  durationMinutes: number;
+  anchoredStart?: Date;
+  anchoredEnd?: Date;
+}
+
 // ── What the scheduler emits ─────────────────────────────────────────────────
 
 export interface EventMovePayload {
@@ -63,6 +75,10 @@ export interface EventContextMenuPayload {
   eventId: string;
   x: number;
   y: number;
+}
+
+export interface EventDragPayload {
+  eventId: string;
 }
 
 export interface ResourceSelectionChangePayload {

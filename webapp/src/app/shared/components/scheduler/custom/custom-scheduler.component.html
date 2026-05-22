@@ -172,7 +172,6 @@
 
       @for (resource of getExpandedResourcesForGroup(group.id); track resource.id) {
         <div class="scheduler__row" [style.height.px]="rowHeight"
-          [class.scheduler__row--drop-target]="dropTargetResourceId === resource.id"
           (dragover)="onDragOver($event, resource.id)"
           (dragleave)="onDragLeave()"
           (drop)="onDrop($event, resource.id)">
@@ -204,20 +203,22 @@
               }
               <div class="scheduler__day-line" [style.left.px]="getDayOffsetPx(day)"></div>
             }
-            @for (block of getUnavailabilityForResource(resource.id); track block.start) {
-              <div class="scheduler__unavailable"
-                [style.left.px]="getUnavailabilityLeft(block)"
-                [style.width.px]="getUnavailabilityWidth(block)"
-                [style.top.px]="0"
-                [style.bottom.px]="0"
-                [style.background]="showOrderTiles ? null : 'var(--Layer-layer-01,#F4F4F4)'"
-                [style.border-left]="showOrderTiles ? null : '0'"
-                [style.padding]="showOrderTiles ? null : '0'">
-                @if (showOrderTiles) {
-                  <span class="scheduler__event-title">{{ getUnavailabilityTitle(block) }}</span>
-                  <span class="scheduler__event-time">{{ getUnavailabilityDetail(block) }}</span>
-                }
-              </div>
+            @if (!isDragFeedbackActive()) {
+              @for (block of getUnavailabilityForResource(resource.id); track block.start) {
+                <div class="scheduler__unavailable"
+                  [style.left.px]="getUnavailabilityLeft(block)"
+                  [style.width.px]="getUnavailabilityWidth(block)"
+                  [style.top.px]="0"
+                  [style.bottom.px]="0"
+                  [style.background]="showOrderTiles ? null : 'var(--Layer-layer-01,#F4F4F4)'"
+                  [style.border-left]="showOrderTiles ? null : '0'"
+                  [style.padding]="showOrderTiles ? null : '0'">
+                  @if (showOrderTiles) {
+                    <span class="scheduler__event-title">{{ getUnavailabilityTitle(block) }}</span>
+                    <span class="scheduler__event-time">{{ getUnavailabilityDetail(block) }}</span>
+                  }
+                </div>
+              }
             }
             @for (run of getOrderRunsForResource(resource.id); track run.key + '-' + run.start.getTime()) {
               @if (shouldRenderOrderRun(run)) {
@@ -239,6 +240,7 @@
             @for (event of getEventsForResource(resource.id); track event.id) {
               @if (shouldRenderEventForResource(event, resource.id)) {
               <div class="scheduler__event"
+                [attr.draggable]="isEventResizeActive(event) ? null : 'true'"
                 [class.scheduler__event--compact]="!shouldShowEventDetails(event)"
                 [class.scheduler__event--show-tag]="shouldShowEventTag(event)"
                 [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(event)"
@@ -258,7 +260,8 @@
                 [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
                 [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
                 [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
-                (mousedown)="onEventMouseDown($event, event)"
+                (dragstart)="onEventDragStart($event, event)"
+                (dragend)="onEventDragEnd($event, event)"
                 (click)="onEventClick($event, event)"
                 (contextmenu)="onEventContextMenu($event, event)">
                 <div class="scheduler__event-handle scheduler__event-handle--left"
@@ -292,7 +295,77 @@
                   [style.display]="shouldShowEventDetails(event) ? null : 'none'"
                   (mousedown)="onResizeMouseDown($event, event, 'right')"></div>
               </div>
+              }
             }
+            @if (getResizePreviewForResource(resource.id); as previewEvent) {
+              <div class="scheduler__event"
+                draggable="false"
+                [class.scheduler__event--resize-preview]="true"
+                [class.scheduler__event--compact]="!shouldShowEventDetails(previewEvent)"
+                [class.scheduler__event--show-tag]="shouldShowEventTag(previewEvent)"
+                [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(previewEvent)"
+                [class.scheduler__event--blocked-order]="isBlockedOrderEvent(previewEvent)"
+                [class.scheduler__event--continued]="hasContiguousPreviousEvent(previewEvent)"
+                [class.scheduler__event--continues]="hasContiguousNextEvent(previewEvent)"
+                [class.scheduler__event--scheduled]="getWorkorderItemStatus(previewEvent) === 'scheduled'"
+                [class.scheduler__event--started]="getWorkorderItemStatus(previewEvent) === 'started'"
+                [class.scheduler__event--completed]="getWorkorderItemStatus(previewEvent) === 'completed'"
+                [style.left.px]="getPreviewLeft()"
+                [style.top.px]="getPreviewTop()"
+                [style.width.px]="getPreviewWidth()"
+                [style.height.px]="getPreviewHeight()"
+                [style.bottom]="'auto'"
+                [style.padding]="shouldShowEventDetails(previewEvent) ? null : '0'"
+                [style.background]="shouldShowEventDetails(previewEvent) ? null : '#E9ECF5'"
+                [style.border-left]="shouldShowEventDetails(previewEvent) ? null : '0'"
+                [style.box-shadow]="shouldShowEventDetails(previewEvent) ? null : 'none'"
+                [style.pointer-events]="'none'"
+                [style.z-index]="20">
+                @if (shouldShowEventDetails(previewEvent)) {
+                  <span class="scheduler__event-copy">
+                    @if (!shouldReserveOrderRunSpace(previewEvent)) {
+                      <span class="scheduler__event-order">
+                        <span class="scheduler__event-order-ref">{{ getEventOrderReference(previewEvent) }}</span>
+                        <span class="scheduler__event-order-count">{{ getEventOrderSequence(previewEvent) }}</span>
+                      </span>
+                    }
+                    <span class="scheduler__event-job">
+                      <span class="scheduler__event-job-copy">
+                        <span class="scheduler__event-title">{{ previewEvent.title }}</span>
+                        <span class="scheduler__event-time">{{ getEventDetail(previewEvent) }}</span>
+                      </span>
+                    </span>
+                  </span>
+                }
+              </div>
+            }
+            @if (isDragFeedbackActive()) {
+              @for (range of getInvalidDropRangesForResource(resource.id); track range.start.getTime() + '-' + range.end.getTime()) {
+                <div class="scheduler__slot-highlight"
+                  [style.left.px]="getInvalidDropRangeLeft(range)"
+                  [style.width.px]="getInvalidDropRangeWidth(range)"
+                  [style.top.px]="0"
+                  [style.height.px]="rowHeight"
+                  style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+              }
+              @if (!invalidDropRanges.length) {
+                @for (block of getUnavailabilityForResource(resource.id); track block.start) {
+                  <div class="scheduler__slot-highlight"
+                    [style.left.px]="getUnavailabilityLeft(block)"
+                    [style.width.px]="getUnavailabilityWidth(block)"
+                    [style.top.px]="0"
+                    [style.height.px]="rowHeight"
+                    style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+                }
+                @for (event of getEventsForResource(resource.id); track event.id) {
+                  <div class="scheduler__slot-highlight"
+                    [style.left.px]="getEventLeft(event)"
+                    [style.width.px]="getEventWidth(event)"
+                    [style.top.px]="0"
+                    [style.height.px]="rowHeight"
+                    style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+                }
+              }
             }
           </div>
         </div>
@@ -301,7 +374,6 @@
 
     @for (resource of getUngroupedResources(); track resource.id) {
       <div class="scheduler__row" [style.height.px]="rowHeight"
-        [class.scheduler__row--drop-target]="dropTargetResourceId === resource.id"
         (dragover)="onDragOver($event, resource.id)"
         (dragleave)="onDragLeave()"
         (drop)="onDrop($event, resource.id)">
@@ -333,20 +405,22 @@
             }
             <div class="scheduler__day-line" [style.left.px]="getDayOffsetPx(day)"></div>
           }
-          @for (block of getUnavailabilityForResource(resource.id); track block.start) {
-            <div class="scheduler__unavailable"
-              [style.left.px]="getUnavailabilityLeft(block)"
-              [style.width.px]="getUnavailabilityWidth(block)"
-              [style.top.px]="0"
-              [style.bottom.px]="0"
-              [style.background]="showOrderTiles ? null : 'var(--Layer-layer-01,#F4F4F4)'"
-              [style.border-left]="showOrderTiles ? null : '0'"
-              [style.padding]="showOrderTiles ? null : '0'">
-              @if (showOrderTiles) {
-                <span class="scheduler__event-title">{{ getUnavailabilityTitle(block) }}</span>
-                <span class="scheduler__event-time">{{ getUnavailabilityDetail(block) }}</span>
-              }
-            </div>
+          @if (!isDragFeedbackActive()) {
+            @for (block of getUnavailabilityForResource(resource.id); track block.start) {
+              <div class="scheduler__unavailable"
+                [style.left.px]="getUnavailabilityLeft(block)"
+                [style.width.px]="getUnavailabilityWidth(block)"
+                [style.top.px]="0"
+                [style.bottom.px]="0"
+                [style.background]="showOrderTiles ? null : 'var(--Layer-layer-01,#F4F4F4)'"
+                [style.border-left]="showOrderTiles ? null : '0'"
+                [style.padding]="showOrderTiles ? null : '0'">
+                @if (showOrderTiles) {
+                  <span class="scheduler__event-title">{{ getUnavailabilityTitle(block) }}</span>
+                  <span class="scheduler__event-time">{{ getUnavailabilityDetail(block) }}</span>
+                }
+              </div>
+            }
           }
           @for (run of getOrderRunsForResource(resource.id); track run.key + '-' + run.start.getTime()) {
             @if (shouldRenderOrderRun(run)) {
@@ -368,6 +442,7 @@
           @for (event of getEventsForResource(resource.id); track event.id) {
             @if (shouldRenderEventForResource(event, resource.id)) {
             <div class="scheduler__event"
+              [attr.draggable]="isEventResizeActive(event) ? null : 'true'"
               [class.scheduler__event--compact]="!shouldShowEventDetails(event)"
               [class.scheduler__event--show-tag]="shouldShowEventTag(event)"
               [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(event)"
@@ -386,7 +461,8 @@
               [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
               [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
               [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
-              (mousedown)="onEventMouseDown($event, event)"
+              (dragstart)="onEventDragStart($event, event)"
+              (dragend)="onEventDragEnd($event, event)"
               (click)="onEventClick($event, event)"
               (contextmenu)="onEventContextMenu($event, event)">
               <div class="scheduler__event-handle scheduler__event-handle--left"
@@ -422,49 +498,87 @@
             </div>
             }
           }
+          @if (getResizePreviewForResource(resource.id); as previewEvent) {
+            <div class="scheduler__event"
+              draggable="false"
+              [class.scheduler__event--resize-preview]="true"
+              [class.scheduler__event--compact]="!shouldShowEventDetails(previewEvent)"
+              [class.scheduler__event--show-tag]="shouldShowEventTag(previewEvent)"
+              [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(previewEvent)"
+              [class.scheduler__event--blocked-order]="isBlockedOrderEvent(previewEvent)"
+              [class.scheduler__event--continued]="hasContiguousPreviousEvent(previewEvent)"
+              [class.scheduler__event--continues]="hasContiguousNextEvent(previewEvent)"
+              [class.scheduler__event--scheduled]="getWorkorderItemStatus(previewEvent) === 'scheduled'"
+              [class.scheduler__event--started]="getWorkorderItemStatus(previewEvent) === 'started'"
+              [class.scheduler__event--completed]="getWorkorderItemStatus(previewEvent) === 'completed'"
+              [style.left.px]="getPreviewLeft()"
+              [style.top.px]="getPreviewTop()"
+              [style.width.px]="getPreviewWidth()"
+              [style.height.px]="getPreviewHeight()"
+              [style.bottom]="'auto'"
+              [style.padding]="shouldShowEventDetails(previewEvent) ? null : '0'"
+              [style.background]="shouldShowEventDetails(previewEvent) ? null : '#E9ECF5'"
+              [style.border-left]="shouldShowEventDetails(previewEvent) ? null : '0'"
+              [style.box-shadow]="shouldShowEventDetails(previewEvent) ? null : 'none'"
+              [style.pointer-events]="'none'"
+              [style.z-index]="20">
+              @if (shouldShowEventDetails(previewEvent)) {
+                <span class="scheduler__event-copy">
+                  @if (!shouldReserveOrderRunSpace(previewEvent)) {
+                    <span class="scheduler__event-order">
+                      <span class="scheduler__event-order-ref">{{ getEventOrderReference(previewEvent) }}</span>
+                      <span class="scheduler__event-order-count">{{ getEventOrderSequence(previewEvent) }}</span>
+                    </span>
+                  }
+                  <span class="scheduler__event-job">
+                    <span class="scheduler__event-job-copy">
+                      <span class="scheduler__event-title">{{ previewEvent.title }}</span>
+                      <span class="scheduler__event-time">{{ getEventDetail(previewEvent) }}</span>
+                    </span>
+                  </span>
+                </span>
+              }
+            </div>
+          }
+          @if (isDragFeedbackActive()) {
+            @for (range of getInvalidDropRangesForResource(resource.id); track range.start.getTime() + '-' + range.end.getTime()) {
+              <div class="scheduler__slot-highlight"
+                [style.left.px]="getInvalidDropRangeLeft(range)"
+                [style.width.px]="getInvalidDropRangeWidth(range)"
+                [style.top.px]="0"
+                [style.height.px]="rowHeight"
+                style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+            }
+            @if (!invalidDropRanges.length) {
+              @for (block of getUnavailabilityForResource(resource.id); track block.start) {
+                <div class="scheduler__slot-highlight"
+                  [style.left.px]="getUnavailabilityLeft(block)"
+                  [style.width.px]="getUnavailabilityWidth(block)"
+                  [style.top.px]="0"
+                  [style.height.px]="rowHeight"
+                  style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+              }
+              @for (event of getEventsForResource(resource.id); track event.id) {
+                <div class="scheduler__slot-highlight"
+                  [style.left.px]="getEventLeft(event)"
+                  [style.width.px]="getEventWidth(event)"
+                  [style.top.px]="0"
+                  [style.height.px]="rowHeight"
+                  style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+              }
+            }
+          }
         </div>
       </div>
     }
 
-    @if (getPreviewEvent(); as previewEvent) {
-      <div class="scheduler__event"
-        [class.scheduler__event--compact]="!shouldShowEventDetails(previewEvent)"
-        [class.scheduler__event--show-tag]="shouldShowEventTag(previewEvent)"
-        [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(previewEvent)"
-        [class.scheduler__event--blocked-order]="isBlockedOrderEvent(previewEvent)"
-        [class.scheduler__event--continued]="hasContiguousPreviousEvent(previewEvent)"
-        [class.scheduler__event--continues]="hasContiguousNextEvent(previewEvent)"
-        [class.scheduler__event--scheduled]="getWorkorderItemStatus(previewEvent) === 'scheduled'"
-        [class.scheduler__event--started]="getWorkorderItemStatus(previewEvent) === 'started'"
-        [class.scheduler__event--completed]="getWorkorderItemStatus(previewEvent) === 'completed'"
-        [style.left.px]="getPreviewLeft()"
-        [style.top.px]="getPreviewTop()"
-        [style.width.px]="getPreviewWidth()"
+    @if (dropPreview) {
+      <div class="scheduler__drop-preview"
+        [style.left.px]="getDropPreviewLeft()"
+        [style.top.px]="getDropPreviewTop()"
+        [style.width.px]="getDropPreviewWidth()"
         [style.height.px]="rowHeight"
-        [style.bottom]="'auto'"
-        [style.padding]="shouldShowEventDetails(previewEvent) ? null : '0'"
-        [style.background]="shouldShowEventDetails(previewEvent) ? null : '#E9ECF5'"
-        [style.border-left]="shouldShowEventDetails(previewEvent) ? null : '0'"
-        [style.box-shadow]="shouldShowEventDetails(previewEvent) ? null : 'none'"
-        [style.pointer-events]="'none'"
-        [style.z-index]="20">
-        @if (shouldShowEventDetails(previewEvent)) {
-          <span class="scheduler__event-copy">
-            <span class="scheduler__event-order">
-              @if (!hasContiguousPreviousEvent(previewEvent)) {
-                <span class="scheduler__event-order-ref">{{ getEventOrderReference(previewEvent) }}</span>
-                <span class="scheduler__event-order-count">{{ getEventOrderSequence(previewEvent) }}</span>
-              }
-            </span>
-            <span class="scheduler__event-job">
-              <span class="scheduler__event-job-copy">
-                <span class="scheduler__event-title">{{ previewEvent.title }}</span>
-                <span class="scheduler__event-time">{{ getEventDetail(previewEvent) }}</span>
-              </span>
-            </span>
-          </span>
-        }
-      </div>
+        style="position:absolute;box-sizing:border-box;pointer-events:none;border:3px solid #0F62FE;background:rgba(15,98,254,.26);z-index:30;box-shadow:0 0 0 1px white inset"></div>
     }
 
   </div>

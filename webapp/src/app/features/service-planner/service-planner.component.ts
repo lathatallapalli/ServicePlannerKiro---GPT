@@ -5,7 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ComboBoxModule, DatePickerModule, InputModule, SearchModule, SelectModule, TimePickerModule, TimePickerSelectModule, ToggleModule } from 'carbon-components-angular';
 import { CustomSchedulerComponent } from '../../shared/components/scheduler/custom/custom-scheduler.component';
 import { JobTile, JobBooking, ActivityTile } from './components/jobs-panel/jobs-panel.component';
-import { SchedulerResource, SchedulerEvent, SchedulerGroup, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload } from '../../shared/components/scheduler/scheduler.interface';
+import { SchedulerResource, SchedulerEvent, SchedulerGroup, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerDropVisualContext } from '../../shared/components/scheduler/scheduler.interface';
 import { ResourceRepository } from '../../core/services/resource.repository';
 import { ScheduleRepository } from '../../core/services/schedule.repository';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
@@ -28,6 +28,18 @@ interface BookingSet {
   id: string;
   summary: string;
   bookings: JobBooking[];
+}
+
+interface ManualDragContext {
+  kind: 'job' | 'activity' | 'order';
+  orderId?: string;
+  itemId?: string;
+  entryId?: string;
+  activityTemplateId?: string;
+  durationMinutes: number;
+  requirements: JobResourceRequirement[];
+  anchoredStart?: Date;
+  anchoredEnd?: Date;
 }
 
 @Component({
@@ -93,6 +105,7 @@ export class ServicePlannerComponent implements OnInit {
   private proposalStateByOrder = new Map<string, { history: Date[]; endHistory: Date[]; index: number }>();
   private latestAutoBookingEntryIds = new Set<string>();
   private isAutoProposalVisible = false;
+  manualDragContext: ManualDragContext | null = null;
   unavailability: UnavailabilityBlock[] = MOCK_UNAVAILABILITY;
 
   viewStart = new Date('2024-04-15T09:00:00');
@@ -100,6 +113,15 @@ export class ServicePlannerComponent implements OnInit {
 
   get slotDurationMinutes(): number {
     return this.plannerSettings.slotDurationMinutes();
+  }
+
+  get manualDropSnapMinutes(): number {
+    return this.getManualInteractionSnapMinutes();
+  }
+
+  private getManualInteractionSnapMinutes(): number {
+    if (this.slotDurationMinutes <= 30) return this.slotDurationMinutes;
+    return Math.max(15, this.slotDurationMinutes / 2);
   }
 
   get isSettingsModalOpen(): boolean {
@@ -178,6 +200,20 @@ export class ServicePlannerComponent implements OnInit {
 
   get visibleSchedulerUnavailability(): UnavailabilityBlock[] {
     return this.unavailability;
+  }
+
+  get manualDropInvalidRanges(): SchedulerInvalidDropRange[] {
+    if (!this.manualDragContext) return [];
+    return this.buildManualDropInvalidRanges(this.manualDragContext);
+  }
+
+  get manualDropVisualContext(): SchedulerDropVisualContext | null {
+    if (!this.manualDragContext) return null;
+    return {
+      durationMinutes: this.manualDragContext.durationMinutes,
+      anchoredStart: this.manualDragContext.anchoredStart,
+      anchoredEnd: this.manualDragContext.anchoredEnd,
+    };
   }
 
   get plannedBookingEventIds(): string[] {
@@ -343,6 +379,15 @@ export class ServicePlannerComponent implements OnInit {
       this.syncMobilitySpan(orderId);
       this.syncOrderAppointmentFromBookings(orderId);
     });
+  }
+
+  onSchedulerEventDragStarted(eventId: string): void {
+    const event = this.events.find(candidate => candidate.id === eventId);
+    this.manualDragContext = event ? this.buildPlacedEventDragContext(event) : null;
+  }
+
+  onSchedulerEventDragEnded(_eventId: string): void {
+    this.manualDragContext = null;
   }
 
   onEventResized(payload: EventResizePayload): void {
@@ -759,6 +804,8 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   onOrderDragStart(event: DragEvent, order: any): void {
+    this.manualDragContext = this.buildOrderDragContext(order);
+    this.registerManualDragEnd();
     event.dataTransfer?.setData('orderId', order.id);
     event.dataTransfer?.setData('dropType', 'order');
     event.dataTransfer?.setData('application/json', JSON.stringify({ type: 'order', orderId: order.id }));
@@ -767,6 +814,8 @@ export class ServicePlannerComponent implements OnInit {
 
   onJobDragStart(event: DragEvent, job: any, order: any): void {
     event.stopPropagation();
+    this.manualDragContext = this.buildJobDragContext(job, order);
+    this.registerManualDragEnd();
     event.dataTransfer?.setData('jobId', job.id);
     event.dataTransfer?.setData('orderId', order.id);
     event.dataTransfer?.setData('dropType', 'job');
@@ -778,6 +827,8 @@ export class ServicePlannerComponent implements OnInit {
 
   onActivityDragStart(event: DragEvent, activity: ActivityTile, order: any): void {
     event.stopPropagation();
+    this.manualDragContext = this.buildActivityDragContext(activity, order);
+    this.registerManualDragEnd();
     event.dataTransfer?.setData('jobId', activity.id);
     event.dataTransfer?.setData('orderId', order.id);
     event.dataTransfer?.setData('dropType', 'activity');
@@ -1692,6 +1743,270 @@ export class ServicePlannerComponent implements OnInit {
       requiredQualifications: job.requiredQualifications ?? [],
       label: job.requiredResourceType,
     }];
+  }
+
+  private buildOrderDragContext(order: any): ManualDragContext | null {
+    const firstJob = order?.jobs?.[0];
+    return firstJob ? this.buildJobDragContext(firstJob, order) : null;
+  }
+
+  private buildJobDragContext(job: any, order: any): ManualDragContext {
+    const anchor = this.getExistingJobPlacementAnchor(job.id, order.id);
+    return {
+      kind: 'job',
+      orderId: order.id,
+      itemId: job.id,
+      durationMinutes: this.getJobFru(job) * MINUTES_PER_FRU,
+      requirements: this.getSchedulingRequirements(job),
+      anchoredStart: anchor?.start,
+      anchoredEnd: anchor?.end,
+    };
+  }
+
+  private getExistingJobPlacementAnchor(jobId: string, orderId?: string): { start: Date; end: Date } | null {
+    const existingBooking = this.bookings.find(booking =>
+      booking.jobId === jobId &&
+      (!orderId || booking.orderId === orderId)
+    );
+    if (!existingBooking) return null;
+
+    const existingEvent = this.events.find(event => event.id === existingBooking.entryId);
+    return existingEvent ? { start: existingEvent.start, end: existingEvent.end } : null;
+  }
+
+  private buildActivityDragContext(activity: ActivityTile, order: any): ManualDragContext {
+    return {
+      kind: 'activity',
+      orderId: order.id,
+      itemId: activity.id,
+      activityTemplateId: this.getActivityTemplateId(activity.id),
+      durationMinutes: this.getActivityFru(activity) * MINUTES_PER_FRU,
+      requirements: [{
+        resourceType: activity.resourceType as Resource['type'],
+        requiredQualifications: [],
+        label: activity.resourceLabel,
+      }],
+    };
+  }
+
+  private buildPlacedEventDragContext(event: SchedulerEvent): ManualDragContext | null {
+    const entry = event.meta?.entry;
+    const order = this.findOrderForEvent(event);
+    const orderId = order?.id ?? entry?.workOrderReference;
+    const durationMinutes = Math.max(1, Math.round((event.end.getTime() - event.start.getTime()) / 60000));
+
+    if (this.isJobEvent(event)) {
+      const job = event.meta?.job ?? order?.jobs?.find((candidate: any) => candidate.id === entry?.jobId);
+      return {
+        kind: 'job',
+        orderId,
+        itemId: entry?.jobId ?? event.meta?.job?.id,
+        entryId: event.id,
+        durationMinutes,
+        requirements: job ? this.getSchedulingRequirements(job) : [this.getScheduledRequirementFromEvent(event)].filter((requirement): requirement is JobResourceRequirement => !!requirement),
+      };
+    }
+
+    if (!this.isJobEvent(event) && this.isActivityEvent(event)) {
+      const activityEvent = event as SchedulerEvent;
+      const activityTemplateId = this.getActivityTemplateId(entry?.jobId ?? '');
+      const activity = this.getActivityTemplate(activityTemplateId);
+      const rawResource = this.resources.find(resource => resource.id === activityEvent.resourceId)?.meta as Resource | undefined;
+      return {
+        kind: 'activity',
+        orderId,
+        itemId: entry?.jobId,
+        entryId: activityEvent.id,
+        activityTemplateId,
+        durationMinutes,
+        requirements: [{
+          resourceType: (activity?.resourceType ?? rawResource?.type ?? 'mechanic') as Resource['type'],
+          requiredQualifications: [],
+          label: activity?.resourceLabel ?? rawResource?.type,
+        }],
+      };
+    }
+
+    return null;
+  }
+
+  private registerManualDragEnd(): void {
+    window.addEventListener('dragend', () => {
+      this.manualDragContext = null;
+    }, { once: true });
+  }
+
+  private buildManualDropInvalidRanges(context: ManualDragContext): SchedulerInvalidDropRange[] {
+    const ranges: SchedulerInvalidDropRange[] = [];
+    const visibleResources = this.visibleSchedulerResources;
+    const slotMs = this.manualDropSnapMinutes * 60000;
+
+    for (const resource of visibleResources) {
+      let cursor = new Date(this.viewStart);
+      cursor.setHours(9, 0, 0, 0);
+
+      while (cursor < this.viewEnd) {
+        if (cursor.getHours() >= 21) {
+          cursor = this.nextPlannerDayStart(cursor);
+          continue;
+        }
+
+        const start = new Date(cursor);
+        const end = new Date(start.getTime() + context.durationMinutes * 60000);
+        const valid = this.isManualDropVisuallyValid(context, resource, start, end);
+        if (!valid) ranges.push({ resourceId: resource.id, start, end: new Date(start.getTime() + slotMs) });
+        cursor = new Date(cursor.getTime() + slotMs);
+      }
+    }
+
+    return this.mergeInvalidDropRanges(ranges);
+  }
+
+  private isManualDropVisuallyValid(context: ManualDragContext, resource: SchedulerResource, start: Date, end: Date): boolean {
+    const validationStart = context.anchoredStart ?? start;
+    const validationEnd = context.anchoredEnd ?? end;
+    if (context.anchoredStart && context.anchoredEnd && (
+      start.getTime() !== context.anchoredStart.getTime() ||
+      end.getTime() !== context.anchoredEnd.getTime()
+    )) {
+      return false;
+    }
+
+    if (end.getHours() > 21 || (end.getHours() === 21 && end.getMinutes() > 0) || end.toDateString() !== start.toDateString()) {
+      return false;
+    }
+
+    const rawResource = resource.meta as Resource | undefined;
+    if (!rawResource) return false;
+
+    const primaryRequirement = this.getRequirementForResource(context.requirements, rawResource);
+    if (!primaryRequirement || !this.hasMatchingResource([rawResource], primaryRequirement)) return false;
+
+    if (!this.isManualDropSequenceValid(context, validationStart, validationEnd)) return false;
+    if (!this.isResourceAvailableForManualDrop(resource.id, validationStart, validationEnd, context)) return false;
+
+    if (context.kind === 'job') {
+      return this.areOtherRequirementsAvailable(context, primaryRequirement, validationStart, validationEnd);
+    }
+
+    return true;
+  }
+
+  private getRequirementForResource(requirements: JobResourceRequirement[], resource: Resource): JobResourceRequirement | null {
+    return requirements.find(requirement =>
+      resource.type === requirement.resourceType &&
+      requirement.requiredQualifications.every(qualification =>
+        resource.qualifications.some(resourceQualification => resourceQualification.id === qualification.id)
+      )
+    ) ?? null;
+  }
+
+  private isManualDropSequenceValid(context: ManualDragContext, start: Date, end: Date): boolean {
+    if (!context.orderId) return true;
+
+    const checkinEnd = this.getCheckinEndForOrder(context.orderId);
+    const latestJobEnd = this.getLatestJobEndForOrder(context.orderId);
+    const firstJobStart = this.getFirstJobStartForOrder(context.orderId);
+
+    if (context.kind === 'job') {
+      if (checkinEnd && start < checkinEnd) return false;
+      if (latestJobEnd && this.getHandoverStartForOrder(context.orderId) && end > this.getHandoverStartForOrder(context.orderId)!) return false;
+    }
+
+    if (context.activityTemplateId === 'act-checkin' && firstJobStart && end > firstJobStart) return false;
+    if (context.activityTemplateId === 'act-handover' && latestJobEnd && start < latestJobEnd) return false;
+    if (context.activityTemplateId === 'act-mobility') {
+      const span = this.getMobilitySpan(context.orderId);
+      if (span && (start.getTime() !== span.start.getTime() || end.getTime() !== span.end.getTime())) return false;
+    }
+
+    return true;
+  }
+
+  private areOtherRequirementsAvailable(
+    context: ManualDragContext,
+    primaryRequirement: JobResourceRequirement,
+    start: Date,
+    end: Date,
+  ): boolean {
+    const otherRequirements = context.requirements.filter(requirement => requirement !== primaryRequirement);
+    return otherRequirements.every(requirement =>
+      this.visibleSchedulerResources.some(resource => {
+        const rawResource = resource.meta as Resource | undefined;
+        return !!rawResource &&
+          this.hasMatchingResource([rawResource], requirement) &&
+          this.isResourceAvailableForManualDrop(resource.id, start, end, context);
+      })
+    );
+  }
+
+  private isResourceAvailableForManualDrop(resourceId: string, start: Date, end: Date, context: ManualDragContext): boolean {
+    const overlaps = (a: Date, b: Date, c: Date, d: Date) => a < d && c < b;
+    const sameDraggedItem = (event: SchedulerEvent) =>
+      event.id === context.entryId ||
+      event.meta?.entry?.jobId === context.itemId ||
+      (context.itemId && event.meta?.job?.id === context.itemId);
+
+    return !this.events.some(event =>
+      event.resourceId === resourceId &&
+      !sameDraggedItem(event) &&
+      overlaps(start, end, event.start, event.end)
+    ) && !this.unavailability.some(block =>
+      block.resourceId === resourceId &&
+      overlaps(start, end, block.start, block.end)
+    );
+  }
+
+  private getFirstJobStartForOrder(orderId: string): Date | null {
+    const orderReference = this.getOrderReference(orderId);
+    const jobEvents = this.events.filter(event =>
+      (!orderReference || event.meta?.entry?.workOrderReference === orderReference) &&
+      this.isJobEvent(event)
+    );
+    if (!jobEvents.length) return null;
+    return new Date(Math.min(...jobEvents.map(event => event.start.getTime())));
+  }
+
+  private getHandoverStartForOrder(orderId: string): Date | null {
+    const handoverActivityId = this.getOrderActivityId(orderId, 'act-handover');
+    const booking = this.bookings.find(candidate =>
+      this.getActivityTemplateId(candidate.jobId) === 'act-handover' &&
+      (candidate.orderId === orderId || candidate.jobId === handoverActivityId)
+    );
+    if (booking) return this.events.find(event => event.id === booking.entryId)?.start ?? null;
+
+    const orderReference = this.getOrderReference(orderId);
+    return this.events.find(event =>
+      (!orderReference || event.meta?.entry?.workOrderReference === orderReference) &&
+      this.getActivityTemplateId(event.meta?.entry?.jobId ?? '') === 'act-handover'
+    )?.start ?? null;
+  }
+
+  private nextPlannerDayStart(date: Date): Date {
+    const next = new Date(date);
+    next.setDate(next.getDate() + 1);
+    next.setHours(9, 0, 0, 0);
+    return next;
+  }
+
+  private mergeInvalidDropRanges(ranges: SchedulerInvalidDropRange[]): SchedulerInvalidDropRange[] {
+    const sorted = [...ranges].sort((first, second) =>
+      first.resourceId === second.resourceId
+        ? first.start.getTime() - second.start.getTime()
+        : first.resourceId.localeCompare(second.resourceId)
+    );
+    const merged: SchedulerInvalidDropRange[] = [];
+
+    for (const range of sorted) {
+      const previous = merged[merged.length - 1];
+      if (previous && previous.resourceId === range.resourceId && previous.end.getTime() >= range.start.getTime()) {
+        previous.end = new Date(Math.max(previous.end.getTime(), range.end.getTime()));
+      } else {
+        merged.push({ ...range });
+      }
+    }
+
+    return merged;
   }
 
   private hasMatchingResource(resources: Resource[], requirement: JobResourceRequirement): boolean {
