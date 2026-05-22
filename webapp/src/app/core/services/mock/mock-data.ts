@@ -431,6 +431,9 @@ MOCK_SCHEDULE_ENTRIES.forEach(entry => {
     title.startsWith('courtesy car')
       ? 'activity'
       : 'job';
+  if (entry.workorderItemCategory === 'job') {
+    entry.bookingSetId ??= `${entry.workOrderReference ?? ''}:${entry.jobId}:${entry.start.getTime()}-${entry.end.getTime()}`;
+  }
 });
 
 export const MOCK_UNAVAILABILITY: UnavailabilityBlock[] = [

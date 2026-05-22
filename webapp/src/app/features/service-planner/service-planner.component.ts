@@ -5,7 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ComboBoxModule, DatePickerModule, InputModule, SearchModule, SelectModule, TimePickerModule, TimePickerSelectModule, ToggleModule } from 'carbon-components-angular';
 import { CustomSchedulerComponent } from '../../shared/components/scheduler/custom/custom-scheduler.component';
 import { JobTile, JobBooking, ActivityTile } from './components/jobs-panel/jobs-panel.component';
-import { SchedulerResource, SchedulerEvent, SchedulerGroup, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload } from '../../shared/components/scheduler/scheduler.interface';
+import { SchedulerResource, SchedulerEvent, SchedulerGroup, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload } from '../../shared/components/scheduler/scheduler.interface';
 import { ResourceRepository } from '../../core/services/resource.repository';
 import { ScheduleRepository } from '../../core/services/schedule.repository';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
@@ -68,6 +68,7 @@ export class ServicePlannerComponent implements OnInit {
   pinnedVisibleResourceIds: string[] = [];
   selectedResourceTypeGroupIds: string[] = [];
   selectedBookingEvent: SchedulerEvent | null = null;
+  eventContextMenu: { eventId: string; x: number; y: number } | null = null;
   bookingModalStartDate = '';
   bookingModalStartTime = '';
   bookingModalEndDate = '';
@@ -330,9 +331,10 @@ export class ServicePlannerComponent implements OnInit {
     this.scheduleRepo.reschedule(payload.eventId, payload.start, payload.end).subscribe(updated => {
       this.events = this.events.map(e =>
         e.id === payload.eventId
-          ? { ...e, resourceId: payload.resourceId, start: updated.start, end: updated.end }
+          ? { ...e, resourceId: payload.resourceId, start: updated.start, end: updated.end, meta: { ...(e.meta ?? {}), entry: { ...(e.meta?.entry as ScheduleEntry), ...updated } } }
           : e
       );
+      this.updateScheduleEntry(payload.eventId, { ...updated, resourceId: payload.resourceId });
       if (this.isJobEvent(this.events.find(e => e.id === payload.eventId))) {
         this.syncJobSiblings(payload.eventId, updated.start, updated.end);
       }
@@ -347,9 +349,10 @@ export class ServicePlannerComponent implements OnInit {
     this.scheduleRepo.reschedule(payload.eventId, payload.start, payload.end).subscribe(updated => {
       this.events = this.events.map(e =>
         e.id === payload.eventId
-          ? { ...e, start: updated.start, end: updated.end }
+          ? { ...e, start: updated.start, end: updated.end, meta: { ...(e.meta ?? {}), entry: { ...(e.meta?.entry as ScheduleEntry), ...updated } } }
           : e
       );
+      this.updateScheduleEntryTimes(payload.eventId, updated.start, updated.end);
       if (this.isJobEvent(this.events.find(e => e.id === payload.eventId))) {
         this.syncJobSiblings(payload.eventId, updated.start, updated.end);
       }
@@ -357,10 +360,50 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   onEventClicked(payload: EventClickPayload): void {
+    this.closeEventContextMenu();
     this.selectedBookingEvent = this.events.find(event => event.id === payload.eventId) ?? null;
     if (this.selectedBookingEvent) {
       this.initializeBookingModalState(this.selectedBookingEvent);
     }
+  }
+
+  onEventContextMenu(payload: EventContextMenuPayload): void {
+    const event = this.events.find(candidate => candidate.id === payload.eventId);
+    if (!this.isJobEvent(event)) return;
+    this.eventContextMenu = { eventId: payload.eventId, x: payload.x, y: payload.y };
+  }
+
+  closeEventContextMenu(): void {
+    this.eventContextMenu = null;
+  }
+
+  canSplitContextEvent(): boolean {
+    const event = this.eventContextMenu
+      ? this.events.find(candidate => candidate.id === this.eventContextMenu?.eventId)
+      : undefined;
+    return this.canSplitEvent(event);
+  }
+
+  splitContextEvent(): void {
+    const eventId = this.eventContextMenu?.eventId;
+    this.closeEventContextMenu();
+    if (eventId) this.splitJobBookingSet(eventId);
+  }
+
+  openContextEventDetails(): void {
+    const eventId = this.eventContextMenu?.eventId;
+    this.closeEventContextMenu();
+    if (eventId) this.onEventClicked({ eventId });
+  }
+
+  deleteContextEvent(): void {
+    const event = this.eventContextMenu
+      ? this.events.find(candidate => candidate.id === this.eventContextMenu?.eventId)
+      : undefined;
+    this.closeEventContextMenu();
+    if (!event) return;
+    this.selectedBookingEvent = event;
+    this.deleteSelectedBooking();
   }
 
   onResourceSelectionChange(payload: ResourceSelectionChangePayload): void {
@@ -855,7 +898,7 @@ export class ServicePlannerComponent implements OnInit {
     for (const booking of bookings) {
       const entry = this.scheduleEntries.find(candidate => candidate.id === booking.entryId);
       if (!entry) continue;
-      const key = `${entry.start.getTime()}-${entry.end.getTime()}`;
+      const key = booking.bookingSetId ?? this.getEntryBookingSetId(entry);
       const group = groups.get(key) ?? [];
       group.push(booking);
       groups.set(key, group);
@@ -867,7 +910,12 @@ export class ServicePlannerComponent implements OnInit {
         summary: this.getBookingScheduleSummary(group[0]),
         bookings: group.sort((first, second) => this.compareBookingResources(first, second)),
       }))
-      .sort((first, second) => Number(first.id.split('-')[0]) - Number(second.id.split('-')[0]));
+      .sort((first, second) => this.getBookingSetStart(first) - this.getBookingSetStart(second));
+  }
+
+  private getBookingSetStart(set: BookingSet): number {
+    const entry = this.scheduleEntries.find(candidate => candidate.id === set.bookings[0]?.entryId);
+    return entry?.start.getTime() ?? 0;
   }
 
   private compareBookingResources(first: JobBooking, second: JobBooking): number {
@@ -886,6 +934,24 @@ export class ServicePlannerComponent implements OnInit {
       entry.workorderItemCategory !== 'activity' &&
       !this.isActivityId(entry.jobId) &&
       !this.isActivityScheduleEntry(entry);
+  }
+
+  private getEntryBookingSetId(entry: ScheduleEntry): string {
+    return entry.bookingSetId ?? `${entry.workOrderReference ?? ''}:${entry.jobId}:${entry.start.getTime()}-${entry.end.getTime()}`;
+  }
+
+  private getBookingSetEntries(entry: ScheduleEntry): ScheduleEntry[] {
+    const bookingSetId = this.getEntryBookingSetId(entry);
+    return this.scheduleEntries.filter(candidate =>
+      this.isJobScheduleEntry(candidate) &&
+      this.getEntryBookingSetId(candidate) === bookingSetId
+    );
+  }
+
+  private canSplitEvent(event: SchedulerEvent | undefined): boolean {
+    if (!this.isJobEvent(event)) return false;
+    const duration = event.end.getTime() - event.start.getTime();
+    return duration >= this.slotDurationMinutes * 2 * 60000;
   }
 
   private isActivityScheduleEntry(entry: ScheduleEntry | undefined): boolean {
@@ -985,6 +1051,7 @@ export class ServicePlannerComponent implements OnInit {
           resourceName: resource?.label ?? entry.resourceId,
           entryId: entry.id,
           orderId: order.id,
+          bookingSetId: this.getEntryBookingSetId(entry),
         };
       })
       .filter((booking): booking is JobBooking => !!booking);
@@ -1029,6 +1096,20 @@ export class ServicePlannerComponent implements OnInit {
   private updateScheduleEntryTimes(entryId: string, start: Date, end: Date): void {
     this.scheduleEntries = this.scheduleEntries.map(entry =>
       entry.id === entryId ? { ...entry, start, end } : entry
+    );
+  }
+
+  private updateScheduleEntry(entryId: string, changes: Partial<ScheduleEntry>): void {
+    this.scheduleEntries = this.scheduleEntries.map(entry =>
+      entry.id === entryId ? { ...entry, ...changes } : entry
+    );
+  }
+
+  private updateEventEntry(entryId: string, changes: Partial<ScheduleEntry>): void {
+    this.events = this.events.map(event =>
+      event.id === entryId
+        ? { ...event, meta: { ...(event.meta ?? {}), entry: { ...(event.meta?.entry as ScheduleEntry), ...changes } } }
+        : event
     );
   }
 
@@ -1178,6 +1259,9 @@ export class ServicePlannerComponent implements OnInit {
       b.jobId === payload.jobId &&
       (!activeOrderId || b.orderId === activeOrderId)
     );
+    const bookingSetId = this.isActivityId(payload.jobId)
+      ? undefined
+      : existingJobBooking?.bookingSetId ?? `${activeOrderId ?? 'order'}:${payload.jobId}:${start.getTime()}-${end.getTime()}`;
     if (existingJobBooking) {
       const existingEvent = this.events.find(e => e.id === existingJobBooking.entryId);
       if (existingEvent) {
@@ -1203,6 +1287,7 @@ export class ServicePlannerComponent implements OnInit {
       workOrderReference: this.allOrders.find(candidate => candidate.id === activeOrderId)?.referenceNumber,
       workorderItemStatus: 'scheduled' as const,
       workorderItemCategory: this.isActivityId(payload.jobId) ? 'activity' as const : 'job' as const,
+      bookingSetId,
     };
 
     this.scheduleRepo.assign(entry).subscribe(assigned => {
@@ -1278,23 +1363,85 @@ export class ServicePlannerComponent implements OnInit {
 
   /** Sync all other booked resources for the same job to the new start/end */
   private syncJobSiblings(movedEntryId: string, start: Date, end: Date): void {
-    // Find which job this entry belongs to
-    const movedBooking = this.bookings.find(b => b.entryId === movedEntryId);
-    if (!movedBooking) return;
+    const movedEntry = this.scheduleEntries.find(entry => entry.id === movedEntryId);
+    if (!this.isJobScheduleEntry(movedEntry)) return;
 
-    // Find all other bookings for the same job
-    const siblings = this.bookings.filter(
-      b => b.jobId === movedBooking.jobId && b.entryId !== movedEntryId && !this.isActivityId(b.jobId)
-    );
+    const siblings = this.getBookingSetEntries(movedEntry).filter(entry => entry.id !== movedEntryId);
 
     siblings.forEach(sibling => {
-      this.scheduleRepo.reschedule(sibling.entryId, start, end).subscribe(updated => {
+      this.scheduleRepo.reschedule(sibling.id, start, end).subscribe(updated => {
         this.events = this.events.map(e =>
-          e.id === sibling.entryId
+          e.id === sibling.id
             ? { ...e, start: updated.start, end: updated.end }
             : e
         );
-        this.updateScheduleEntryTimes(sibling.entryId, updated.start, updated.end);
+        this.updateScheduleEntryTimes(sibling.id, updated.start, updated.end);
+      });
+    });
+  }
+
+  private splitJobBookingSet(eventId: string): void {
+    const event = this.events.find(candidate => candidate.id === eventId);
+    const entry = this.scheduleEntries.find(candidate => candidate.id === eventId) ?? event?.meta?.entry;
+    if (!this.canSplitEvent(event) || !this.isJobScheduleEntry(entry)) return;
+
+    const slotMs = this.slotDurationMinutes * 60000;
+    const durationMs = entry.end.getTime() - entry.start.getTime();
+    const midpoint = new Date(entry.start.getTime() + Math.round((durationMs / 2) / slotMs) * slotMs);
+    if (midpoint <= entry.start || midpoint >= entry.end) return;
+
+    const originalSetId = this.getEntryBookingSetId(entry);
+    const splitSetId = `${originalSetId}:split:${Date.now()}`;
+    const siblings = this.getBookingSetEntries(entry);
+
+    siblings.forEach((sibling, index) => {
+      const originalEnd = new Date(sibling.end);
+      const originalStart = new Date(sibling.start);
+      const normalizedSibling = { ...sibling, bookingSetId: originalSetId };
+
+      this.scheduleRepo.reschedule(sibling.id, originalStart, midpoint).subscribe(updated => {
+        const firstHalf = { ...updated, bookingSetId: originalSetId };
+        this.events = this.events.map(candidate =>
+          candidate.id === sibling.id
+            ? {
+                ...candidate,
+                start: firstHalf.start,
+                end: firstHalf.end,
+                meta: { ...(candidate.meta ?? {}), entry: { ...(candidate.meta?.entry as ScheduleEntry), ...firstHalf } },
+              }
+            : candidate
+        );
+        this.updateScheduleEntry(sibling.id, firstHalf);
+
+        const secondHalf: ScheduleEntry = {
+          ...normalizedSibling,
+          id: `split-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
+          start: new Date(midpoint),
+          end: originalEnd,
+          bookingSetId: splitSetId,
+        };
+
+        this.scheduleRepo.assign(secondHalf).subscribe(assigned => {
+          const assignedEntry = { ...assigned, bookingSetId: splitSetId };
+          const sourceEvent = this.events.find(candidate => candidate.id === sibling.id) ?? event;
+          if (!sourceEvent) return;
+          this.events = [
+            ...this.events,
+            {
+              ...sourceEvent,
+              id: assignedEntry.id,
+              title: sourceEvent.title,
+              resourceId: assignedEntry.resourceId,
+              start: assignedEntry.start,
+              end: assignedEntry.end,
+              meta: { ...(sourceEvent.meta ?? {}), entry: assignedEntry },
+            },
+          ];
+          this.upsertScheduleEntry(assignedEntry);
+          if (this.latestAutoBookingEntryIds.has(sibling.id)) {
+            this.latestAutoBookingEntryIds.add(assignedEntry.id);
+          }
+        });
       });
     });
   }

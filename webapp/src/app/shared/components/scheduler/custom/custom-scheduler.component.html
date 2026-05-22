@@ -259,7 +259,8 @@
                 [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
                 [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
                 (mousedown)="onEventMouseDown($event, event)"
-                (click)="onEventClick($event, event)">
+                (click)="onEventClick($event, event)"
+                (contextmenu)="onEventContextMenu($event, event)">
                 <div class="scheduler__event-handle scheduler__event-handle--left"
                   [style.display]="shouldShowEventDetails(event) ? null : 'none'"
                   (mousedown)="onResizeMouseDown($event, event, 'left')"></div>
@@ -386,7 +387,8 @@
               [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
               [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
               (mousedown)="onEventMouseDown($event, event)"
-              (click)="onEventClick($event, event)">
+              (click)="onEventClick($event, event)"
+              (contextmenu)="onEventContextMenu($event, event)">
               <div class="scheduler__event-handle scheduler__event-handle--left"
                 [style.display]="shouldShowEventDetails(event) ? null : 'none'"
                 (mousedown)="onResizeMouseDown($event, event, 'left')"></div>
