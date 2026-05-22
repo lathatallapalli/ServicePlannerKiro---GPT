@@ -85,6 +85,7 @@ export class AutoSchedulerService {
           return null;
         }
 
+        const bookingSetId = `${job.workOrderId}:${job.id}:${slot.start.getTime()}-${slot.end.getTime()}`;
         for (const { resource } of slot.assignments) {
           const entry: ScheduleEntry = {
             id: `auto-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -94,6 +95,7 @@ export class AutoSchedulerService {
             end: new Date(slot.end),
             workorderItemStatus: 'scheduled',
             workorderItemCategory: 'job',
+            bookingSetId,
           };
           allEntries.push(entry);
           result.push(entry);

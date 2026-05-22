@@ -59,6 +59,12 @@ export interface EventClickPayload {
   eventId: string;
 }
 
+export interface EventContextMenuPayload {
+  eventId: string;
+  x: number;
+  y: number;
+}
+
 export interface ResourceSelectionChangePayload {
   resourceId: string;
   selected: boolean;
@@ -85,4 +91,5 @@ export abstract class SchedulerContract {
   abstract eventResized: EventEmitter<EventResizePayload>;
   abstract eventDropped: EventEmitter<EventDropPayload>;
   abstract eventClicked: EventEmitter<EventClickPayload>;
+  abstract eventContextMenu: EventEmitter<EventContextMenuPayload>;
 }

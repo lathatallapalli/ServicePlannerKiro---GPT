@@ -12,6 +12,7 @@ export interface ScheduleEntry {
   workOrderReference?: string;
   workorderItemStatus?: WorkorderItemStatus;
   workorderItemCategory?: WorkorderItemCategory;
+  bookingSetId?: string;
 }
 
 export interface ScheduleConflict {

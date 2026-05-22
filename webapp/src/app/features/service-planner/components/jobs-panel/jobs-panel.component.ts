@@ -26,6 +26,7 @@ export interface JobBooking {
   resourceName: string;
   entryId: string;
   orderId?: string;
+  bookingSetId?: string;
 }
 
 @Component({

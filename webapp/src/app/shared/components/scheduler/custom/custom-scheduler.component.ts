@@ -9,7 +9,7 @@ import { UnavailabilityBlock } from '../../../../core/models/availability.model'
 import { WorkorderItemStatus } from '../../../../core/models/job.model';
 import {
   SchedulerResource, SchedulerEvent, SchedulerGroup,
-  EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload,
+  EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload,
   ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload
 } from '../scheduler.interface';
 import { ResourceFavoriteView } from '../../../../features/service-planner/services/planner-settings.service';
@@ -70,6 +70,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Output() public eventResized = new EventEmitter<EventResizePayload>();
   @Output() public eventDropped = new EventEmitter<EventDropPayload>();
   @Output() public eventClicked = new EventEmitter<EventClickPayload>();
+  @Output() public eventContextMenu = new EventEmitter<EventContextMenuPayload>();
   @Output() public resourceSelectionChange = new EventEmitter<ResourceSelectionChangePayload>();
   @Output() public resourceTypeSelectionChange = new EventEmitter<ResourceTypeSelectionChangePayload>();
   @Output() public resourceViewChange = new EventEmitter<ResourceFavoriteView | null>();
@@ -108,7 +109,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  selectedMonth: number = new Date().getMonth();
+  selectedMonth = this.viewStart.getMonth();
   resourceSearch = '';
   selectedGroupIds: string[] = [];
   isGroupDropdownOpen = false;
@@ -142,11 +143,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   constructor(private zone: NgZone) {}
 
   ngOnInit(): void {
+    this.selectedMonth = this.viewStart.getMonth();
     this.buildTimeSlots();
   }
 
   ngAfterViewInit(): void {
-    this.selectedMonth = this.viewStart.getMonth();
     this.zone.runOutsideAngular(() => {
       if (this.bodyScrollRef) {
         this.bodyScrollRef.nativeElement.addEventListener('scroll', () => this.syncHeaderScroll());
@@ -156,6 +157,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['viewStart'] || changes['viewEnd'] || changes['slotDurationMinutes']) {
+      this.selectedMonth = this.viewStart.getMonth();
       this.buildTimeSlots();
     }
     if (changes['groups']) {
@@ -865,6 +867,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   onEventClick(e: MouseEvent, event: SchedulerEvent): void {
     e.stopPropagation();
     this.eventClicked.emit({ eventId: event.id });
+  }
+
+  onEventContextMenu(e: MouseEvent, event: SchedulerEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this.eventContextMenu.emit({ eventId: event.id, x: e.clientX, y: e.clientY });
   }
 
   dropTargetResourceId: string | null = null;
