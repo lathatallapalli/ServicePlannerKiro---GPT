@@ -225,7 +225,8 @@
                   class="scheduler__order-run-shadow"
                   [style.left.px]="getOrderRunLeft(run)"
                   [style.width.px]="getOrderRunWidth(run)"
-                  style="position:absolute;top:0;height:78px;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
+                  [style.height.px]="rowHeight"
+                  style="position:absolute;top:0;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
                 </div>
                 <div class="scheduler__order-run"
                   [style.left.px]="getOrderRunLeft(run)"
@@ -258,6 +259,8 @@
                 [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
                 [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
                 [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
+                [attr.aria-label]="getEventTileAriaLabel(event)"
+                [attr.title]="getEventTileAriaLabel(event)"
                 (mousedown)="onEventMouseDown($event, event)"
                 (click)="onEventClick($event, event)"
                 (contextmenu)="onEventContextMenu($event, event)">
@@ -274,17 +277,48 @@
                     }
                     <span class="scheduler__event-job">
                       <span class="scheduler__event-job-copy">
-                        <span class="scheduler__event-title">{{ event.title }}</span>
+                        <span class="scheduler__event-title">{{ getEventJobDescription(event) }}</span>
                         <span class="scheduler__event-time">{{ getEventDetail(event) }}</span>
+                        <span class="scheduler__event-customer">{{ getEventCustomerVehicleDetail(event) }}</span>
                       </span>
-                      @if (shouldShowEventTag(event)) {
-                        <span class="scheduler__event-tag">
-                      <span class="scheduler__event-tag-icon" aria-hidden="true">
-                        <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                      <span class="scheduler__event-actions">
+                        @if (shouldShowEventTag(event)) {
+                          <span class="scheduler__event-tag">
+                            <span class="scheduler__event-tag-icon" aria-hidden="true">
+                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                            </span>
+                            <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
+                          </span>
+                        }
+                        @if (shouldShowEventContacts(event)) {
+                          <span class="scheduler__event-contact-list" aria-live="polite">
+                            @if (getEventCustomerEmail(event); as email) {
+                              <button
+                                class="scheduler__event-contact"
+                                type="button"
+                                [attr.aria-label]="'Copy customer email ' + email"
+                                [attr.title]="'Copy customer email: ' + email"
+                                (mousedown)="suppressEventAction($event)"
+                                (click)="copyEventContact($event, event, 'email')"
+                                (contextmenu)="suppressEventAction($event)">
+                                <span class="scheduler__event-contact-value">{{ isEventContactCopied(event, 'email') ? 'Copied' : email }}</span>
+                              </button>
+                            }
+                            @if (getEventCustomerPhone(event); as phone) {
+                              <button
+                                class="scheduler__event-contact"
+                                type="button"
+                                [attr.aria-label]="'Copy customer phone ' + phone"
+                                [attr.title]="'Copy customer phone: ' + phone"
+                                (mousedown)="suppressEventAction($event)"
+                                (click)="copyEventContact($event, event, 'phone')"
+                                (contextmenu)="suppressEventAction($event)">
+                                <span class="scheduler__event-contact-value">{{ isEventContactCopied(event, 'phone') ? 'Copied' : phone }}</span>
+                              </button>
+                            }
+                          </span>
+                        }
                       </span>
-                      <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
-                        </span>
-                      }
                     </span>
                   </span>
                 }
@@ -354,7 +388,8 @@
                 class="scheduler__order-run-shadow"
                 [style.left.px]="getOrderRunLeft(run)"
                 [style.width.px]="getOrderRunWidth(run)"
-                style="position:absolute;top:0;height:78px;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
+                [style.height.px]="rowHeight"
+                style="position:absolute;top:0;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
               </div>
               <div class="scheduler__order-run"
                 [style.left.px]="getOrderRunLeft(run)"
@@ -386,6 +421,8 @@
               [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
               [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
               [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
+              [attr.aria-label]="getEventTileAriaLabel(event)"
+              [attr.title]="getEventTileAriaLabel(event)"
               (mousedown)="onEventMouseDown($event, event)"
               (click)="onEventClick($event, event)"
               (contextmenu)="onEventContextMenu($event, event)">
@@ -402,17 +439,48 @@
                     }
                     <span class="scheduler__event-job">
                       <span class="scheduler__event-job-copy">
-                        <span class="scheduler__event-title">{{ event.title }}</span>
+                        <span class="scheduler__event-title">{{ getEventJobDescription(event) }}</span>
                         <span class="scheduler__event-time">{{ getEventDetail(event) }}</span>
+                        <span class="scheduler__event-customer">{{ getEventCustomerVehicleDetail(event) }}</span>
                       </span>
-                      @if (shouldShowEventTag(event)) {
-                        <span class="scheduler__event-tag">
-                    <span class="scheduler__event-tag-icon" aria-hidden="true">
-                      <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
-                    </span>
-                    <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
-                        </span>
-                      }
+                      <span class="scheduler__event-actions">
+                        @if (shouldShowEventTag(event)) {
+                          <span class="scheduler__event-tag">
+                            <span class="scheduler__event-tag-icon" aria-hidden="true">
+                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                            </span>
+                            <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
+                          </span>
+                        }
+                        @if (shouldShowEventContacts(event)) {
+                          <span class="scheduler__event-contact-list" aria-live="polite">
+                            @if (getEventCustomerEmail(event); as email) {
+                              <button
+                                class="scheduler__event-contact"
+                                type="button"
+                                [attr.aria-label]="'Copy customer email ' + email"
+                                [attr.title]="'Copy customer email: ' + email"
+                                (mousedown)="suppressEventAction($event)"
+                                (click)="copyEventContact($event, event, 'email')"
+                                (contextmenu)="suppressEventAction($event)">
+                                <span class="scheduler__event-contact-value">{{ isEventContactCopied(event, 'email') ? 'Copied' : email }}</span>
+                              </button>
+                            }
+                            @if (getEventCustomerPhone(event); as phone) {
+                              <button
+                                class="scheduler__event-contact"
+                                type="button"
+                                [attr.aria-label]="'Copy customer phone ' + phone"
+                                [attr.title]="'Copy customer phone: ' + phone"
+                                (mousedown)="suppressEventAction($event)"
+                                (click)="copyEventContact($event, event, 'phone')"
+                                (contextmenu)="suppressEventAction($event)">
+                                <span class="scheduler__event-contact-value">{{ isEventContactCopied(event, 'phone') ? 'Copied' : phone }}</span>
+                              </button>
+                            }
+                          </span>
+                        }
+                      </span>
                     </span>
                   </span>
                 }
@@ -458,8 +526,19 @@
             </span>
             <span class="scheduler__event-job">
               <span class="scheduler__event-job-copy">
-                <span class="scheduler__event-title">{{ previewEvent.title }}</span>
+                <span class="scheduler__event-title">{{ getEventJobDescription(previewEvent) }}</span>
                 <span class="scheduler__event-time">{{ getEventDetail(previewEvent) }}</span>
+                <span class="scheduler__event-customer">{{ getEventCustomerVehicleDetail(previewEvent) }}</span>
+              </span>
+              <span class="scheduler__event-actions">
+                @if (shouldShowEventTag(previewEvent)) {
+                  <span class="scheduler__event-tag">
+                    <span class="scheduler__event-tag-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                    </span>
+                    <span class="scheduler__event-tag-label">{{ getEventTagLabel(previewEvent) }}</span>
+                  </span>
+                }
               </span>
             </span>
           </span>
@@ -469,4 +548,3 @@
 
   </div>
 </div>
-

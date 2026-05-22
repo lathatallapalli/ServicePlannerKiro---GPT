@@ -17,7 +17,7 @@ import { ResourceFavoriteView } from '../../../../features/service-planner/servi
 const MINUTES_PER_FRU = 60;
 
 const SLOT_WIDTH = 60;        // px per slot (fixed — one slot always = 60px)
-const ROW_HEIGHT = 78;        // px per resource row
+const ROW_HEIGHT = 92;        // px per resource row
 const ORDER_TILE_HEIGHT = 28;
 const JOB_TILE_HEIGHT = ROW_HEIGHT - ORDER_TILE_HEIGHT;
 const HEADER_HEIGHT = 80;     // date row (32) + hour row (48)
@@ -28,6 +28,7 @@ const RESOURCE_COL_WIDTH = 310;
 const GROUP_ROW_HEIGHT = 48;
 const EVENT_FULL_TAG_MIN_WIDTH = 220;
 const EVENT_ICON_TAG_MIN_WIDTH = 150;
+const EVENT_CONTACT_MIN_WIDTH = 300;
 
 interface SchedulerOrderRun {
   key: string;
@@ -116,7 +117,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   isResourceViewDropdownOpen = false;
   showSelectedOnlyByGroup = new Set<string>();
   collapsedGroupIds = new Set<string>();
+  copiedContactKey: string | null = null;
   private hasInitializedGroupSelection = false;
+  private copiedContactResetId: ReturnType<typeof setTimeout> | null = null;
 
   get selectedYear(): number { return this.viewStart.getFullYear(); }
 
@@ -473,6 +476,97 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getEventDetail(event: SchedulerEvent): string {
     return `${this.formatEventTimeRange(event)} | ${this.getEventDuration(event)}`;
+  }
+
+  getEventJobDescription(event: SchedulerEvent): string {
+    return event.meta?.job?.description ?? event.title ?? event.meta?.entry?.title ?? 'Booking';
+  }
+
+  getEventCustomerName(event: SchedulerEvent): string {
+    const order = (event.meta as any)?.order;
+    return order?.customer?.name ?? 'Unknown customer';
+  }
+
+  getEventLicensePlate(event: SchedulerEvent): string {
+    const order = (event.meta as any)?.order;
+    return order?.vehicle?.licensePlate ?? 'No vehicle';
+  }
+
+  getEventCustomerVehicleDetail(event: SchedulerEvent): string {
+    return `${this.getEventCustomerName(event)} | ${this.getEventLicensePlate(event)}`;
+  }
+
+  getEventCustomerEmail(event: SchedulerEvent): string | null {
+    const order = (event.meta as any)?.order;
+    return order?.customer?.email ?? null;
+  }
+
+  getEventCustomerPhone(event: SchedulerEvent): string | null {
+    const order = (event.meta as any)?.order;
+    return order?.customer?.phone ?? null;
+  }
+
+  getEventTileAriaLabel(event: SchedulerEvent): string {
+    return [
+      this.getEventOrderReference(event),
+      this.getEventJobDescription(event),
+      this.getEventDetail(event),
+      this.getEventCustomerVehicleDetail(event),
+      this.getEventCustomerEmail(event) ? `Email ${this.getEventCustomerEmail(event)}` : '',
+      this.getEventCustomerPhone(event) ? `Phone ${this.getEventCustomerPhone(event)}` : '',
+      this.getEventTagLabel(event),
+    ].filter(Boolean).join(', ');
+  }
+
+  shouldShowEventContacts(event: SchedulerEvent): boolean {
+    return this.getEventWidth(event) >= EVENT_CONTACT_MIN_WIDTH;
+  }
+
+  suppressEventAction(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  copyEventContact(event: Event, schedulerEvent: SchedulerEvent, contactType: 'email' | 'phone'): void {
+    this.suppressEventAction(event);
+    const value = contactType === 'email'
+      ? this.getEventCustomerEmail(schedulerEvent)
+      : this.getEventCustomerPhone(schedulerEvent);
+    if (!value) return;
+
+    void this.copyTextToClipboard(value).then(() => {
+      this.copiedContactKey = this.getContactCopyKey(schedulerEvent, contactType);
+      if (this.copiedContactResetId) clearTimeout(this.copiedContactResetId);
+      this.copiedContactResetId = setTimeout(() => {
+        this.copiedContactKey = null;
+        this.copiedContactResetId = null;
+      }, 1500);
+    });
+  }
+
+  isEventContactCopied(event: SchedulerEvent, contactType: 'email' | 'phone'): boolean {
+    return this.copiedContactKey === this.getContactCopyKey(event, contactType);
+  }
+
+  private getContactCopyKey(event: SchedulerEvent, contactType: 'email' | 'phone'): string {
+    return `${event.id}:${contactType}`;
+  }
+
+  private async copyTextToClipboard(value: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
   }
 
   getEventOrderReference(event: SchedulerEvent): string {
