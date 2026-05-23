@@ -9,7 +9,7 @@ import { UnavailabilityBlock } from '../../../../core/models/availability.model'
 import { WorkorderItemStatus } from '../../../../core/models/job.model';
 import {
   SchedulerResource, SchedulerEvent, SchedulerGroup,
-  EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload,
+  EventMovePayload, EventResizePayload, EventResizeDragPayload, EventDropPayload, EventClickPayload, EventContextMenuPayload,
   ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerDropVisualContext,
   EventDragPayload
 } from '../scheduler.interface';
@@ -81,6 +81,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   @Output() public eventMoved   = new EventEmitter<EventMovePayload>();
   @Output() public eventResized = new EventEmitter<EventResizePayload>();
+  @Output() public eventResizeStarted = new EventEmitter<EventResizeDragPayload>();
+  @Output() public eventResizeEnded = new EventEmitter<EventResizeDragPayload>();
   @Output() public eventDropped = new EventEmitter<EventDropPayload>();
   @Output() public eventClicked = new EventEmitter<EventClickPayload>();
   @Output() public eventContextMenu = new EventEmitter<EventContextMenuPayload>();
@@ -291,6 +293,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return Math.max((range.end.getTime() - range.start.getTime()) / 3600000 * this.HOUR_WIDTH, 0);
   }
 
+  private rangesOverlap(firstStart: Date, firstEnd: Date, secondStart: Date, secondEnd: Date): boolean {
+    return firstStart < secondEnd && secondStart < firstEnd;
+  }
+
   getUnavailabilityTitle(block: UnavailabilityBlock): string {
     return block.title ?? block.reason ?? 'Unavailable';
   }
@@ -430,7 +436,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   shouldRenderOrderRun(run: SchedulerOrderRun): boolean {
-    if (this.dropPreview) return false;
+    if (this.isDragFeedbackActive()) return false;
+    if (this.resizePreview?.event.resourceId === run.resourceId) return false;
     return run.events.length > 1 && (this.showOrderTiles || this.detailedOrderIds.includes(run.key));
   }
 
@@ -462,8 +469,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   shouldRenderEventForResource(event: SchedulerEvent, resourceId: string): boolean {
-    if (this.dropPreview && this.nativeDraggedEventId !== event.id) return false;
-    if (this.resizePreview?.event.id === event.id) return false;
+    if (this.isDragFeedbackActive() && this.nativeDraggedEventId !== event.id) return false;
+    if (this.resizePreview?.event.resourceId === resourceId) return false;
     return event.resourceId === resourceId;
   }
 
@@ -481,7 +488,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   isDragFeedbackActive(): boolean {
-    return !!this.dropPreview;
+    return !!this.dropPreview || !!this.dropVisualContext;
+  }
+
+  isUnavailableFeedbackActive(): boolean {
+    return this.isDragFeedbackActive() || !!this.resizePreview;
+  }
+
+  shouldShowUnavailableFeedbackForResource(resourceId: string): boolean {
+    if (this.isDragFeedbackActive()) return true;
+    return this.resizePreview?.event.resourceId === resourceId;
   }
 
   getPreviewLeft(): number {
@@ -502,6 +518,24 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return event && this.shouldShowEventDetails(event) ? this.getRenderedEventHeight(event) : this.rowHeight;
   }
 
+  isResizePreviewInvalid(): boolean {
+    const preview = this.resizePreview;
+    if (!preview) return false;
+
+    const dayWidthPx = 12 * this.HOUR_WIDTH;
+    const dayIndex = Math.max(0, Math.min(Math.floor(preview.left / dayWidthPx), this.daySlots.length - 1));
+    const start = new Date(this.daySlots[dayIndex]);
+    start.setHours(9, 0, 0, 0);
+    start.setMinutes(((preview.left - dayIndex * dayWidthPx) / this.HOUR_WIDTH) * MINUTES_PER_FRU, 0, 0);
+    const durationMinutes = (preview.width / this.HOUR_WIDTH) * MINUTES_PER_FRU;
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+
+    return this.invalidDropRanges.some(range =>
+      range.resourceId === preview.event.resourceId &&
+      this.rangesOverlap(start, end, range.start, range.end)
+    );
+  }
+
   getDropPreviewLeft(): number {
     return (this.dropPreview?.left ?? 0) + RESOURCE_COL_WIDTH;
   }
@@ -512,6 +546,19 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getDropPreviewWidth(): number {
     return this.dropPreview?.width ?? 0;
+  }
+
+  isDropPreviewInvalidForResource(resourceId: string): boolean {
+    return !!this.dropPreview &&
+      this.dropPreview.resourceId === resourceId &&
+      this.invalidDropRanges.some(range =>
+        range.resourceId === resourceId &&
+        this.rangesOverlap(this.dropPreview!.start, this.dropPreview!.end, range.start, range.end)
+      );
+  }
+
+  isDropPreviewInvalid(): boolean {
+    return !!this.dropPreview && this.isDropPreviewInvalidForResource(this.dropPreview.resourceId);
   }
 
   getEventTagLabel(event: SchedulerEvent): string {
@@ -834,6 +881,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       top: this.getResourceTop(event.resourceId),
       width: this.getEventWidth(event),
     };
+    this.eventResizeStarted.emit({ eventId: event.id });
     this.cdr.detectChanges();
 
     const onMove = (me: MouseEvent) => this.onResizeMove(me);
@@ -880,6 +928,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const { event, edge, startX, originalStart, originalEnd } = this.resizing;
     this.resizing = null;
     this.resizePreview = null;
+    this.eventResizeEnded.emit({ eventId: event.id });
 
     // event.start/end already updated live in onResizeMove — just emit final values
     const deltaX = e.clientX - startX;
@@ -916,9 +965,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   onDragOver(e: DragEvent, resourceId: string): void {
     e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = e.dataTransfer.types.includes('eventId') ? 'move' : 'copy';
     this.dropPreview = this.buildDropPreview(e, resourceId, true);
     if (this.dropPreview) this.lastValidDropPreview = this.dropPreview;
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
   }
 
   onDragLeave(): void {
@@ -927,7 +978,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   onDrop(e: DragEvent, resourceId: string): void {
     e.preventDefault();
-    const preview = this.dropPreview ?? this.lastValidDropPreview ?? this.buildDropPreview(e, resourceId);
+    const preview = this.buildDropPreview(e, resourceId, true) ?? this.dropPreview;
     this.dropPreview = null;
     this.lastValidDropPreview = null;
 
@@ -980,6 +1031,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (!cell || !this.daySlots.length) return null;
 
     const cellRect = cell.getBoundingClientRect();
+    if (e.clientX < cellRect.left || e.clientX > cellRect.right) return null;
+
     const dayWidthPx = 12 * this.HOUR_WIDTH;
     const previewWidth = Math.max((durationMinutes / 60) * this.HOUR_WIDTH, 20);
     const maxLeft = Math.max(0, this.totalWidth - previewWidth);

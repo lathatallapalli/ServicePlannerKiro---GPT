@@ -56,6 +56,10 @@ export interface EventResizePayload {
   end: Date;
 }
 
+export interface EventResizeDragPayload {
+  eventId: string;
+}
+
 export interface EventDropPayload {
   jobId: string;
   orderId?: string;
@@ -105,6 +109,8 @@ export abstract class SchedulerContract {
   // Outputs
   abstract eventMoved: EventEmitter<EventMovePayload>;
   abstract eventResized: EventEmitter<EventResizePayload>;
+  abstract eventResizeStarted: EventEmitter<EventResizeDragPayload>;
+  abstract eventResizeEnded: EventEmitter<EventResizeDragPayload>;
   abstract eventDropped: EventEmitter<EventDropPayload>;
   abstract eventClicked: EventEmitter<EventClickPayload>;
   abstract eventContextMenu: EventEmitter<EventContextMenuPayload>;
