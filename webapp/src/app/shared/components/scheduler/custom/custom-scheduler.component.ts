@@ -159,6 +159,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private resizing: { event: SchedulerEvent; edge: 'left' | 'right'; startX: number; originalStart: Date; originalEnd: Date } | null = null;
   resizePreview: { event: SchedulerEvent; left: number; top: number; width: number } | null = null;
   dropPreview: DropPreview | null = null;
+  dropTargetResourceId: string | null = null;
   private lastValidDropPreview: DropPreview | null = null;
   private nativeDraggedEventId: string | null = null;
   private nativeDropHandled = false;
@@ -559,6 +560,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   isDropPreviewInvalid(): boolean {
     return !!this.dropPreview && this.isDropPreviewInvalidForResource(this.dropPreview.resourceId);
+  }
+
+  isDropTargetResource(resourceId: string): boolean {
+    return this.dropTargetResourceId === resourceId;
   }
 
   getEventTagLabel(event: SchedulerEvent): string {
@@ -966,6 +971,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   onDragOver(e: DragEvent, resourceId: string): void {
     e.preventDefault();
     this.dropPreview = this.buildDropPreview(e, resourceId, true);
+    this.dropTargetResourceId = this.isResourceGenerallyAvailableForDrop(resourceId) ? resourceId : null;
     if (this.dropPreview) this.lastValidDropPreview = this.dropPreview;
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'move';
@@ -974,12 +980,14 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   onDragLeave(): void {
     this.dropPreview = null;
+    this.dropTargetResourceId = null;
   }
 
   onDrop(e: DragEvent, resourceId: string): void {
     e.preventDefault();
     const preview = this.buildDropPreview(e, resourceId, true) ?? this.dropPreview;
     this.dropPreview = null;
+    this.dropTargetResourceId = null;
     this.lastValidDropPreview = null;
 
     const dropType = this.getDragData(e, 'dropType') || undefined;
@@ -1011,6 +1019,40 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.zone.run(() => {
       this.eventDropped.emit({ jobId: jobId || `order-${orderId}`, orderId, dropType: externalDropType, resourceId: preview.resourceId, resourceType, droppedResourceType, start, end });
     });
+  }
+
+  private isResourceGenerallyAvailableForDrop(resourceId: string): boolean {
+    if (!this.isDragFeedbackActive()) return true;
+    const workingRanges = this.getWorkingRangesForCurrentView();
+    if (!workingRanges.length) return true;
+
+    return !workingRanges.every(workingRange =>
+      this.invalidDropRanges.some(range =>
+        range.resourceId === resourceId &&
+        range.start.getTime() <= workingRange.start.getTime() &&
+        range.end.getTime() >= workingRange.end.getTime()
+      )
+    );
+  }
+
+  private getWorkingRangesForCurrentView(): Array<{ start: Date; end: Date }> {
+    const ranges: Array<{ start: Date; end: Date }> = [];
+    let cursor = new Date(this.viewStart);
+    cursor.setHours(9, 0, 0, 0);
+
+    while (cursor < this.viewEnd) {
+      const start = new Date(Math.max(cursor.getTime(), this.viewStart.getTime()));
+      const end = new Date(cursor);
+      end.setHours(21, 0, 0, 0);
+      const clippedEnd = new Date(Math.min(end.getTime(), this.viewEnd.getTime()));
+      if (start < clippedEnd) ranges.push({ start, end: clippedEnd });
+
+      cursor = new Date(cursor);
+      cursor.setDate(cursor.getDate() + 1);
+      cursor.setHours(9, 0, 0, 0);
+    }
+
+    return ranges;
   }
 
   private buildDropPreview(e: DragEvent, resourceId: string, allowDragOverFallback = false): DropPreview | null {

@@ -172,6 +172,7 @@
 
       @for (resource of getExpandedResourcesForGroup(group.id); track resource.id) {
         <div class="scheduler__row" [style.height.px]="rowHeight"
+          [class.scheduler__row--drop-target]="isDropTargetResource(resource.id)"
           [class.scheduler__row--drop-invalid]="isDropPreviewInvalidForResource(resource.id)"
           [style.cursor]="isDropPreviewInvalidForResource(resource.id) ? 'not-allowed' : null"
           (dragover)="onDragOver($event, resource.id)"
@@ -196,7 +197,7 @@
               <span class="scheduler__resource-label">{{ resource.label }}</span>
             </div>
           </div>
-          <div class="scheduler__timeline-cell" [style.width.px]="totalWidth">
+          <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null">
             @for (day of daySlots; track day.getTime()) {
               @for (slot of timeSlots; track slot.getTime()) {
                 @if (!isFirstHourSlot(slot)) {
@@ -377,6 +378,7 @@
 
     @for (resource of getUngroupedResources(); track resource.id) {
       <div class="scheduler__row" [style.height.px]="rowHeight"
+        [class.scheduler__row--drop-target]="isDropTargetResource(resource.id)"
         [class.scheduler__row--drop-invalid]="isDropPreviewInvalidForResource(resource.id)"
         [style.cursor]="isDropPreviewInvalidForResource(resource.id) ? 'not-allowed' : null"
         (dragover)="onDragOver($event, resource.id)"
@@ -401,7 +403,7 @@
             <span class="scheduler__resource-label">{{ resource.label }}</span>
           </div>
         </div>
-        <div class="scheduler__timeline-cell" [style.width.px]="totalWidth">
+        <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null">
           @for (day of daySlots; track day.getTime()) {
             @for (slot of timeSlots; track slot.getTime()) {
               @if (!isFirstHourSlot(slot)) {
