@@ -1,4 +1,4 @@
-$border-strong: 1px solid #C6C6C6;
+$border-strong:1px solid #C6C6C6;
 $month-bar-height: 60px;
 
 .scheduler {
@@ -62,7 +62,6 @@ $month-bar-height: 60px;
       background: #4C68B1;
       border-color: #3D538E;
       color: white;
-      font-weight: 400;
       &:hover { background: #3d5491; }
     }
   }
@@ -230,9 +229,6 @@ $month-bar-height: 60px;
     width: max-content;
     min-width: 100%;
 
-    &--drop-target .scheduler__timeline-cell {
-      background: rgba(76, 104, 177, 0.08);
-    }
   }
 
   &__resource-cell {
@@ -522,6 +518,10 @@ $month-bar-height: 60px;
   &__event--completed {
     --b:#a7f0ba;
     --a:#0E6027;
+  }
+
+  &__event--resize-preview {
+    opacity: 0.55;
   }
 
   &__event--icon-tag &__event-tag {

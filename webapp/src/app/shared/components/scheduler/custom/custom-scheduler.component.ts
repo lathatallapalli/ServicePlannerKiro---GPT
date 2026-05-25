@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter,
   OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy,
-  ElementRef, ViewChild, AfterViewInit, NgZone
+  ElementRef, ViewChild, AfterViewInit, NgZone, ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -9,8 +9,9 @@ import { UnavailabilityBlock } from '../../../../core/models/availability.model'
 import { WorkorderItemStatus } from '../../../../core/models/job.model';
 import {
   SchedulerResource, SchedulerEvent, SchedulerGroup,
-  EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload,
-  ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload
+  EventMovePayload, EventResizePayload, EventResizeDragPayload, EventDropPayload, EventClickPayload, EventContextMenuPayload,
+  ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerDropVisualContext,
+  EventDragPayload
 } from '../scheduler.interface';
 import { ResourceFavoriteView } from '../../../../features/service-planner/services/planner-settings.service';
 
@@ -38,6 +39,15 @@ interface SchedulerOrderRun {
   firstEvent: SchedulerEvent;
 }
 
+interface DropPreview {
+  resourceId: string;
+  start: Date;
+  end: Date;
+  left: number;
+  top: number;
+  width: number;
+}
+
 @Component({
   selector: 'app-custom-scheduler',
   standalone: true,
@@ -55,6 +65,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public viewStart: Date = new Date();
   @Input() public viewEnd: Date = new Date();
   @Input() public slotDurationMinutes = 60;
+  @Input() public dropSnapMinutes = 30;
   @Input() public readonly = false;
   @Input() public showOrderTiles = true;
   @Input() public preserveRowHeightOnAvailability = false;
@@ -65,12 +76,18 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public selectedResourceView: ResourceFavoriteView | null = null;
   @Input('rightPaneOpen') public rightPaneOpen = false;
   @Input() public scrollToEventId: string | null = null;
+  @Input() public invalidDropRanges: SchedulerInvalidDropRange[] = [];
+  @Input() public dropVisualContext: SchedulerDropVisualContext | null = null;
 
   @Output() public eventMoved   = new EventEmitter<EventMovePayload>();
   @Output() public eventResized = new EventEmitter<EventResizePayload>();
+  @Output() public eventResizeStarted = new EventEmitter<EventResizeDragPayload>();
+  @Output() public eventResizeEnded = new EventEmitter<EventResizeDragPayload>();
   @Output() public eventDropped = new EventEmitter<EventDropPayload>();
   @Output() public eventClicked = new EventEmitter<EventClickPayload>();
   @Output() public eventContextMenu = new EventEmitter<EventContextMenuPayload>();
+  @Output() public eventDragStarted = new EventEmitter<EventDragPayload>();
+  @Output() public eventDragEnded = new EventEmitter<EventDragPayload>();
   @Output() public resourceSelectionChange = new EventEmitter<ResourceSelectionChangePayload>();
   @Output() public resourceTypeSelectionChange = new EventEmitter<ResourceTypeSelectionChangePayload>();
   @Output() public resourceViewChange = new EventEmitter<ResourceFavoriteView | null>();
@@ -120,6 +137,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   get selectedYear(): number { return this.viewStart.getFullYear(); }
 
+  get effectiveDropSnapMinutes(): number {
+    return this.normalizeDropSnapMinutes(this.dropSnapMinutes);
+  }
+
   selectMonth(monthIndex: number): void {
     this.selectedMonth = monthIndex;
     const newStart = new Date(this.viewStart);
@@ -135,13 +156,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   // drag state
-  private dragging: { event: SchedulerEvent; offsetX: number; startY: number } | null = null;
   private resizing: { event: SchedulerEvent; edge: 'left' | 'right'; startX: number; originalStart: Date; originalEnd: Date } | null = null;
-  dragPreview: { event: SchedulerEvent; resourceId: string; left: number; top: number; width: number } | null = null;
   resizePreview: { event: SchedulerEvent; left: number; top: number; width: number } | null = null;
   hoverTooltip: { text: string; x: number; y: number } | null = null;
+  dropPreview: DropPreview | null = null;
+  dropTargetResourceId: string | null = null;
+  private lastValidDropPreview: DropPreview | null = null;
+  private nativeDraggedEventId: string | null = null;
+  private nativeDropHandled = false;
 
-  constructor(private zone: NgZone) {}
+  constructor(private zone: NgZone, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     this.selectedMonth = this.viewStart.getMonth();
@@ -301,6 +325,22 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return (block.end.getTime() - block.start.getTime()) / 3600000 * this.HOUR_WIDTH;
   }
 
+  getInvalidDropRangesForResource(resourceId: string): SchedulerInvalidDropRange[] {
+    return this.invalidDropRanges.filter(range => range.resourceId === resourceId);
+  }
+
+  getInvalidDropRangeLeft(range: SchedulerInvalidDropRange): number {
+    return this.getLeftFromDate(range.start);
+  }
+
+  getInvalidDropRangeWidth(range: SchedulerInvalidDropRange): number {
+    return Math.max((range.end.getTime() - range.start.getTime()) / 3600000 * this.HOUR_WIDTH, 0);
+  }
+
+  private rangesOverlap(firstStart: Date, firstEnd: Date, secondStart: Date, secondEnd: Date): boolean {
+    return firstStart < secondEnd && secondStart < firstEnd;
+  }
+
   getUnavailabilityTitle(block: UnavailabilityBlock): string {
     return block.title ?? block.reason ?? 'Unavailable';
   }
@@ -402,14 +442,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getRenderedEventLeft(event: SchedulerEvent): number {
     const eventId = this.getSourceEventId(event);
-    if (this.dragPreview?.event.id === eventId) return this.dragPreview.left;
     if (this.resizePreview?.event.id === eventId) return this.resizePreview.left;
     return this.getEventLeft(event);
   }
 
   getRenderedEventWidth(event: SchedulerEvent): number {
     const eventId = this.getSourceEventId(event);
-    if (this.dragPreview?.event.id === eventId) return this.dragPreview.width;
     if (this.resizePreview?.event.id === eventId) return this.resizePreview.width;
     return this.getEventWidth(event);
   }
@@ -444,6 +482,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   shouldRenderOrderRun(run: SchedulerOrderRun): boolean {
+    if (this.isDragFeedbackActive()) return false;
+    if (this.resizePreview?.event.resourceId === run.resourceId) return false;
     return run.events.length > 1 && (this.showOrderTiles || this.detailedOrderIds.includes(run.key));
   }
 
@@ -468,13 +508,18 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   isPreviewingEvent(event: SchedulerEvent): boolean {
     const eventId = this.getSourceEventId(event);
-    return this.dragPreview?.event.id === eventId || this.resizePreview?.event.id === eventId;
+    return this.resizePreview?.event.id === eventId;
+  }
+
+  isEventResizeActive(event: SchedulerEvent): boolean {
+    return this.resizing?.event.id === this.getSourceEventId(event);
   }
 
   shouldRenderEventForResource(event: SchedulerEvent, resourceId: string): boolean {
     const eventId = this.getSourceEventId(event);
-    if (this.dragPreview?.event.id === eventId) return false;
     if (this.resizePreview?.event.id === eventId) return false;
+    if (this.isDragFeedbackActive() && this.nativeDraggedEventId !== eventId) return false;
+    if (this.resizePreview?.event.resourceId === resourceId) return false;
     return event.resourceId === resourceId;
   }
 
@@ -487,19 +532,90 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getPreviewEvent(): SchedulerEvent | null {
-    return this.dragPreview?.event ?? this.resizePreview?.event ?? null;
+    return this.resizePreview?.event ?? null;
+  }
+
+  getResizePreviewForResource(resourceId: string): SchedulerEvent | null {
+    const event = this.resizePreview?.event;
+    return event?.resourceId === resourceId ? event : null;
+  }
+
+  isDragFeedbackActive(): boolean {
+    return !!this.dropPreview || !!this.dropVisualContext;
+  }
+
+  isUnavailableFeedbackActive(): boolean {
+    return this.isDragFeedbackActive() || !!this.resizePreview;
+  }
+
+  shouldShowUnavailableFeedbackForResource(resourceId: string): boolean {
+    if (this.isDragFeedbackActive()) return true;
+    return this.resizePreview?.event.resourceId === resourceId;
   }
 
   getPreviewLeft(): number {
-    return (this.dragPreview?.left ?? this.resizePreview?.left ?? 0) + RESOURCE_COL_WIDTH;
+    return this.resizePreview?.left ?? 0;
   }
 
   getPreviewTop(): number {
-    return this.dragPreview?.top ?? this.resizePreview?.top ?? 0;
+    const event = this.resizePreview?.event;
+    return event && this.shouldShowEventDetails(event) ? this.getRenderedEventTop(event) : 0;
   }
 
   getPreviewWidth(): number {
-    return this.dragPreview?.width ?? this.resizePreview?.width ?? 0;
+    return this.resizePreview?.width ?? 0;
+  }
+
+  getPreviewHeight(): number {
+    const event = this.resizePreview?.event;
+    return event && this.shouldShowEventDetails(event) ? this.getRenderedEventHeight(event) : this.rowHeight;
+  }
+
+  isResizePreviewInvalid(): boolean {
+    const preview = this.resizePreview;
+    if (!preview) return false;
+
+    const dayWidthPx = 12 * this.HOUR_WIDTH;
+    const dayIndex = Math.max(0, Math.min(Math.floor(preview.left / dayWidthPx), this.daySlots.length - 1));
+    const start = new Date(this.daySlots[dayIndex]);
+    start.setHours(9, 0, 0, 0);
+    start.setMinutes(((preview.left - dayIndex * dayWidthPx) / this.HOUR_WIDTH) * MINUTES_PER_FRU, 0, 0);
+    const durationMinutes = (preview.width / this.HOUR_WIDTH) * MINUTES_PER_FRU;
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+
+    return this.invalidDropRanges.some(range =>
+      range.resourceId === preview.event.resourceId &&
+      this.rangesOverlap(start, end, range.start, range.end)
+    );
+  }
+
+  getDropPreviewLeft(): number {
+    return (this.dropPreview?.left ?? 0) + RESOURCE_COL_WIDTH;
+  }
+
+  getDropPreviewTop(): number {
+    return this.dropPreview?.top ?? 0;
+  }
+
+  getDropPreviewWidth(): number {
+    return this.dropPreview?.width ?? 0;
+  }
+
+  isDropPreviewInvalidForResource(resourceId: string): boolean {
+    return !!this.dropPreview &&
+      this.dropPreview.resourceId === resourceId &&
+      this.invalidDropRanges.some(range =>
+        range.resourceId === resourceId &&
+        this.rangesOverlap(this.dropPreview!.start, this.dropPreview!.end, range.start, range.end)
+      );
+  }
+
+  isDropPreviewInvalid(): boolean {
+    return !!this.dropPreview && this.isDropPreviewInvalidForResource(this.dropPreview.resourceId);
+  }
+
+  isDropTargetResource(resourceId: string): boolean {
+    return this.dropTargetResourceId === resourceId;
   }
 
   getEventTagLabel(event: SchedulerEvent): string {
@@ -775,92 +891,48 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return this.resources.findIndex(r => r.id === resourceId);
   }
 
-  // ── Drag to move ────────────────────────────────────────────────────────────
+  // Drag to move
 
-  onEventMouseDown(e: MouseEvent, event: SchedulerEvent): void {
+  onEventDragStart(e: DragEvent, event: SchedulerEvent): void {
     if (this.readonly) return;
-    if (e.button === 2) {
+    if (this.isEventResizeActive(event)) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
-    if (e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-
     const sourceEvent = this.getSourceEvent(event);
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    this.dragging = { event: sourceEvent, offsetX: e.clientX - rect.left, startY: e.clientY };
-
-    const onMove = (me: MouseEvent) => this.onDragMove(me);
-    const onUp   = (me: MouseEvent) => {
-      this.onDragEnd(me);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    e.stopPropagation();
+    this.lastValidDropPreview = null;
+    const durationMinutes = Math.max(1, Math.round((sourceEvent.end.getTime() - sourceEvent.start.getTime()) / 60000));
+    e.dataTransfer?.setData('eventId', sourceEvent.id);
+    e.dataTransfer?.setData('eventid', sourceEvent.id);
+    e.dataTransfer?.setData('dropType', 'event');
+    e.dataTransfer?.setData('droptype', 'event');
+    e.dataTransfer?.setData('fru', String(durationMinutes / MINUTES_PER_FRU));
+    e.dataTransfer?.setData('text/plain', sourceEvent.id);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    this.nativeDraggedEventId = sourceEvent.id;
+    this.nativeDropHandled = false;
+    this.eventDragStarted.emit({ eventId: sourceEvent.id });
   }
 
-  private onDragMove(e: MouseEvent): void {
-    if (!this.dragging) return;
-    const { event, offsetX } = this.dragging;
-    const gridEl = this.bodyScrollRef.nativeElement;
-    const gridRect = gridEl.getBoundingClientRect();
-    const rawLeft = e.clientX - gridRect.left + gridEl.scrollLeft - RESOURCE_COL_WIDTH - offsetX;
-    const left = Math.max(0, Math.min(rawLeft, Math.max(0, this.totalWidth - this.getEventWidth(event))));
-    const yInBody = e.clientY - gridRect.top + gridEl.scrollTop;
-    const resource = this.getResourceAtY(yInBody);
-
-    this.zone.run(() => {
-      this.dragPreview = {
-        event,
-        resourceId: resource?.id ?? event.resourceId,
-        left,
-        top: this.getResourceTop(resource?.id ?? event.resourceId),
-        width: this.getEventWidth(event),
-      };
-    });
-  }
-
-  private onDragEnd(e: MouseEvent): void {
-    if (!this.dragging) return;
-    const { event, offsetX } = this.dragging;
-    const preview = this.dragPreview;
-    this.dragging = null;
-    this.dragPreview = null;
-
-    const gridEl = this.bodyScrollRef.nativeElement;
-    const gridRect = gridEl.getBoundingClientRect();
-
-    // X position within the timeline (accounting for resource col and scroll)
-    const xInTimeline = preview?.left ?? e.clientX - gridRect.left + gridEl.scrollLeft - RESOURCE_COL_WIDTH - offsetX;
-    const dayIndex = Math.floor(xInTimeline / (12 * this.HOUR_WIDTH));
-    const xInDay = xInTimeline - dayIndex * 12 * this.HOUR_WIDTH;
-    const hoursInDay = (xInDay / this.HOUR_WIDTH);
-    const snappedHours = Math.round(hoursInDay * (60 / this.slotDurationMinutes)) / (60 / this.slotDurationMinutes);
-
-    const safeDay = this.daySlots[Math.max(0, Math.min(dayIndex, this.daySlots.length - 1))];
-    const newStart = new Date(safeDay);
-    newStart.setHours(9 + Math.floor(snappedHours), (snappedHours % 1) * 60, 0, 0);
-
-    const duration = event.end.getTime() - event.start.getTime();
-    const newEnd = new Date(newStart.getTime() + duration);
-
-    // Y position to find resource row (skip group label rows of 28px)
-    const yInBody = e.clientY - gridRect.top + gridEl.scrollTop;
-    const newResource = this.getResourceAtY(yInBody);
-
-    this.zone.run(() => {
-      this.eventMoved.emit({
-        eventId: event.id,
-        resourceId: preview?.resourceId ?? newResource?.id ?? event.resourceId,
-        start: newStart,
-        end: newEnd,
+  onEventDragEnd(e: DragEvent, event: SchedulerEvent): void {
+    e.stopPropagation();
+    const sourceEvent = this.getSourceEvent(event);
+    const preview = this.dropPreview ?? this.lastValidDropPreview;
+    if (!this.nativeDropHandled && this.nativeDraggedEventId === sourceEvent.id && preview) {
+      this.zone.run(() => {
+        this.eventMoved.emit({ eventId: sourceEvent.id, resourceId: preview.resourceId, start: preview.start, end: preview.end });
       });
-    });
+      this.nativeDropHandled = true;
+    }
+    this.dropPreview = null;
+    this.lastValidDropPreview = null;
+    window.setTimeout(() => {
+      if (this.nativeDraggedEventId === sourceEvent.id) this.nativeDraggedEventId = null;
+    }, 0);
+    this.eventDragEnded.emit({ eventId: sourceEvent.id });
   }
-
   private getResourceAtY(y: number): SchedulerResource | null {
     let currentY = 0;
     for (const group of this.visibleGroups) {
@@ -913,6 +985,14 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       originalStart: new Date(sourceEvent.start),
       originalEnd: new Date(sourceEvent.end),
     };
+    this.resizePreview = {
+      event,
+      left: this.getEventLeft(event),
+      top: this.getResourceTop(event.resourceId),
+      width: this.getEventWidth(event),
+    };
+    this.eventResizeStarted.emit({ eventId: event.id });
+    this.cdr.detectChanges();
 
     const onMove = (me: MouseEvent) => this.onResizeMove(me);
     const onUp   = (me: MouseEvent) => {
@@ -929,7 +1009,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const { event, edge, startX, originalStart, originalEnd } = this.resizing;
 
     const deltaX = e.clientX - startX;
-    const deltaMinutes = deltaX * (60 / this.HOUR_WIDTH);
+    const deltaMinutes = this.getSnappedResizeDeltaMinutes(deltaX);
 
     const newStart = edge === 'left'
       ? new Date(originalStart.getTime() + deltaMinutes * 60000)
@@ -946,7 +1026,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
           top: this.getResourceTop(event.resourceId),
           width: Math.max((newEnd.getTime() - newStart.getTime()) / 3600000 * this.HOUR_WIDTH, 20),
         };
+        this.cdr.detectChanges();
       });
+    } else {
+      this.cdr.detectChanges();
     }
   }
 
@@ -955,11 +1038,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const { event, edge, startX, originalStart, originalEnd } = this.resizing;
     this.resizing = null;
     this.resizePreview = null;
+    this.eventResizeEnded.emit({ eventId: event.id });
 
     // event.start/end already updated live in onResizeMove — just emit final values
     const deltaX = e.clientX - startX;
-    const rawDeltaMinutes = deltaX * (60 / this.HOUR_WIDTH);
-    const deltaMinutes = Math.round(rawDeltaMinutes / this.slotDurationMinutes) * this.slotDurationMinutes;
+    const deltaMinutes = this.getSnappedResizeDeltaMinutes(deltaX);
     const newStart = edge === 'left'
       ? new Date(originalStart.getTime() + deltaMinutes * 60000)
       : originalStart;
@@ -971,6 +1054,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.zone.run(() => {
       this.eventResized.emit({ eventId: event.id, start: newStart, end: newEnd });
     });
+  }
+
+  private getSnappedResizeDeltaMinutes(deltaX: number): number {
+    const rawDeltaMinutes = deltaX * (60 / this.HOUR_WIDTH);
+    const snapMinutes = this.effectiveDropSnapMinutes;
+    return Math.round(rawDeltaMinutes / snapMinutes) * snapMinutes;
   }
 
   onEventClick(e: MouseEvent, event: SchedulerEvent): void {
@@ -990,64 +1079,163 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return this.events.find(candidate => candidate.id === sourceEventId) ?? event;
   }
 
-  dropTargetResourceId: string | null = null;
-
   onDragOver(e: DragEvent, resourceId: string): void {
     e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-    this.dropTargetResourceId = resourceId;
+    this.dropPreview = this.buildDropPreview(e, resourceId, true);
+    this.dropTargetResourceId = this.isResourceGenerallyAvailableForDrop(resourceId) ? resourceId : null;
+    if (this.dropPreview) this.lastValidDropPreview = this.dropPreview;
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move';
+    }
   }
 
   onDragLeave(): void {
+    this.dropPreview = null;
     this.dropTargetResourceId = null;
   }
 
   onDrop(e: DragEvent, resourceId: string): void {
     e.preventDefault();
+    const preview = this.buildDropPreview(e, resourceId, true) ?? this.dropPreview;
+    this.dropPreview = null;
     this.dropTargetResourceId = null;
+    this.lastValidDropPreview = null;
 
+    const dropType = this.getDragData(e, 'dropType') || undefined;
+    const eventId = dropType === 'event' || this.nativeDraggedEventId
+      ? this.getDragData(e, 'eventId') || e.dataTransfer?.getData('text/plain') || this.nativeDraggedEventId
+      : undefined;
     const jobId = e.dataTransfer?.getData('jobId');
     const orderId = e.dataTransfer?.getData('orderId') || undefined;
-    const dropType = (e.dataTransfer?.getData('dropType') || (orderId ? 'order' : 'job')) as 'job' | 'order';
-    const durationFru = parseFloat(e.dataTransfer?.getData('fru') ?? '1');
+    const externalDropType = (dropType || (orderId ? 'order' : 'job')) as 'job' | 'order';
     const resourceType = e.dataTransfer?.getData('resourceType') || undefined;
-    const droppedResource = this.resources.find(resource => resource.id === resourceId);
+    const droppedResource = this.resources.find(resource => resource.id === preview?.resourceId);
     const droppedResourceType = (droppedResource?.meta as any)?.type;
+    if (!preview) return;
+
+    const start = preview.start;
+    const end = preview.end;
+    this.nativeDropHandled = true;
+
+    if (eventId) {
+      this.zone.run(() => {
+        this.eventMoved.emit({ eventId, resourceId: preview.resourceId, start, end });
+      });
+      this.nativeDraggedEventId = null;
+      return;
+    }
+
     if (!jobId && !orderId) return;
 
-    const bodyEl = this.bodyScrollRef?.nativeElement;
-    const scrollLeft = bodyEl ? bodyEl.scrollLeft : 0;
-
-    // Absolute X position within the scrollable timeline (excluding resource column)
-    const cell = (e.currentTarget as HTMLElement).querySelector('.scheduler__timeline-cell') as HTMLElement;
-    if (!cell) return;
-    const cellRect = cell.getBoundingClientRect();
-    const xInCell = e.clientX - cellRect.left;
-    const absoluteX = xInCell + scrollLeft;
-
-    // Which day column are we in?
-    const dayWidthPx = 12 * this.HOUR_WIDTH; // 12 hours per day
-    const dayIndex = Math.floor(absoluteX / dayWidthPx);
-    const safeDay = this.daySlots[Math.max(0, Math.min(dayIndex, this.daySlots.length - 1))];
-
-    // X offset within that specific day column → minutes from 09:00
-    const xWithinDay = absoluteX - dayIndex * dayWidthPx;
-    const minutesFromDayStart = (xWithinDay / this.HOUR_WIDTH) * 60;
-
-    const start = new Date(safeDay);
-    start.setHours(9, 0, 0, 0);
-    start.setMinutes(Math.max(0, minutesFromDayStart));
-
-    // snap to slot
-    const slotMins = this.slotDurationMinutes;
-    const totalMins = start.getHours() * 60 + start.getMinutes();
-    const snappedTotalMins = Math.round(totalMins / slotMins) * slotMins;
-    start.setHours(Math.floor(snappedTotalMins / 60), snappedTotalMins % 60, 0, 0);
-
-    const end = new Date(start.getTime() + durationFru * MINUTES_PER_FRU * 60000);
-
     this.zone.run(() => {
-      this.eventDropped.emit({ jobId: jobId || `order-${orderId}`, orderId, dropType, resourceId, resourceType, droppedResourceType, start, end });
+      this.eventDropped.emit({ jobId: jobId || `order-${orderId}`, orderId, dropType: externalDropType, resourceId: preview.resourceId, resourceType, droppedResourceType, start, end });
     });
   }
+
+  private isResourceGenerallyAvailableForDrop(resourceId: string): boolean {
+    if (!this.isDragFeedbackActive()) return true;
+    const workingRanges = this.getWorkingRangesForCurrentView();
+    if (!workingRanges.length) return true;
+
+    return !workingRanges.every(workingRange =>
+      this.invalidDropRanges.some(range =>
+        range.resourceId === resourceId &&
+        range.start.getTime() <= workingRange.start.getTime() &&
+        range.end.getTime() >= workingRange.end.getTime()
+      )
+    );
+  }
+
+  private getWorkingRangesForCurrentView(): Array<{ start: Date; end: Date }> {
+    const ranges: Array<{ start: Date; end: Date }> = [];
+    let cursor = new Date(this.viewStart);
+    cursor.setHours(9, 0, 0, 0);
+
+    while (cursor < this.viewEnd) {
+      const start = new Date(Math.max(cursor.getTime(), this.viewStart.getTime()));
+      const end = new Date(cursor);
+      end.setHours(21, 0, 0, 0);
+      const clippedEnd = new Date(Math.min(end.getTime(), this.viewEnd.getTime()));
+      if (start < clippedEnd) ranges.push({ start, end: clippedEnd });
+
+      cursor = new Date(cursor);
+      cursor.setDate(cursor.getDate() + 1);
+      cursor.setHours(9, 0, 0, 0);
+    }
+
+    return ranges;
+  }
+
+  private buildDropPreview(e: DragEvent, resourceId: string, allowDragOverFallback = false): DropPreview | null {
+    const eventId = this.getDragData(e, 'eventId') || this.nativeDraggedEventId;
+    const jobId = e.dataTransfer?.getData('jobId');
+    const orderId = e.dataTransfer?.getData('orderId');
+    if (!eventId && !jobId && !orderId && !allowDragOverFallback) return null;
+
+    const durationFru = parseFloat(e.dataTransfer?.getData('fru') ?? '1');
+    const draggedEvent = eventId ? this.events.find(event => event.id === eventId) : undefined;
+    const durationMinutes = this.dropVisualContext?.durationMinutes
+      ?? (draggedEvent ? Math.max(1, Math.round((draggedEvent.end.getTime() - draggedEvent.start.getTime()) / 60000)) : undefined)
+      ?? (Number.isFinite(durationFru) && durationFru > 0 ? durationFru : 1) * MINUTES_PER_FRU;
+    const bodyEl = this.bodyScrollRef?.nativeElement;
+    const scrollLeft = bodyEl ? bodyEl.scrollLeft : 0;
+    const rowEl = e.currentTarget as HTMLElement;
+    const cell = rowEl.querySelector('.scheduler__timeline-cell') as HTMLElement | null;
+    if (!cell || !this.daySlots.length) return null;
+
+    const cellRect = cell.getBoundingClientRect();
+    if (e.clientX < cellRect.left || e.clientX > cellRect.right) return null;
+
+    const dayWidthPx = 12 * this.HOUR_WIDTH;
+    const previewWidth = Math.max((durationMinutes / 60) * this.HOUR_WIDTH, 20);
+    const maxLeft = Math.max(0, this.totalWidth - previewWidth);
+    const absoluteX = Math.max(0, Math.min(e.clientX - cellRect.left + scrollLeft, maxLeft));
+    const dayIndex = Math.max(0, Math.min(Math.floor(absoluteX / dayWidthPx), this.daySlots.length - 1));
+    const safeDay = this.daySlots[dayIndex];
+    const xWithinDay = Math.max(0, Math.min(absoluteX - dayIndex * dayWidthPx, dayWidthPx));
+    const minutesFromDayStart = (xWithinDay / this.HOUR_WIDTH) * 60;
+    const snapMinutes = this.effectiveDropSnapMinutes;
+    const snappedSlotIndex = Math.floor(minutesFromDayStart / snapMinutes);
+    const snappedMinutesFromDayStart = Math.max(
+      0,
+      Math.min(
+        snappedSlotIndex * snapMinutes,
+        12 * 60,
+      ),
+    );
+
+    const start = this.dropVisualContext?.anchoredStart
+      ? new Date(this.dropVisualContext.anchoredStart)
+      : new Date(safeDay);
+    if (!this.dropVisualContext?.anchoredStart) {
+      start.setHours(9, 0, 0, 0);
+      start.setMinutes(snappedMinutesFromDayStart, 0, 0);
+    }
+    const end = this.dropVisualContext?.anchoredEnd
+      ? new Date(this.dropVisualContext.anchoredEnd)
+      : new Date(start.getTime() + durationMinutes * 60000);
+    const left = this.getLeftFromDate(start);
+    const width = Math.max((end.getTime() - start.getTime()) / 3600000 * this.HOUR_WIDTH, 20);
+    const previewLeft = Math.max(0, Math.min(left, this.totalWidth - width));
+
+    return {
+      resourceId,
+      start,
+      end,
+      left: previewLeft,
+      top: this.getResourceTop(resourceId),
+      width,
+    };
+  }
+
+  private normalizeDropSnapMinutes(value: number | null | undefined): number {
+    if (!Number.isFinite(value) || !value || value <= 0) return this.slotDurationMinutes;
+    return value;
+  }
+
+  private getDragData(e: DragEvent, key: string): string {
+    return e.dataTransfer?.getData(key) || e.dataTransfer?.getData(key.toLowerCase()) || '';
+  }
 }
+
+

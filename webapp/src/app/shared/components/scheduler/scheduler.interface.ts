@@ -29,6 +29,18 @@ export interface SchedulerGroup {
   label: string;
 }
 
+export interface SchedulerInvalidDropRange {
+  resourceId: string;
+  start: Date;
+  end: Date;
+}
+
+export interface SchedulerDropVisualContext {
+  durationMinutes: number;
+  anchoredStart?: Date;
+  anchoredEnd?: Date;
+}
+
 // ── What the scheduler emits ─────────────────────────────────────────────────
 
 export interface EventMovePayload {
@@ -42,6 +54,10 @@ export interface EventResizePayload {
   eventId: string;
   start: Date;
   end: Date;
+}
+
+export interface EventResizeDragPayload {
+  eventId: string;
 }
 
 export interface EventDropPayload {
@@ -63,6 +79,10 @@ export interface EventContextMenuPayload {
   eventId: string;
   x: number;
   y: number;
+}
+
+export interface EventDragPayload {
+  eventId: string;
 }
 
 export interface ResourceSelectionChangePayload {
@@ -89,6 +109,8 @@ export abstract class SchedulerContract {
   // Outputs
   abstract eventMoved: EventEmitter<EventMovePayload>;
   abstract eventResized: EventEmitter<EventResizePayload>;
+  abstract eventResizeStarted: EventEmitter<EventResizeDragPayload>;
+  abstract eventResizeEnded: EventEmitter<EventResizeDragPayload>;
   abstract eventDropped: EventEmitter<EventDropPayload>;
   abstract eventClicked: EventEmitter<EventClickPayload>;
   abstract eventContextMenu: EventEmitter<EventContextMenuPayload>;
