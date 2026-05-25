@@ -62,6 +62,7 @@
     [invalidDropRanges]="manualDropInvalidRanges"
     [dropVisualContext]="manualDropVisualContext"
     [showOrderTiles]="showSchedulerBookingDetails"
+    [showAvailabilityBlocks]="!showSchedulerBookingDetails"
     [preserveRowHeightOnAvailability]="isFullPlanner()"
     [detailedEventIds]="plannedBookingEventIds"
     [detailedOrderIds]="detailedOrderIds"
@@ -70,12 +71,13 @@
     [selectedResourceView]="selectedResourceView"
     [rightPaneOpen]="!isFullPlanner() || isOrderPanelOpen"
     (eventMoved)="onEventMoved($event)"
-    (eventDragStarted)="onSchedulerEventDragStarted($event.eventId)"
+    (eventDragStarted)="onSchedulerEventDragStarted($event.eventId, $event.pointerOffsetMinutes)"
     (eventDragEnded)="onSchedulerEventDragEnded($event.eventId)"
     (eventResizeStarted)="onSchedulerEventResizeStarted($event.eventId)"
     (eventResizeEnded)="onSchedulerEventResizeEnded($event.eventId)"
     (eventResized)="onEventResized($event)"
     (eventClicked)="onEventClicked($event)"
+    (orderFocusRequested)="onOrderFocusRequested($event)"
     (eventContextMenu)="onEventContextMenu($event)"
     (eventDropped)="onEventDropped($event)"
     (resourceSelectionChange)="onResourceSelectionChange($event)"
@@ -136,7 +138,7 @@
       <section class="order-panel__accordion" style="align-self:stretch;display:flex;flex-direction:column;gap:4px;min-height:0;overflow:hidden">
         <div class="order-panel__list" style="align-self:stretch;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:16px;padding-top:12px;padding-bottom:24px">
           <ng-template #orderCard let-order>
-            <article class="order-panel__order-card" [attr.id]="'order-panel-card-' + order.id" draggable="true" (dragstart)="onOrderDragStart($event, order)" [style.outline]="isActiveOrderSearchMatch(order) ? '2px solid #4C68B1' : null" style="align-self:stretch;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab;outline-offset:-2px">
+            <article class="order-panel__order-card" [attr.id]="'order-panel-card-' + order.id" draggable="true" (dragstart)="onOrderDragStart($event, order)" [style.outline]="isPanelOrderFocused(order) || isActiveOrderSearchMatch(order) ? '2px solid #4C68B1' : null" style="align-self:stretch;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab;outline-offset:-2px">
               <div style="align-self:stretch;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
                 <div style="align-self:stretch;display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
                   <strong style="min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
@@ -584,3 +586,4 @@
     </section>
   </div>
 }
+

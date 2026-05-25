@@ -9,7 +9,7 @@ import { UnavailabilityBlock } from '../../../../core/models/availability.model'
 import { WorkorderItemStatus } from '../../../../core/models/job.model';
 import {
   SchedulerResource, SchedulerEvent, SchedulerGroup,
-  EventMovePayload, EventResizePayload, EventResizeDragPayload, EventDropPayload, EventClickPayload, EventContextMenuPayload,
+  EventMovePayload, EventResizePayload, EventResizeDragPayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload,
   ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerDropVisualContext,
   EventDragPayload
 } from '../scheduler.interface';
@@ -18,7 +18,7 @@ import { ResourceFavoriteView } from '../../../../features/service-planner/servi
 const MINUTES_PER_FRU = 60;
 
 const SLOT_WIDTH = 60;        // px per slot (fixed — one slot always = 60px)
-const ROW_HEIGHT = 78;        // px per resource row
+const ROW_HEIGHT = 92;        // px per resource row
 const ORDER_TILE_HEIGHT = 28;
 const JOB_TILE_HEIGHT = ROW_HEIGHT - ORDER_TILE_HEIGHT;
 const HEADER_HEIGHT = 80;     // date row (32) + hour row (48)
@@ -29,6 +29,13 @@ const RESOURCE_COL_WIDTH = 310;
 const GROUP_ROW_HEIGHT = 48;
 const EVENT_FULL_TAG_MIN_WIDTH = 220;
 const EVENT_ICON_TAG_MIN_WIDTH = 150;
+const EVENT_CONTACT_MIN_WIDTH = 300;
+
+interface EventHoverTooltip {
+  event: SchedulerEvent;
+  x: number;
+  y: number;
+}
 
 interface SchedulerOrderRun {
   key: string;
@@ -68,6 +75,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public dropSnapMinutes = 30;
   @Input() public readonly = false;
   @Input() public showOrderTiles = true;
+  @Input() public showAvailabilityBlocks = false;
   @Input() public preserveRowHeightOnAvailability = false;
   @Input() public detailedEventIds: string[] = [];
   @Input() public detailedOrderIds: string[] = [];
@@ -86,6 +94,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Output() public eventDropped = new EventEmitter<EventDropPayload>();
   @Output() public eventClicked = new EventEmitter<EventClickPayload>();
   @Output() public eventContextMenu = new EventEmitter<EventContextMenuPayload>();
+  @Output() public orderFocusRequested = new EventEmitter<OrderFocusPayload>();
   @Output() public eventDragStarted = new EventEmitter<EventDragPayload>();
   @Output() public eventDragEnded = new EventEmitter<EventDragPayload>();
   @Output() public resourceSelectionChange = new EventEmitter<ResourceSelectionChangePayload>();
@@ -133,7 +142,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   isResourceViewDropdownOpen = false;
   showSelectedOnlyByGroup = new Set<string>();
   collapsedGroupIds = new Set<string>();
+  copiedContactKey: string | null = null;
   private hasInitializedGroupSelection = false;
+  private copiedContactResetId: ReturnType<typeof setTimeout> | null = null;
 
   get selectedYear(): number { return this.viewStart.getFullYear(); }
 
@@ -158,7 +169,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   // drag state
   private resizing: { event: SchedulerEvent; edge: 'left' | 'right'; startX: number; originalStart: Date; originalEnd: Date } | null = null;
   resizePreview: { event: SchedulerEvent; left: number; top: number; width: number } | null = null;
-  hoverTooltip: { text: string; x: number; y: number } | null = null;
+  hoverTooltip: EventHoverTooltip | null = null;
   dropPreview: DropPreview | null = null;
   dropTargetResourceId: string | null = null;
   private lastValidDropPreview: DropPreview | null = null;
@@ -549,8 +560,13 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   shouldShowUnavailableFeedbackForResource(resourceId: string): boolean {
+    if (this.showAvailabilityBlocks) return true;
     if (this.isDragFeedbackActive()) return true;
     return this.resizePreview?.event.resourceId === resourceId;
+  }
+
+  shouldShowBaseAvailabilityBlocks(): boolean {
+    return this.showAvailabilityBlocks || !this.invalidDropRanges.length;
   }
 
   getPreviewLeft(): number {
@@ -628,6 +644,23 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return '';
   }
 
+  getEventTagBackground(event: SchedulerEvent): string {
+    const status = this.getWorkorderItemStatus(event);
+    if (status === 'scheduled') return 'var(--Tag-tag-background-yellow, #FFE8BF)';
+    if (status === 'in-progress' || status === 'started') return 'var(--Tag-tag-background-blue, #D0E2FF)';
+    if (status === 'completed') return 'var(--Tag-tag-background-green, #A7F0BA)';
+    if (status === 'cancelled') return 'var(--Tag-tag-background-red, #FFD7D9)';
+    return 'var(--Tag-tag-background-gray, #E0E0E0)';
+  }
+
+  getEventTagColor(event: SchedulerEvent): string {
+    const status = this.getWorkorderItemStatus(event);
+    if (status === 'scheduled') return 'var(--Tag-tag-color-yellow, #684E00)';
+    if (status === 'in-progress' || status === 'started') return 'var(--Tag-tag-color-blue, #0043CE)';
+    if (status === 'completed') return 'var(--Tag-tag-color-green, #0E6027)';
+    if (status === 'cancelled') return 'var(--Tag-tag-color-red, #A2191F)';
+    return 'var(--Tag-tag-color-gray, #161616)';
+  }
   getWorkorderItemStatus(event: SchedulerEvent): WorkorderItemStatus {
     const entryStatus = event.meta?.entry?.workorderItemStatus;
     const jobStatus = event.meta?.job?.workorderItemStatus;
@@ -648,27 +681,76 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return `${this.formatEventTimeRange(event)} | ${this.getEventDuration(event)}`;
   }
 
-  getEventTooltip(event: SchedulerEvent): string {
-    const resource = this.resources.find(candidate => candidate.id === event.resourceId);
-    const status = this.getEventTagLabel(event) || String(this.getWorkorderItemStatus(event));
+  isActivityEvent(event: SchedulerEvent): boolean {
+    return event.meta?.entry?.workorderItemCategory === 'activity' || this.getActivityTemplateId(event).startsWith('act-');
+  }
+
+  getEventWorkItemLabel(event: SchedulerEvent): string {
+    return this.isActivityEvent(event) ? 'Activity' : 'Job';
+  }
+
+  getEventJobDescription(event: SchedulerEvent): string {
+    return event.title ?? event.meta?.job?.title ?? event.meta?.entry?.title ?? 'Booking';
+  }
+
+  getEventJobLongDescription(event: SchedulerEvent): string | null {
+    if (!this.isActivityEvent(event)) return event.meta?.job?.description ?? null;
+
+    const templateId = this.getActivityTemplateId(event);
+    if (templateId === 'act-checkin') return 'Receive the customer, confirm appointment details, vehicle condition, and requested work before workshop processing.';
+    if (templateId === 'act-handover') return 'Review completed work with the customer, confirm vehicle readiness, and complete final handover steps.';
+    if (templateId === 'act-mobility') return 'Arrange the customer mobility option and keep it reserved for the appointment duration.';
+    return 'Coordinate the planned service activity for this order.';
+  }
+
+  private getActivityTemplateId(event: SchedulerEvent): string {
+    const jobId = event.meta?.entry?.jobId ?? event.meta?.job?.id ?? event.id;
+    return jobId.split(':').pop() ?? jobId;
+  }
+
+  getEventCustomerName(event: SchedulerEvent): string {
     const order = (event.meta as any)?.order;
-    const vehicle = order?.vehicle?.licensePlate ?? order?.licensePlate;
-    const customer = order?.customer?.name ?? order?.customerName;
+    return order?.customer?.name ?? 'Unknown customer';
+  }
+
+  getEventLicensePlate(event: SchedulerEvent): string {
+    const order = (event.meta as any)?.order;
+    return order?.vehicle?.licensePlate ?? 'No vehicle';
+  }
+
+  getEventCustomerVehicleDetail(event: SchedulerEvent): string {
+    return `${this.getEventCustomerName(event)} | ${this.getEventLicensePlate(event)}`;
+  }
+
+  getEventCustomerEmail(event: SchedulerEvent): string | null {
+    const order = (event.meta as any)?.order;
+    return order?.customer?.email ?? null;
+  }
+
+  getEventCustomerPhone(event: SchedulerEvent): string | null {
+    const order = (event.meta as any)?.order;
+    return order?.customer?.phone ?? null;
+  }
+
+  getEventTileAriaLabel(event: SchedulerEvent): string {
     return [
-      event.title,
-      `Order: ${this.getEventOrderReference(event)} ${this.getEventOrderSequence(event)}`,
-      vehicle ? `Vehicle: ${vehicle}` : '',
-      customer ? `Customer: ${customer}` : '',
-      resource ? `Resource: ${resource.label}` : `Resource: ${event.resourceId}`,
-      `Time: ${this.formatEventTimeRange(event)}`,
-      `Duration: ${this.getEventDuration(event)}`,
-      `Status: ${status}`,
-    ].filter(Boolean).join('\n');
+      this.getEventOrderReference(event),
+      this.getEventJobDescription(event),
+      this.getEventDetail(event),
+      this.getEventCustomerVehicleDetail(event),
+      this.getEventCustomerEmail(event) ? `Email ${this.getEventCustomerEmail(event)}` : '',
+      this.getEventCustomerPhone(event) ? `Phone ${this.getEventCustomerPhone(event)}` : '',
+      this.getEventTagLabel(event),
+    ].filter(Boolean).join(', ');
+  }
+
+  getEventTooltipResource(event: SchedulerEvent): string {
+    return this.resources.find(candidate => candidate.id === event.resourceId)?.label ?? event.resourceId;
   }
 
   showEventTooltip(event: SchedulerEvent, mouseEvent: MouseEvent): void {
     this.hoverTooltip = {
-      text: this.getEventTooltip(event),
+      event,
       x: mouseEvent.clientX + 12,
       y: mouseEvent.clientY + 12,
     };
@@ -676,7 +758,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   moveEventTooltip(event: SchedulerEvent, mouseEvent: MouseEvent): void {
     this.hoverTooltip = {
-      text: this.getEventTooltip(event),
+      event,
       x: mouseEvent.clientX + 12,
       y: mouseEvent.clientY + 12,
     };
@@ -686,6 +768,70 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.hoverTooltip = null;
   }
 
+  shouldShowEventContacts(event: SchedulerEvent): boolean {
+    return this.getEventWidth(event) >= EVENT_CONTACT_MIN_WIDTH;
+  }
+
+  suppressEventAction(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  copyEventContact(event: Event, schedulerEvent: SchedulerEvent, contactType: 'email' | 'phone'): void {
+    this.suppressEventAction(event);
+    const value = contactType === 'email'
+      ? this.getEventCustomerEmail(schedulerEvent)
+      : this.getEventCustomerPhone(schedulerEvent);
+    if (!value) return;
+
+    void this.copyTextToClipboard(value).then(() => {
+      this.copiedContactKey = this.getContactCopyKey(schedulerEvent, contactType);
+      if (this.copiedContactResetId) clearTimeout(this.copiedContactResetId);
+      this.copiedContactResetId = setTimeout(() => {
+        this.copiedContactKey = null;
+        this.copiedContactResetId = null;
+      }, 1500);
+    });
+  }
+
+  isEventContactCopied(event: SchedulerEvent, contactType: 'email' | 'phone'): boolean {
+    return this.copiedContactKey === this.getContactCopyKey(event, contactType);
+  }
+
+  private getContactCopyKey(event: SchedulerEvent, contactType: 'email' | 'phone'): string {
+    return `${event.id}:${contactType}`;
+  }
+
+  private async copyTextToClipboard(value: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }
+
+  onOrderFocusClick(domEvent: Event, schedulerEvent: SchedulerEvent): void {
+    this.suppressEventAction(domEvent);
+    const orderId = this.getEventOrderId(schedulerEvent);
+    this.orderFocusRequested.emit({ orderId: orderId ?? undefined, eventId: schedulerEvent.id });
+  }
+
+  getEventOrderId(event: SchedulerEvent): string | null {
+    const order = (event.meta as any)?.order;
+    const entry = event.meta?.entry;
+    const reference = entry?.workOrderReference;
+    const activityOrderId = entry?.jobId?.includes(':act-') ? entry.jobId.split(':act-')[0] : null;
+    return order?.id ?? order?.referenceNumber ?? reference ?? activityOrderId ?? null;
+  }
   getEventOrderReference(event: SchedulerEvent): string {
     const entryReference = event.meta?.entry?.workOrderReference;
     const order = (event.meta as any)?.order;
@@ -827,7 +973,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (!event) return;
 
     const body = this.bodyScrollRef.nativeElement;
-    const left = Math.max(0, this.getEventLeft(event) - this.HOUR_WIDTH);
+    const eventLeft = this.getEventLeft(event);
+    const eventWidth = this.getEventWidth(event);
+    const left = Math.max(0, eventLeft + eventWidth / 2 - body.clientWidth / 2);
     const top = Math.max(0, this.getResourceTop(event.resourceId) - GROUP_ROW_HEIGHT);
     body.scrollTo({ left, top, behavior: 'smooth' });
     this.syncHeaderScroll();
@@ -904,6 +1052,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     e.stopPropagation();
     this.lastValidDropPreview = null;
     const durationMinutes = Math.max(1, Math.round((sourceEvent.end.getTime() - sourceEvent.start.getTime()) / 60000));
+    const pointerOffsetMinutes = this.getEventPointerOffsetMinutes(e, sourceEvent);
     e.dataTransfer?.setData('eventId', sourceEvent.id);
     e.dataTransfer?.setData('eventid', sourceEvent.id);
     e.dataTransfer?.setData('dropType', 'event');
@@ -913,7 +1062,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
     this.nativeDraggedEventId = sourceEvent.id;
     this.nativeDropHandled = false;
-    this.eventDragStarted.emit({ eventId: sourceEvent.id });
+    this.eventDragStarted.emit({ eventId: sourceEvent.id, pointerOffsetMinutes });
   }
 
   onEventDragEnd(e: DragEvent, event: SchedulerEvent): void {
@@ -986,12 +1135,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       originalEnd: new Date(sourceEvent.end),
     };
     this.resizePreview = {
-      event,
-      left: this.getEventLeft(event),
-      top: this.getResourceTop(event.resourceId),
-      width: this.getEventWidth(event),
+      event: sourceEvent,
+      left: this.getEventLeft(sourceEvent),
+      top: this.getResourceTop(sourceEvent.resourceId),
+      width: this.getEventWidth(sourceEvent),
     };
-    this.eventResizeStarted.emit({ eventId: event.id });
+    this.eventResizeStarted.emit({ eventId: sourceEvent.id });
     this.cdr.detectChanges();
 
     const onMove = (me: MouseEvent) => this.onResizeMove(me);
@@ -1064,7 +1213,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   onEventClick(e: MouseEvent, event: SchedulerEvent): void {
     e.stopPropagation();
+    if (this.isInteractiveEventTarget(e.target)) return;
     this.eventClicked.emit({ eventId: this.getSourceEventId(event) });
+  }
+
+  private isInteractiveEventTarget(target: EventTarget | null): boolean {
+    return target instanceof HTMLElement && !!target.closest('button, a, input, select, textarea, [data-scheduler-action]');
   }
 
   onEventContextMenu(e: MouseEvent, event: SchedulerEvent): void {
@@ -1195,7 +1349,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const xWithinDay = Math.max(0, Math.min(absoluteX - dayIndex * dayWidthPx, dayWidthPx));
     const minutesFromDayStart = (xWithinDay / this.HOUR_WIDTH) * 60;
     const snapMinutes = this.effectiveDropSnapMinutes;
-    const snappedSlotIndex = Math.floor(minutesFromDayStart / snapMinutes);
+    const pointerOffsetMinutes = this.dropVisualContext?.pointerOffsetMinutes ?? 0;
+    const startMinutesFromDayStart = Math.max(0, minutesFromDayStart - pointerOffsetMinutes);
+    const snappedSlotIndex = Math.floor(startMinutesFromDayStart / snapMinutes);
     const snappedMinutesFromDayStart = Math.max(
       0,
       Math.min(
@@ -1236,6 +1392,19 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private getDragData(e: DragEvent, key: string): string {
     return e.dataTransfer?.getData(key) || e.dataTransfer?.getData(key.toLowerCase()) || '';
   }
+
+  private getEventPointerOffsetMinutes(e: DragEvent, event: SchedulerEvent): number {
+    const target = e.target instanceof HTMLElement ? e.target.closest('.scheduler__event') as HTMLElement | null : null;
+    const rect = target?.getBoundingClientRect();
+    if (!rect) return 0;
+    const offsetPx = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    return Math.max(0, Math.min((offsetPx / this.HOUR_WIDTH) * 60, Math.max(0, (event.end.getTime() - event.start.getTime()) / 60000)));
+  }
 }
+
+
+
+
+
 
 

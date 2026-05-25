@@ -14,6 +14,33 @@ export const QUALIFICATIONS = {
   brakes: { id: 'q-brakes', name: 'Brakes' },
 } satisfies Record<string, Qualification>;
 
+const mechanicJobDescriptions: Record<string, string> = {
+  'Oil Leak Diagnosis': 'Inspect engine bay, sump, oil filter housing, and underbody for leak traces; clean affected area and confirm source after idle test.',
+  'Engine Bay Inspection': 'Check visible engine components, hoses, belts, fluid levels, and mounting points; document any wear, leaks, or loose fittings.',
+  'Windshield Washer Repair': 'Test washer pump operation, inspect reservoir, hoses, jets, and fuse; clear blockage or replace failed washer components.',
+  'Wiper Blade Replacement': 'Remove worn blades, inspect wiper arms for damage, fit replacement blades, and verify clean sweep pattern on wet screen.',
+  'Air Conditioning Diagnosis': 'Run A/C performance test, check vent temperature, scan HVAC faults, inspect refrigerant pressure, and identify leak or compressor issues.',
+  'Cabin Filter Replacement': 'Remove cabin filter, clean filter housing, install new filter in correct airflow direction, and verify blower operation.',
+  'Suspension Noise Investigation': 'Road test to reproduce noise, inspect control arms, bushings, links, struts, and mounts; mark failed components for repair.',
+  'Shock Absorber Inspection': 'Inspect shock absorbers for leakage, mounting play, damaged boots, and uneven damping; compare axle-side wear.',
+  'Control Unit Scan': 'Connect diagnostic tester, perform full vehicle fault scan, save fault memory, and identify control units requiring follow-up.',
+  'Software Update': 'Check current control unit software levels, connect charger, apply approved updates, and confirm no post-programming faults remain.',
+  'Door Lock Repair': 'Inspect latch, actuator, wiring, handle operation, and central locking response; repair or replace faulty lock components.',
+  'Key Fob Programming': 'Register key fob to vehicle, verify remote lock/unlock and start authorization, and confirm spare key status if available.',
+  'Coolant Leak Check': 'Pressure test cooling system, inspect radiator, hoses, expansion tank, water pump, and heater circuit for visible leaks.',
+  'Pressure Test': 'Apply system pressure to manufacturer specification, monitor pressure drop, and locate leaks before releasing vehicle.',
+  'Noise From Rear Axle': 'Road test and inspect rear axle mounts, wheel bearings, suspension links, differential area, and brake hardware for noise source.',
+  'Road Test': 'Perform controlled road test to verify customer complaint, check drivability, braking, steering, and confirm repair outcome.',
+  'Navigation System Update': 'Check navigation software/map version, install approved update package, and verify route calculation after reboot.',
+  'Connectivity Check': 'Test Bluetooth, Wi-Fi, telematics, USB, and paired-device functions; record any module or pairing faults.',
+  'Seat Heating Diagnosis': 'Check seat heater switch, fuse, wiring, heating mat resistance, and control module faults; isolate failed circuit.',
+  'Interior Trim Repair': 'Inspect loose or damaged trim, refit clips or fasteners, correct rattles, and confirm panels sit flush without noise.',
+};
+
+function getMechanicJobDescription(title: string): string {
+  return mechanicJobDescriptions[title] ?? `Inspect and complete ${title.toLowerCase()} according to workshop procedure; record findings and required follow-up.`;
+}
+
 export const MOCK_GROUPS: ResourceGroup[] = [
   { id: 'group-mechanics', name: 'Mechanics', resourceType: 'mechanic' },
   { id: 'group-advisors', name: 'Service Advisors', resourceType: 'advisor' },
@@ -198,7 +225,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         id: 'job-014826312-tire-change',
         workOrderId: 'wo-014826312',
         title: 'Tire Change',
-        description: 'Replace customer tires while the customer waits at the dealership.',
+        description: 'Remove wheels, replace tires, balance assemblies, set pressures, and torque wheel bolts to specification.',
         fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic',
@@ -213,7 +240,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         id: 'job-014826312-battery-replacement',
         workOrderId: 'wo-014826312',
         title: 'Battery Replacement',
-        description: 'Replace the vehicle battery; this may be extended during execution in Scenario 4.',
+        description: 'Test battery and charging system, replace battery if failed, register battery change, and verify start/stop operation.',
         fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic',
@@ -255,7 +282,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         id: 'job-014826455-standard-service',
         workOrderId: 'wo-014826455',
         title: 'Standard Service every 25,000km / Yearly',
-        description: 'Routine yearly/25,000km service.',
+        description: 'Perform yearly/25,000km service checklist: replace oil and filters, inspect brakes, fluids, lights, tires, and reset service indicator.',
         fru: 1.5,
         estimatedDurationMinutes: 90,
         requiredResourceType: 'mechanic',
@@ -270,7 +297,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         id: 'job-014826455-mot-emission-test',
         workOrderId: 'wo-014826455',
         title: 'MOT Check - Emission Test',
-        description: 'MOT emission measurement using the BEA 950 Emission Tester.',
+        description: 'Connect BEA 950 emission tester, run prescribed emissions cycle, record measured values, and attach result to MOT check.',
         fru: 0.25,
         estimatedDurationMinutes: 15,
         requiredResourceType: 'mechanic',
@@ -286,7 +313,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         id: 'job-014826455-mot-brake-test',
         workOrderId: 'wo-014826455',
         title: 'MOT Check - Brake Test',
-        description: 'MOT brake system test and safety check.',
+        description: 'Inspect brake pads, discs, lines, and fluid; run brake force test and document any MOT safety defects.',
         fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic',
@@ -329,12 +356,15 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
       name: customerName,
       city: 'Munich',
       country: 'Germany',
+      phone: `+49 89 ${referenceNumber.slice(-6)}`,
+      email: `${customerName.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '')}@example.com`,
     },
     jobs: [
       {
         id: `job-${id}-1`,
         workOrderId: id,
         title: firstJob,
+        description: getMechanicJobDescription(firstJob),
         fru: 0.75,
         estimatedDurationMinutes: 45,
         requiredResourceType: 'mechanic' as const,
@@ -347,6 +377,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         id: `job-${id}-2`,
         workOrderId: id,
         title: secondJob,
+        description: getMechanicJobDescription(secondJob),
         fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic' as const,
@@ -413,8 +444,8 @@ export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
   { id: 'sch-bg-1010-kelly-2', jobId: 'job-wo-bg-1010-2', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-16T17:00:00'), end: new Date('2024-04-16T17:30:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
   { id: 'sch-bg-1010-bay-2', jobId: 'job-wo-bg-1010-2', resourceId: 'bay-pc-1', start: new Date('2024-04-16T17:00:00'), end: new Date('2024-04-16T17:30:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
   { id: 'sch-bg-1002-frank-checkin', jobId: 'wo-bg-1002:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:15:00'), title: 'Check-In 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-frank-handover', jobId: 'wo-bg-1002:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T12:30:00'), title: 'Handover 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-courtesy', jobId: 'wo-bg-1002:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T11:15:00'), end: new Date('2024-04-15T12:30:00'), title: 'Courtesy Car 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-frank-handover', jobId: 'wo-bg-1002:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T13:30:00'), title: 'Handover 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-courtesy', jobId: 'wo-bg-1002:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T11:15:00'), end: new Date('2024-04-15T13:30:00'), title: 'Courtesy Car 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
   { id: 'sch-bg-1003-ted-checkin', jobId: 'wo-bg-1003:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T13:30:00'), title: 'Check-In 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
   { id: 'sch-bg-1003-ted-handover', jobId: 'wo-bg-1003:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Handover 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
   { id: 'sch-bg-1003-courtesy', jobId: 'wo-bg-1003:act-mobility', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Courtesy Car 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
@@ -637,5 +668,6 @@ export const MOCK_UNAVAILABILITY: UnavailabilityBlock[] = [
   { resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
   { resourceId: 'advisor-scenario-lead', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T13:00:00'), reason: 'Lunch', title: 'Lunch', color: '#C6C6C6' },
 ];
+
 
 

@@ -1,40 +1,18 @@
-# agent.md - LT/FH Merge Simulation
+﻿# agent.md - Integrated feature merge
 
-Scope: isolated merge-test worktree combining LT search/split work with FH drag feedback work.
+This worktree integrates the LT, FH, and MV planner enhancements.
 
-## Merge policy
+## Ownership decisions
 
-- Prefer LT for booking search, search result highlighting, split details, split segment navigation, and `scrollToEventId` focus behavior.
-- Prefer FH for drag/drop mechanics, drag validation feedback, snap/drop preview, row highlight, and scheduler drag event payloads.
-- Preserve shared split identity helpers such as `bookingSetId`, `splitRootId`, and `sourceEventId` so FH drag works with LT split segments.
+- LT owns order-panel search, split booking details, event segmentation, source-event ID mapping, and right-click menu behavior.
+- FH owns manual drag/drop and resize validation feedback, invalid ranges, and red/blue preview behavior.
+- MV owns scheduler tile information density, customer/license/contact display, and contact copy actions.
 
-## Primary ownership
+## Merge rules
 
-- LT-owned files/areas:
-  - `webapp/src/app/features/service-planner/service-planner.component.ts`
-  - `webapp/src/app/features/service-planner/service-planner.component.html`
-  - `webapp/src/app/features/service-planner/service-planner.component.scss`
-  - optional model fields in `webapp/src/app/core/models/schedule.model.ts`
-- FH-owned files/areas:
-  - `webapp/src/app/shared/components/scheduler/custom/custom-scheduler.component.ts`
-  - `webapp/src/app/shared/components/scheduler/custom/custom-scheduler.component.html`
-  - `webapp/src/app/shared/components/scheduler/custom/custom-scheduler.component.scss`
-  - additive drag/drop payloads in `webapp/src/app/shared/components/scheduler/scheduler.interface.ts`
-
-## Validation
-
-Before using this as a real merge candidate, run from `webapp`:
-
-```powershell
-npm run build
-```
-
-Manual smoke test:
-
-- `/service-planner` loads.
-- Search finds bookings by customer, job, order, and license plate.
-- Search result navigation scrolls/focuses the correct scheduler event.
-- Split details still show segment times/resources and navigate to each segment.
-- Dragging shows FH target row/time-slot feedback.
-- Dropping/moving events uses the same target shown by FH preview.
-- Resize, event click, right-click, and booking modal behavior still work.
+- Render events through `getRenderedEventsForResource()` so long/split bookings display on every segment.
+- Emit and handle original source event IDs for click, right-click, drag, resize, split, details, and delete actions.
+- Keep contact copy buttons on tiles and stop propagation for copy actions.
+- Keep FH drop preview/invalid placement behavior unchanged.
+- Keep LT floating hover tooltip while using MV-style customer/contact content.
+- Use job title as the visible tile title; keep long job descriptions in tooltip/ARIA/details.

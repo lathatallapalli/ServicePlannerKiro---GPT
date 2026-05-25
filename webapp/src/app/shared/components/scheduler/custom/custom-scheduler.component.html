@@ -229,14 +229,20 @@
                   class="scheduler__order-run-shadow"
                   [style.left.px]="getOrderRunLeft(run)"
                   [style.width.px]="getOrderRunWidth(run)"
-                  style="position:absolute;top:0;height:78px;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
+                  [style.height.px]="rowHeight"
+                  style="position:absolute;top:0;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
                 </div>
                 <div class="scheduler__order-run"
                   [style.left.px]="getOrderRunLeft(run)"
                   [style.width.px]="getOrderRunWidth(run)"
                   style="position:absolute;top:0;height:28px;display:flex;align-items:flex-start;gap:2px;padding:6px 16px;background:var(--Layer-layer-accent-01,#E0E0E0);border-left:2px solid #808080;box-sizing:border-box;overflow:hidden;z-index:3;pointer-events:none;font-size:14px;line-height:18px;letter-spacing:.32px">
                   <span class="scheduler__event-order-ref">{{ getEventOrderReference(run.firstEvent) }}</span>
-                  <span class="scheduler__event-order-count">{{ getOrderRunSequence(run) }}</span>
+                  <button class="scheduler__event-order-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="'Focus order ' + getEventOrderReference(run.firstEvent) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onOrderFocusClick($event, run.firstEvent)" (contextmenu)="suppressEventAction($event)">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+                      <path d="M1 3V13C1 13.5522 1.44775 14 2 14H14C14.5522 14 15 13.5522 15 13V3C15 2.44775 14.5522 2 14 2H2C1.44775 2 1 2.44775 1 3ZM11 3H14V13H11V3ZM2 3H10V13H2V8.5H7.08495L5.2949 10.2949L6 11L9 8L6 5L5.2949 5.7051L7.08495 7.5H2V3Z" fill="currentColor"/>
+                    </svg>
+                  </button>
                 </div>
               }
             }
@@ -268,6 +274,7 @@
                 (mouseleave)="hideEventTooltip()"
                 (dragstart)="onEventDragStart($event, event)"
                 (dragend)="onEventDragEnd($event, event)"
+                [attr.aria-label]="getEventTileAriaLabel(event)"
                 (click)="onEventClick($event, event)"
                 (contextmenu)="onEventContextMenu($event, event)">
                 <div class="scheduler__event-handle scheduler__event-handle--left"
@@ -278,22 +285,58 @@
                     @if (!shouldReserveOrderRunSpace(event)) {
                       <span class="scheduler__event-order">
                         <span class="scheduler__event-order-ref">{{ getEventOrderReference(event) }}</span>
-                        <span class="scheduler__event-order-count">{{ getEventOrderSequence(event) }}</span>
+                        <button class="scheduler__event-order-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="'Focus order ' + getEventOrderReference(event) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onOrderFocusClick($event, event)" (contextmenu)="suppressEventAction($event)">
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+                            <path d="M1 3V13C1 13.5522 1.44775 14 2 14H14C14.5522 14 15 13.5522 15 13V3C15 2.44775 14.5522 2 14 2H2C1.44775 2 1 2.44775 1 3ZM11 3H14V13H11V3ZM2 3H10V13H2V8.5H7.08495L5.2949 10.2949L6 11L9 8L6 5L5.2949 5.7051L7.08495 7.5H2V3Z" fill="currentColor"/>
+                          </svg>
+                        </button>
                       </span>
                     }
                     <span class="scheduler__event-job">
                       <span class="scheduler__event-job-copy">
-                        <span class="scheduler__event-title">{{ event.title }}</span>
+                        <span class="scheduler__event-title">{{ getEventJobDescription(event) }}</span>
                         <span class="scheduler__event-time">{{ getEventDetail(event) }}</span>
+                        <span class="scheduler__event-customer">{{ getEventCustomerVehicleDetail(event) }}</span>
                       </span>
-                      @if (shouldShowEventTag(event)) {
-                        <span class="scheduler__event-tag">
-                      <span class="scheduler__event-tag-icon" aria-hidden="true">
-                        <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                      <span class="scheduler__event-actions">
+                        @if (shouldShowEventTag(event)) {
+                          <span class="scheduler__event-tag">
+                            <span class="scheduler__event-tag-icon" aria-hidden="true">
+                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                            </span>
+                            <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
+                          </span>
+                        }
+                        @if (shouldShowEventContacts(event)) {
+                          <span class="scheduler__event-contact-list" aria-live="polite">
+                            @if (getEventCustomerEmail(event); as email) {
+                              <button
+                                class="scheduler__event-contact"
+                                type="button"
+                                [attr.aria-label]="'Copy customer email ' + email"
+                                [attr.title]="'Copy customer email: ' + email"
+                                (mousedown)="suppressEventAction($event)"
+                                (click)="copyEventContact($event, event, 'email')"
+                                (contextmenu)="suppressEventAction($event)">
+                                <span class="scheduler__event-contact-value">{{ isEventContactCopied(event, 'email') ? 'Copied' : email }}</span>
+                              </button>
+                            }
+                            @if (getEventCustomerPhone(event); as phone) {
+                              <button
+                                class="scheduler__event-contact"
+                                type="button"
+                                [attr.aria-label]="'Copy customer phone ' + phone"
+                                [attr.title]="'Copy customer phone: ' + phone"
+                                (mousedown)="suppressEventAction($event)"
+                                (click)="copyEventContact($event, event, 'phone')"
+                                (contextmenu)="suppressEventAction($event)">
+                                <span class="scheduler__event-contact-value">{{ isEventContactCopied(event, 'phone') ? 'Copied' : phone }}</span>
+                              </button>
+                            }
+                          </span>
+                        }
                       </span>
-                      <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
-                        </span>
-                      }
                     </span>
                   </span>
                 }
@@ -333,7 +376,6 @@
                     @if (!shouldReserveOrderRunSpace(previewEvent)) {
                       <span class="scheduler__event-order">
                         <span class="scheduler__event-order-ref">{{ getEventOrderReference(previewEvent) }}</span>
-                        <span class="scheduler__event-order-count">{{ getEventOrderSequence(previewEvent) }}</span>
                       </span>
                     }
                     <span class="scheduler__event-job">
@@ -348,29 +390,29 @@
             }
             @if (shouldShowUnavailableFeedbackForResource(resource.id)) {
               @for (range of getInvalidDropRangesForResource(resource.id); track range.start.getTime() + '-' + range.end.getTime()) {
-                <div class="scheduler__slot-highlight"
+                <div class="scheduler__slot-highlight scheduler__slot-highlight--blocked"
                   [style.left.px]="getInvalidDropRangeLeft(range)"
                   [style.width.px]="getInvalidDropRangeWidth(range)"
                   [style.top.px]="0"
                   [style.height.px]="rowHeight"
-                  style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+                  style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
               }
-              @if (!invalidDropRanges.length) {
+              @if (shouldShowBaseAvailabilityBlocks()) {
                 @for (block of getUnavailabilityForResource(resource.id); track block.start) {
-                  <div class="scheduler__slot-highlight"
+                  <div class="scheduler__slot-highlight scheduler__slot-highlight--blocked"
                     [style.left.px]="getUnavailabilityLeft(block)"
                     [style.width.px]="getUnavailabilityWidth(block)"
                     [style.top.px]="0"
                     [style.height.px]="rowHeight"
-                    style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+                    style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
                 }
                 @for (event of getEventsForResource(resource.id); track event.id) {
-                  <div class="scheduler__slot-highlight"
+                  <div class="scheduler__slot-highlight scheduler__slot-highlight--blocked"
                     [style.left.px]="getEventLeft(event)"
                     [style.width.px]="getEventWidth(event)"
                     [style.top.px]="0"
                     [style.height.px]="rowHeight"
-                    style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+                    style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
                 }
               }
             }
@@ -438,14 +480,20 @@
                 class="scheduler__order-run-shadow"
                 [style.left.px]="getOrderRunLeft(run)"
                 [style.width.px]="getOrderRunWidth(run)"
-                style="position:absolute;top:0;height:78px;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
+                [style.height.px]="rowHeight"
+                style="position:absolute;top:0;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
               </div>
               <div class="scheduler__order-run"
                 [style.left.px]="getOrderRunLeft(run)"
                 [style.width.px]="getOrderRunWidth(run)"
                 style="position:absolute;top:0;height:28px;display:flex;align-items:flex-start;gap:2px;padding:6px 16px;background:var(--Layer-layer-accent-01,#E0E0E0);border-left:2px solid #808080;box-sizing:border-box;overflow:hidden;z-index:3;pointer-events:none;font-size:14px;line-height:18px;letter-spacing:.32px">
                 <span class="scheduler__event-order-ref">{{ getEventOrderReference(run.firstEvent) }}</span>
-                <span class="scheduler__event-order-count">{{ getOrderRunSequence(run) }}</span>
+                  <button class="scheduler__event-order-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="'Focus order ' + getEventOrderReference(run.firstEvent) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onOrderFocusClick($event, run.firstEvent)" (contextmenu)="suppressEventAction($event)">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+                      <path d="M1 3V13C1 13.5522 1.44775 14 2 14H14C14.5522 14 15 13.5522 15 13V3C15 2.44775 14.5522 2 14 2H2C1.44775 2 1 2.44775 1 3ZM11 3H14V13H11V3ZM2 3H10V13H2V8.5H7.08495L5.2949 10.2949L6 11L9 8L6 5L5.2949 5.7051L7.08495 7.5H2V3Z" fill="currentColor"/>
+                    </svg>
+                  </button>
               </div>
             }
           }
@@ -462,8 +510,8 @@
               [class.scheduler__event--scheduled]="getWorkorderItemStatus(event) === 'scheduled'"
               [class.scheduler__event--started]="getWorkorderItemStatus(event) === 'in-progress' || getWorkorderItemStatus(event) === 'started'"
               [class.scheduler__event--completed]="getWorkorderItemStatus(event) === 'completed'"
-              [style.left.px]="getEventLeft(event)"
-              [style.width.px]="getEventWidth(event)"
+              [style.left.px]="getRenderedEventLeft(event)"
+              [style.width.px]="getRenderedEventWidth(event)"
               [style.top.px]="shouldShowEventDetails(event) ? getRenderedEventTop(event) : 0"
               [style.bottom]="shouldShowEventDetails(event) ? 'auto' : null"
               [style.height.px]="shouldShowEventDetails(event) ? getRenderedEventHeight(event) : null"
@@ -476,6 +524,7 @@
               (mouseleave)="hideEventTooltip()"
               (dragstart)="onEventDragStart($event, event)"
               (dragend)="onEventDragEnd($event, event)"
+              [attr.aria-label]="getEventTileAriaLabel(event)"
               (click)="onEventClick($event, event)"
               (contextmenu)="onEventContextMenu($event, event)">
               <div class="scheduler__event-handle scheduler__event-handle--left"
@@ -486,22 +535,58 @@
                     @if (!shouldReserveOrderRunSpace(event)) {
                     <span class="scheduler__event-order">
                       <span class="scheduler__event-order-ref">{{ getEventOrderReference(event) }}</span>
-                      <span class="scheduler__event-order-count">{{ getEventOrderSequence(event) }}</span>
+                        <button class="scheduler__event-order-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="'Focus order ' + getEventOrderReference(event) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onOrderFocusClick($event, event)" (contextmenu)="suppressEventAction($event)">
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+                            <path d="M1 3V13C1 13.5522 1.44775 14 2 14H14C14.5522 14 15 13.5522 15 13V3C15 2.44775 14.5522 2 14 2H2C1.44775 2 1 2.44775 1 3ZM11 3H14V13H11V3ZM2 3H10V13H2V8.5H7.08495L5.2949 10.2949L6 11L9 8L6 5L5.2949 5.7051L7.08495 7.5H2V3Z" fill="currentColor"/>
+                          </svg>
+                        </button>
                     </span>
                     }
                     <span class="scheduler__event-job">
                       <span class="scheduler__event-job-copy">
-                        <span class="scheduler__event-title">{{ event.title }}</span>
+                        <span class="scheduler__event-title">{{ getEventJobDescription(event) }}</span>
                         <span class="scheduler__event-time">{{ getEventDetail(event) }}</span>
+                        <span class="scheduler__event-customer">{{ getEventCustomerVehicleDetail(event) }}</span>
                       </span>
-                      @if (shouldShowEventTag(event)) {
-                        <span class="scheduler__event-tag">
-                    <span class="scheduler__event-tag-icon" aria-hidden="true">
-                      <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
-                    </span>
-                    <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
-                        </span>
-                      }
+                      <span class="scheduler__event-actions">
+                        @if (shouldShowEventTag(event)) {
+                          <span class="scheduler__event-tag">
+                            <span class="scheduler__event-tag-icon" aria-hidden="true">
+                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                            </span>
+                            <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
+                          </span>
+                        }
+                        @if (shouldShowEventContacts(event)) {
+                          <span class="scheduler__event-contact-list" aria-live="polite">
+                            @if (getEventCustomerEmail(event); as email) {
+                              <button
+                                class="scheduler__event-contact"
+                                type="button"
+                                [attr.aria-label]="'Copy customer email ' + email"
+                                [attr.title]="'Copy customer email: ' + email"
+                                (mousedown)="suppressEventAction($event)"
+                                (click)="copyEventContact($event, event, 'email')"
+                                (contextmenu)="suppressEventAction($event)">
+                                <span class="scheduler__event-contact-value">{{ isEventContactCopied(event, 'email') ? 'Copied' : email }}</span>
+                              </button>
+                            }
+                            @if (getEventCustomerPhone(event); as phone) {
+                              <button
+                                class="scheduler__event-contact"
+                                type="button"
+                                [attr.aria-label]="'Copy customer phone ' + phone"
+                                [attr.title]="'Copy customer phone: ' + phone"
+                                (mousedown)="suppressEventAction($event)"
+                                (click)="copyEventContact($event, event, 'phone')"
+                                (contextmenu)="suppressEventAction($event)">
+                                <span class="scheduler__event-contact-value">{{ isEventContactCopied(event, 'phone') ? 'Copied' : phone }}</span>
+                              </button>
+                            }
+                          </span>
+                        }
+                      </span>
                     </span>
                   </span>
                 }
@@ -541,7 +626,6 @@
                   @if (!shouldReserveOrderRunSpace(previewEvent)) {
                     <span class="scheduler__event-order">
                       <span class="scheduler__event-order-ref">{{ getEventOrderReference(previewEvent) }}</span>
-                      <span class="scheduler__event-order-count">{{ getEventOrderSequence(previewEvent) }}</span>
                     </span>
                   }
                   <span class="scheduler__event-job">
@@ -556,29 +640,29 @@
           }
           @if (shouldShowUnavailableFeedbackForResource(resource.id)) {
             @for (range of getInvalidDropRangesForResource(resource.id); track range.start.getTime() + '-' + range.end.getTime()) {
-              <div class="scheduler__slot-highlight"
+              <div class="scheduler__slot-highlight scheduler__slot-highlight--blocked"
                 [style.left.px]="getInvalidDropRangeLeft(range)"
                 [style.width.px]="getInvalidDropRangeWidth(range)"
                 [style.top.px]="0"
                 [style.height.px]="rowHeight"
-                style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+                style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
             }
-            @if (!invalidDropRanges.length) {
+            @if (shouldShowBaseAvailabilityBlocks()) {
               @for (block of getUnavailabilityForResource(resource.id); track block.start) {
-                <div class="scheduler__slot-highlight"
+                <div class="scheduler__slot-highlight scheduler__slot-highlight--blocked"
                   [style.left.px]="getUnavailabilityLeft(block)"
                   [style.width.px]="getUnavailabilityWidth(block)"
                   [style.top.px]="0"
                   [style.height.px]="rowHeight"
-                  style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+                  style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
               }
               @for (event of getEventsForResource(resource.id); track event.id) {
-                <div class="scheduler__slot-highlight"
+                <div class="scheduler__slot-highlight scheduler__slot-highlight--blocked"
                   [style.left.px]="getEventLeft(event)"
                   [style.width.px]="getEventWidth(event)"
                   [style.top.px]="0"
                   [style.height.px]="rowHeight"
-                  style="position:absolute;box-sizing:border-box;pointer-events:none;background:rgba(224,224,224,.42);z-index:18"></div>
+                  style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
               }
             }
           }
@@ -600,13 +684,85 @@
 
     @if (hoverTooltip) {
       <div
-        style="position:fixed;z-index:3000;max-width:320px;padding:6px 8px;background:#161616;color:#fff;font-size:12px;line-height:16px;white-space:pre-line;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.3)"
+        class="scheduler__event-tooltip"
+        style="position:fixed;z-index:3000;width:320px;max-width:min(320px,calc(100vw - 24px));padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--Layer-layer-02,#fff);color:var(--Text-text-primary,#161616);border:1px solid var(--Border-border-subtle-01,#C6C6C6);box-shadow:0 4px 12px rgba(0,0,0,.24);font-family:'IBM Plex Sans',sans-serif;pointer-events:auto"
         [style.left.px]="hoverTooltip.x"
         [style.top.px]="hoverTooltip.y">
-        {{ hoverTooltip.text }}
+        <div class="scheduler__event-tooltip-rows" style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;font-size:12px;line-height:16px;letter-spacing:.32px">
+            <span style="color:var(--Text-text-secondary,#525252)">Order</span>
+            <strong style="min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getEventOrderReference(hoverTooltip.event) }} {{ getEventOrderSequence(hoverTooltip.event) }}</strong>
+          </div>
+          @if (getEventTagLabel(hoverTooltip.event)) {
+            <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;font-size:12px;line-height:16px;letter-spacing:.32px">
+              <span style="color:var(--Text-text-secondary,#525252)">Status</span>
+              <span
+                style="justify-self:start;padding:2px 8px;border-radius:999px"
+                [style.background]="getEventTagBackground(hoverTooltip.event)"
+                [style.color]="getEventTagColor(hoverTooltip.event)">{{ getEventTagLabel(hoverTooltip.event) }}</span>
+            </div>
+          }
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;font-size:12px;line-height:16px;letter-spacing:.32px">
+            <span style="color:var(--Text-text-secondary,#525252)">{{ getEventWorkItemLabel(hoverTooltip.event) }}</span>
+            <strong style="min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getEventJobDescription(hoverTooltip.event) }}</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;font-size:12px;line-height:16px;letter-spacing:.32px">
+            <span style="color:var(--Text-text-secondary,#525252)">Description</span>
+            <span style="min-width:0;color:var(--Text-text-primary,#161616)">{{ getEventJobLongDescription(hoverTooltip.event) ?? '-' }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;font-size:12px;line-height:16px;letter-spacing:.32px">
+            <span style="color:var(--Text-text-secondary,#525252)">Time</span>
+            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getEventDetail(hoverTooltip.event) }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;font-size:12px;line-height:16px;letter-spacing:.32px">
+            <span style="color:var(--Text-text-secondary,#525252)">Resource</span>
+            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getEventTooltipResource(hoverTooltip.event) }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;font-size:12px;line-height:16px;letter-spacing:.32px">
+            <span style="color:var(--Text-text-secondary,#525252)">Customer</span>
+            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getEventCustomerName(hoverTooltip.event) }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;font-size:12px;line-height:16px;letter-spacing:.32px">
+            <span style="color:var(--Text-text-secondary,#525252)">License</span>
+            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getEventLicensePlate(hoverTooltip.event) }}</span>
+          </div>
+          @if (getEventCustomerEmail(hoverTooltip.event); as email) {
+            <button
+              class="scheduler__event-tooltip-contact"
+              type="button"
+              style="min-width:0;border:0;padding:0;display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;background:transparent;color:var(--Text-text-primary,#161616);font:inherit;font-size:12px;line-height:16px;letter-spacing:.32px;cursor:copy;text-align:left"
+              [attr.aria-label]="'Copy customer email ' + email"
+              (mousedown)="suppressEventAction($event)"
+              (click)="copyEventContact($event, hoverTooltip.event, 'email')"
+              (contextmenu)="suppressEventAction($event)">
+              <span style="color:var(--Text-text-secondary,#525252)">Email</span>
+              <strong style="min-width:0;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ isEventContactCopied(hoverTooltip.event, 'email') ? 'Copied' : email }}</strong>
+            </button>
+          }
+          @if (getEventCustomerPhone(hoverTooltip.event); as phone) {
+            <button
+              class="scheduler__event-tooltip-contact"
+              type="button"
+              style="min-width:0;border:0;padding:0;display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;align-items:start;background:transparent;color:var(--Text-text-primary,#161616);font:inherit;font-size:12px;line-height:16px;letter-spacing:.32px;cursor:copy;text-align:left"
+              [attr.aria-label]="'Copy customer phone ' + phone"
+              (mousedown)="suppressEventAction($event)"
+              (click)="copyEventContact($event, hoverTooltip.event, 'phone')"
+              (contextmenu)="suppressEventAction($event)">
+              <span style="color:var(--Text-text-secondary,#525252)">Phone</span>
+              <strong style="min-width:0;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ isEventContactCopied(hoverTooltip.event, 'phone') ? 'Copied' : phone }}</strong>
+            </button>
+          }
+        </div>
       </div>
     }
 
   </div>
 </div>
+
+
+
+
+
+
+
 

@@ -39,6 +39,7 @@ export interface SchedulerDropVisualContext {
   durationMinutes: number;
   anchoredStart?: Date;
   anchoredEnd?: Date;
+  pointerOffsetMinutes?: number;
 }
 
 // ── What the scheduler emits ─────────────────────────────────────────────────
@@ -75,6 +76,11 @@ export interface EventClickPayload {
   eventId: string;
 }
 
+export interface OrderFocusPayload {
+  orderId?: string;
+  eventId: string;
+}
+
 export interface EventContextMenuPayload {
   eventId: string;
   x: number;
@@ -83,6 +89,7 @@ export interface EventContextMenuPayload {
 
 export interface EventDragPayload {
   eventId: string;
+  pointerOffsetMinutes?: number;
 }
 
 export interface ResourceSelectionChangePayload {
@@ -115,3 +122,5 @@ export abstract class SchedulerContract {
   abstract eventClicked: EventEmitter<EventClickPayload>;
   abstract eventContextMenu: EventEmitter<EventContextMenuPayload>;
 }
+
+

@@ -414,12 +414,34 @@ $month-bar-height: 60px;
     box-sizing: border-box;
   }
 
+  &__event-order-focus {
+    width: 16px;
+    height: 16px;
+    border: 0;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    background: transparent;
+    color: var(--Icon-icon-primary, #161616);
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  &__order-run &__event-order-focus {
+    pointer-events: auto;
+  }
+
+  &__event-order-focus:hover {
+    background: var(--Layer-layer-hover-01, #E8E8E8);
+  }
   &__event-job {
     display:flex;
     align-items:flex-start;
     gap:12px;
     width:100%;
-    height:48px;
+    height:64px;
     padding:6px 16px;
     background:var(--Layer-layer-01,#F4F4F4);
     border-left:2px solid var(--a);
@@ -433,6 +455,17 @@ $month-bar-height: 60px;
     flex-direction:column;
     gap:2px;
     overflow:hidden;
+  }
+
+  &__event-actions {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    overflow: hidden;
   }
 
   &__event-order-ref {
@@ -459,7 +492,8 @@ $month-bar-height: 60px;
     text-overflow: ellipsis;
   }
 
-  &__event-time {
+  &__event-time,
+  &__event-customer {
     display:block;
     color: #6F6F6F;
     font-size: 12px;
@@ -471,10 +505,13 @@ $month-bar-height: 60px;
     text-overflow: ellipsis;
   }
 
+  &__event-customer {
+    color: var(--Text-text-secondary, #525252);
+  }
+
   &__event-tag {
     flex: 0 0 auto;
     display: none;
-    margin-left: auto;
     align-items: center;
     gap: 4px;
     padding: 2px 8px;
@@ -488,6 +525,52 @@ $month-bar-height: 60px;
     pointer-events: none;
   }
 
+  &__event-contact-list {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  &__event-contact {
+    width: 100%;
+    min-width: 0;
+    height: 16px;
+    border: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    background: transparent;
+    color: var(--Text-text-secondary, #525252);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    letter-spacing: 0.32px;
+    cursor: copy;
+    pointer-events: auto;
+  }
+
+  &__event-contact:hover,
+  &__event-contact:focus-visible {
+    color: var(--Text-text-primary, #161616);
+    text-decoration: underline;
+    outline: none;
+  }
+
+  &__event-contact-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+  }
+
   &__event-tag-icon {
     display: flex;
     align-items: center;
@@ -499,6 +582,10 @@ $month-bar-height: 60px;
   &__event--show-tag &__event-tag {
     display: flex;
     align-self: center;
+  }
+
+  &__event--show-tag &__event-actions &__event-tag {
+    align-self: flex-end;
   }
 
   &__event-tag-label {
@@ -524,9 +611,21 @@ $month-bar-height: 60px;
     opacity: 0.55;
   }
 
+  &__slot-highlight--blocked {
+    background: rgba(224, 224, 224, 0.42);
+  }
+
   &__event--icon-tag &__event-tag {
     gap: 2px;
     padding: 2px;
+  }
+
+  &__event--icon-tag &__event-actions {
+    max-width: 24px;
+  }
+
+  &__event--icon-tag &__event-contact-list {
+    display: none;
   }
 
   &__event--icon-tag &__event-tag-label {
@@ -551,3 +650,7 @@ $month-bar-height: 60px;
   }
 
 }
+
+
+
+
