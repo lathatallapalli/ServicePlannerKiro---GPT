@@ -201,7 +201,10 @@
             @for (day of daySlots; track day.getTime()) {
               @for (slot of timeSlots; track slot.getTime()) {
                 @if (!isFirstHourSlot(slot)) {
-                  <div class="scheduler__slot-line" [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
+                  <div
+                    class="scheduler__slot-line"
+                    [class.scheduler__slot-line--minor]="isMinorSlotLine(slot)"
+                    [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
                 }
               }
               <div class="scheduler__day-line" [style.left.px]="getDayOffsetPx(day)"></div>
@@ -452,7 +455,10 @@
           @for (day of daySlots; track day.getTime()) {
             @for (slot of timeSlots; track slot.getTime()) {
               @if (!isFirstHourSlot(slot)) {
-                <div class="scheduler__slot-line" [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
+                <div
+                  class="scheduler__slot-line"
+                  [class.scheduler__slot-line--minor]="isMinorSlotLine(slot)"
+                  [style.left.px]="getDayOffsetPx(day) + getHourOffsetInDay(slot)"></div>
               }
             }
             <div class="scheduler__day-line" [style.left.px]="getDayOffsetPx(day)"></div>

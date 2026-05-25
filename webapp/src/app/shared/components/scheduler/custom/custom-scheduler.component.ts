@@ -254,12 +254,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return 12 * this.HOUR_WIDTH;
   }
 
-  getHourOffsetInDay(hour: Date): number {
-    return (hour.getHours() - 9) * this.HOUR_WIDTH;
+  getHourOffsetInDay(slot: Date): number {
+    return (slot.getHours() - 9 + slot.getMinutes() / 60) * this.HOUR_WIDTH;
   }
 
   isFirstHourSlot(slot: Date): boolean {
     return slot.getHours() === 9 && slot.getMinutes() === 0;
+  }
+
+  isMinorSlotLine(slot: Date): boolean {
+    return slot.getMinutes() !== 0;
   }
 
   formatDay(day: Date): string {
