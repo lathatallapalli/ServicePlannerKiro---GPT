@@ -236,7 +236,7 @@
                 </div>
               }
             }
-            @for (event of getEventsForResource(resource.id); track event.id) {
+            @for (event of getRenderedEventsForResource(resource.id); track event.id) {
               @if (shouldRenderEventForResource(event, resource.id)) {
               <div class="scheduler__event"
                 [class.scheduler__event--compact]="!shouldShowEventDetails(event)"
@@ -247,7 +247,7 @@
                 [class.scheduler__event--continues]="hasContiguousNextEvent(event)"
                 [class.scheduler__event--preview]="isPreviewingEvent(event)"
                 [class.scheduler__event--scheduled]="getWorkorderItemStatus(event) === 'scheduled'"
-                [class.scheduler__event--started]="getWorkorderItemStatus(event) === 'started'"
+                [class.scheduler__event--started]="getWorkorderItemStatus(event) === 'in-progress' || getWorkorderItemStatus(event) === 'started'"
                 [class.scheduler__event--completed]="getWorkorderItemStatus(event) === 'completed'"
                 [style.left.px]="getRenderedEventLeft(event)"
                 [style.width.px]="getRenderedEventWidth(event)"
@@ -258,6 +258,9 @@
                 [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
                 [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
                 [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
+                (mouseenter)="showEventTooltip(event, $event)"
+                (mousemove)="moveEventTooltip(event, $event)"
+                (mouseleave)="hideEventTooltip()"
                 (mousedown)="onEventMouseDown($event, event)"
                 (click)="onEventClick($event, event)"
                 (contextmenu)="onEventContextMenu($event, event)">
@@ -365,7 +368,7 @@
               </div>
             }
           }
-          @for (event of getEventsForResource(resource.id); track event.id) {
+          @for (event of getRenderedEventsForResource(resource.id); track event.id) {
             @if (shouldRenderEventForResource(event, resource.id)) {
             <div class="scheduler__event"
               [class.scheduler__event--compact]="!shouldShowEventDetails(event)"
@@ -375,7 +378,7 @@
               [class.scheduler__event--continued]="hasContiguousPreviousEvent(event)"
               [class.scheduler__event--continues]="hasContiguousNextEvent(event)"
               [class.scheduler__event--scheduled]="getWorkorderItemStatus(event) === 'scheduled'"
-              [class.scheduler__event--started]="getWorkorderItemStatus(event) === 'started'"
+              [class.scheduler__event--started]="getWorkorderItemStatus(event) === 'in-progress' || getWorkorderItemStatus(event) === 'started'"
               [class.scheduler__event--completed]="getWorkorderItemStatus(event) === 'completed'"
               [style.left.px]="getEventLeft(event)"
               [style.width.px]="getEventWidth(event)"
@@ -386,6 +389,9 @@
               [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
               [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
               [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
+              (mouseenter)="showEventTooltip(event, $event)"
+              (mousemove)="moveEventTooltip(event, $event)"
+              (mouseleave)="hideEventTooltip()"
               (mousedown)="onEventMouseDown($event, event)"
               (click)="onEventClick($event, event)"
               (contextmenu)="onEventContextMenu($event, event)">
@@ -435,7 +441,7 @@
         [class.scheduler__event--continued]="hasContiguousPreviousEvent(previewEvent)"
         [class.scheduler__event--continues]="hasContiguousNextEvent(previewEvent)"
         [class.scheduler__event--scheduled]="getWorkorderItemStatus(previewEvent) === 'scheduled'"
-        [class.scheduler__event--started]="getWorkorderItemStatus(previewEvent) === 'started'"
+        [class.scheduler__event--started]="getWorkorderItemStatus(previewEvent) === 'in-progress' || getWorkorderItemStatus(previewEvent) === 'started'"
         [class.scheduler__event--completed]="getWorkorderItemStatus(previewEvent) === 'completed'"
         [style.left.px]="getPreviewLeft()"
         [style.top.px]="getPreviewTop()"
@@ -464,6 +470,15 @@
             </span>
           </span>
         }
+      </div>
+    }
+
+    @if (hoverTooltip) {
+      <div
+        style="position:fixed;z-index:3000;max-width:320px;padding:6px 8px;background:#161616;color:#fff;font-size:12px;line-height:16px;white-space:pre-line;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.3)"
+        [style.left.px]="hoverTooltip.x"
+        [style.top.px]="hoverTooltip.y">
+        {{ hoverTooltip.text }}
       </div>
     }
 

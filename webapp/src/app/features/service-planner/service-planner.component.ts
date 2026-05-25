@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, effect } from '@angular/core';
+import { Component, HostListener, OnInit, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -16,7 +16,7 @@ import { forkJoin } from 'rxjs';
 import { MOCK_UNAVAILABILITY } from '../../core/services/mock/mock-data';
 import { UnavailabilityBlock } from '../../core/models/availability.model';
 import { ScheduleEntry } from '../../core/models/schedule.model';
-import { JobResourceRequirement } from '../../core/models/job.model';
+import { JobResourceRequirement, WorkorderItemStatus } from '../../core/models/job.model';
 import { Resource } from '../../core/models/resource.model';
 import { ResourceFavoriteView } from './services/planner-settings.service';
 import { AppointmentSyncService } from '../../core/services/appointment-sync.service';
@@ -29,6 +29,37 @@ interface BookingSet {
   summary: string;
   bookings: JobBooking[];
 }
+
+type SearchMatchType = 'order-header' | 'job' | 'activity' | 'booking-resource';
+
+interface PanelSearchMatch {
+  type: SearchMatchType;
+  orderId: string;
+  jobId?: string;
+  activityId?: string;
+  bookingEntryId?: string;
+}
+
+interface SearchHighlightPart {
+  text: string;
+  isMatch: boolean;
+}
+
+type WorkOrderItemKind = 'job' | 'activity';
+type CanonicalWorkOrderItemStatus = Exclude<WorkorderItemStatus, 'started'>;
+type OrderPlanningState = 'unscheduled' | 'partiallyScheduled' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+
+interface NormalizedWorkOrderItem {
+  id: string;
+  orderId: string;
+  title: string;
+  kind: WorkOrderItemKind;
+  source: any | ActivityTile;
+  templateId?: string;
+  executionStatus: CanonicalWorkOrderItemStatus;
+}
+
+type WorkOrderActivityTile = ActivityTile & { workOrderItemId?: string; templateId?: string };
 
 @Component({
   selector: 'app-service-planner',
@@ -77,9 +108,19 @@ export class ServicePlannerComponent implements OnInit {
   bookingModalAdditionalResourceIds: Record<string, string> = {};
   scrollToEventId: string | null = null;
   isOrderPanelOpen = false;
+  orderPanelWidth = 342;
+  private readonly minOrderPanelWidth = 342;
+  private readonly maxOrderPanelWidth = 640;
+  private orderPanelResizeStartX = 0;
+  private orderPanelResizeStartWidth = 342;
+  private isResizingOrderPanel = false;
   isPlannerReady = false;
   orderPanelSearch = '';
-  orderPanelTab: 'pending' | 'scheduled' | 'all' = 'pending';
+  bookingSearchQuery = '';
+  activeSearchResultIndex = 0;
+  expandedOrderIds = new Set<string>();
+  searchRevealedOrderIds = new Set<string>();
+  collapsedOrderGroups = new Set<'planned' | 'pending'>();
   selectedPanelOrderId = '';
   public schedulingError: string | null = null;
   public schedulingErrorTitle = 'Unable to book first availability';
@@ -95,6 +136,7 @@ export class ServicePlannerComponent implements OnInit {
   private isAutoProposalVisible = false;
   unavailability: UnavailabilityBlock[] = MOCK_UNAVAILABILITY;
 
+  private readonly mockCurrentTime = new Date('2024-04-15T09:00:00');
   viewStart = new Date('2024-04-15T09:00:00');
   viewEnd   = new Date('2024-04-19T21:00:00');
 
@@ -218,16 +260,8 @@ export class ServicePlannerComponent implements OnInit {
       ? this.allOrders.filter(order => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId)
       : this.allOrders;
 
-    const tabFilteredOrders = this.isFullPlanner()
-      ? orders.filter(order => {
-        if (this.orderPanelTab === 'all') return true;
-        const isScheduled = this.isOrderFullyScheduled(order);
-        return this.orderPanelTab === 'scheduled' ? isScheduled : !isScheduled;
-      })
-      : orders;
-
-    if (!query) return tabFilteredOrders;
-    return tabFilteredOrders.filter(order =>
+    if (!query) return orders;
+    return orders.filter(order =>
       [
         order.referenceNumber,
         order.id,
@@ -235,6 +269,41 @@ export class ServicePlannerComponent implements OnInit {
         order.customer?.name,
       ].filter(Boolean).join(' ').toLowerCase().includes(query)
     );
+  }
+
+  get isSearchActive(): boolean {
+    return this.bookingSearchQuery.trim().length > 0;
+  }
+
+  get panelSearchMatches(): PanelSearchMatch[] {
+    const query = this.bookingSearchQuery.trim().toLowerCase();
+    if (!query) return [];
+    return this.allOrders.flatMap(order => this.getSearchMatchesForOrder(order, query));
+  }
+
+  get searchMatchCount(): number {
+    return this.panelSearchMatches.length;
+  }
+
+  get activeSearchMatchPosition(): number {
+    return this.searchMatchCount ? Math.min(this.activeSearchResultIndex + 1, this.searchMatchCount) : 0;
+  }
+
+  get visiblePanelOrders(): any[] {
+    if (!this.isSearchActive) return this.filteredPanelOrders;
+    const matchedOrderIds = new Set(this.panelSearchMatches.map(match => match.orderId));
+    const orders = this.plannerMode === 'order'
+      ? this.allOrders.filter(order => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId)
+      : this.allOrders;
+    return orders.filter(order => matchedOrderIds.has(order.id));
+  }
+
+  get visiblePlannedOrders(): any[] {
+    return this.visiblePanelOrders.filter(order => this.isOrderPlanned(order));
+  }
+
+  get visiblePendingOrders(): any[] {
+    return this.visiblePanelOrders.filter(order => !this.isOrderPlanned(order));
   }
 
   private get resourcesForSelectedView(): SchedulerResource[] {
@@ -268,7 +337,7 @@ export class ServicePlannerComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
   ) {
-    // Watch the undo trigger — each increment means undo the last booking
+    // Watch the undo trigger â€” each increment means undo the last booking
     effect(() => {
       const trigger = this.plannerSettings.undoTrigger();
       if (trigger === 0) return; // skip initial value
@@ -321,6 +390,7 @@ export class ServicePlannerComponent implements OnInit {
       this.unavailability = [
         ...MOCK_UNAVAILABILITY,
       ];
+      this.expandFirstVisibleOrder();
       this.applyQuickViewSelection();
       this.scrollToActiveOrderBooking();
       });
@@ -371,6 +441,11 @@ export class ServicePlannerComponent implements OnInit {
     const event = this.events.find(candidate => candidate.id === payload.eventId);
     if (!this.isJobEvent(event)) return;
     this.eventContextMenu = { eventId: payload.eventId, x: payload.x, y: payload.y };
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.closeEventContextMenu();
   }
 
   closeEventContextMenu(): void {
@@ -463,12 +538,89 @@ export class ServicePlannerComponent implements OnInit {
     this.isOrderPanelOpen = !this.isOrderPanelOpen;
   }
 
-  onOrderPanelSearch(value: string): void {
-    this.orderPanelSearch = value;
+  startOrderPanelResize(event: PointerEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isResizingOrderPanel = true;
+    this.orderPanelResizeStartX = event.clientX;
+    this.orderPanelResizeStartWidth = this.orderPanelWidth;
   }
 
-  selectOrderPanelTab(tab: 'pending' | 'scheduled' | 'all'): void {
-    this.orderPanelTab = tab;
+  @HostListener('document:pointermove', ['$event'])
+  onOrderPanelResizeMove(event: PointerEvent): void {
+    if (!this.isResizingOrderPanel) return;
+    event.preventDefault();
+    const delta = this.orderPanelResizeStartX - event.clientX;
+    this.orderPanelWidth = Math.min(this.maxOrderPanelWidth, Math.max(this.minOrderPanelWidth, this.orderPanelResizeStartWidth + delta));
+  }
+
+  @HostListener('document:pointerup')
+  @HostListener('document:pointercancel')
+  stopOrderPanelResize(): void {
+    this.isResizingOrderPanel = false;
+  }
+
+  onOrderPanelSearch(value: string): void {
+    const previousQuery = this.bookingSearchQuery.trim();
+    this.orderPanelSearch = value;
+    this.bookingSearchQuery = value;
+    this.activeSearchResultIndex = 0;
+    this.searchRevealedOrderIds = new Set<string>();
+    if (!previousQuery && value.trim()) {
+      this.expandedOrderIds = new Set<string>();
+    }
+  }
+
+  clearBookingSearch(): void {
+    this.orderPanelSearch = '';
+    this.bookingSearchQuery = '';
+    this.activeSearchResultIndex = 0;
+    this.searchRevealedOrderIds = new Set<string>();
+  }
+
+  previousSearchResult(): void {
+    if (!this.searchMatchCount) return;
+    this.activeSearchResultIndex = (this.activeSearchResultIndex - 1 + this.searchMatchCount) % this.searchMatchCount;
+    this.revealActiveSearchMatch();
+  }
+
+  nextSearchResult(): void {
+    if (!this.searchMatchCount) return;
+    this.activeSearchResultIndex = (this.activeSearchResultIndex + 1) % this.searchMatchCount;
+    this.revealActiveSearchMatch();
+  }
+
+  toggleOrderExpanded(orderId: string, event?: Event): void {
+    event?.stopPropagation();
+    const ids = new Set(this.expandedOrderIds);
+    if (ids.has(orderId)) {
+      ids.delete(orderId);
+    } else {
+      ids.add(orderId);
+    }
+    this.expandedOrderIds = ids;
+  }
+
+  toggleOrderGroup(group: 'planned' | 'pending'): void {
+    const groups = new Set(this.collapsedOrderGroups);
+    if (groups.has(group)) {
+      groups.delete(group);
+    } else {
+      groups.add(group);
+    }
+    this.collapsedOrderGroups = groups;
+  }
+
+  isOrderGroupCollapsed(group: 'planned' | 'pending'): boolean {
+    if (this.isSearchActive && (group === 'planned' ? this.visiblePlannedOrders.length : this.visiblePendingOrders.length) > 0) {
+      return false;
+    }
+    return this.collapsedOrderGroups.has(group);
+  }
+
+  private expandFirstVisibleOrder(): void {
+    if (this.expandedOrderIds.size || this.visiblePanelOrders.length === 0) return;
+    this.expandedOrderIds = new Set([this.visiblePanelOrders[0].id]);
   }
 
   clearOrderPanelSelection(): void {
@@ -492,6 +644,16 @@ export class ServicePlannerComponent implements OnInit {
     this.schedulingError = message;
   }
 
+  focusPlannerEvent(eventId: string, options: { openDetails?: boolean } = {}): void {
+    this.scrollToEventId = null;
+    queueMicrotask(() => {
+      this.scrollToEventId = eventId;
+      if (options.openDetails) {
+        this.onEventClicked({ eventId });
+      }
+    });
+  }
+
   closeBookingModal(): void {
     this.selectedBookingEvent = null;
     this.bookingModalAdditionalResourceIds = {};
@@ -500,11 +662,13 @@ export class ServicePlannerComponent implements OnInit {
   deleteSelectedBooking(): void {
     const event = this.selectedBookingEvent;
     if (!event) return;
+    const removedEntry = event.meta?.entry as ScheduleEntry | undefined;
 
     this.scheduleRepo.unassign(event.id).subscribe(() => {
       this.events = this.events.filter(candidate => candidate.id !== event.id);
       this.scheduleEntries = this.scheduleEntries.filter(entry => entry.id !== event.id);
       this.latestAutoBookingEntryIds.delete(event.id);
+      this.refreshWorkOrderItemStatusForEntry(removedEntry);
       this.selectedBookingEvent = null;
     });
   }
@@ -718,9 +882,18 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   getBookingReferenceInfo(event: SchedulerEvent): string {
-    return `${this.getBookingOrder(event)} • ${event.title}`;
+    return `${this.getBookingOrder(event)} â€¢ ${event.title}`;
   }
 
+  getBookingSegmentInfo(event: SchedulerEvent): string {
+    const segmentDuration = this.formatDuration(event.start, event.end);
+    if (!this.isJobEvent(event)) return segmentDuration;
+    const relatedSegments = this.getRelatedSplitEvents(event);
+    if (relatedSegments.length <= 1) return segmentDuration;
+    const segmentIndex = relatedSegments.findIndex(candidate => candidate.id === event.id);
+    const segmentLabel = segmentIndex >= 0 ? `Segment ${segmentIndex + 1} of ${relatedSegments.length}` : 'Split segment';
+    return `${segmentLabel} â€¢ ${segmentDuration}`;
+  }
   getBookingVehicle(event: SchedulerEvent): string {
     return this.findOrderForEvent(event)?.vehicle?.licensePlate ?? 'NA';
   }
@@ -742,9 +915,14 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   getOrderFru(order: any): number {
-    const jobsFru = (order.jobs ?? []).reduce((total: number, job: any) => total + this.getJobFru(job), 0);
-    const activitiesFru = this.getActivitiesForOrder(order).reduce((total, activity) => total + this.getActivityFru(activity), 0);
-    return jobsFru + activitiesFru;
+    return this.getWorkOrderItems(order).reduce((total, item) => total + this.getWorkOrderItemFru(item), 0);
+  }
+
+  getRemainingOrderFru(order: any): number {
+    return this.getWorkOrderItems(order).reduce((total, item) => {
+      const status = this.getEffectiveWorkOrderItemStatus(order, item);
+      return status === 'unscheduled' ? total + this.getWorkOrderItemFru(item) : total;
+    }, 0);
   }
 
   public formatHours(hours: number): string {
@@ -752,10 +930,220 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   isOrderFullyScheduled(order: any): boolean {
-    const jobs = order.jobs ?? [];
-    const jobsScheduled = jobs.length > 0 && jobs.every((job: any) => this.isJobScheduledForOrder(job, order));
-    const activitiesScheduled = this.getActivitiesForOrder(order).every(activity => !!this.getActivityBooking(activity, order.id));
-    return jobsScheduled && (activitiesScheduled || this.hasExistingScheduledEntriesForOrder(order));
+    return this.getOrderPlanningState(order) === 'scheduled';
+  }
+
+  getOrderPlanningStateLabel(order: any): string {
+    const state = this.getOrderPlanningState(order);
+    if (state === 'unscheduled') return `${this.formatHours(this.getOrderFru(order))} hrs`;
+    if (state === 'partiallyScheduled') return `${this.formatHours(this.getRemainingOrderFru(order))} hrs`;
+    return this.getStatusLabel(state);
+  }
+
+  getOrderPlanningStateBackground(order: any): string {
+    return this.getStatusBackground(this.getOrderPlanningState(order));
+  }
+
+  getOrderPlanningStateColor(order: any): string {
+    return this.getStatusColor(this.getOrderPlanningState(order));
+  }
+
+  getOrderPlanningStateOutline(order: any): string {
+    return this.getStatusOutline(this.getOrderPlanningState(order));
+  }
+
+  getJobExecutionStatusLabel(order: any, job: any): string {
+    const status = this.getJobExecutionStatus(order, job);
+    return status === 'unscheduled' ? `${this.formatHours(this.getJobFru(job))} hrs` : this.getStatusLabel(status);
+  }
+
+  getJobExecutionStatusBackground(order: any, job: any): string {
+    return this.getStatusBackground(this.getJobExecutionStatus(order, job));
+  }
+
+  getJobExecutionStatusColor(order: any, job: any): string {
+    return this.getStatusColor(this.getJobExecutionStatus(order, job));
+  }
+
+  getJobExecutionStatusOutline(order: any, job: any): string {
+    return this.getStatusOutline(this.getJobExecutionStatus(order, job));
+  }
+
+  getActivityExecutionStatusLabel(order: any, activity: ActivityTile): string {
+    const status = this.getActivityExecutionStatus(order, activity);
+    return status === 'unscheduled' ? `${this.formatHours(this.getActivityFru(activity))} hrs` : this.getStatusLabel(status);
+  }
+
+  getActivityExecutionStatusBackground(order: any, activity: ActivityTile): string {
+    return this.getStatusBackground(this.getActivityExecutionStatus(order, activity));
+  }
+
+  getActivityExecutionStatusColor(order: any, activity: ActivityTile): string {
+    return this.getStatusColor(this.getActivityExecutionStatus(order, activity));
+  }
+
+  getActivityExecutionStatusOutline(order: any, activity: ActivityTile): string {
+    return this.getStatusOutline(this.getActivityExecutionStatus(order, activity));
+  }
+
+  private isOrderPlanned(order: any): boolean {
+    return ['scheduled', 'in-progress', 'completed'].includes(this.getOrderPlanningState(order));
+  }
+
+  private getOrderPlanningState(order: any): OrderPlanningState {
+    const items = this.getWorkOrderItems(order).filter(item => item.executionStatus !== 'cancelled');
+    if (!items.length) return 'unscheduled';
+
+    const statuses = items.map(item => this.getEffectiveWorkOrderItemStatus(order, item));
+    if (statuses.length > 0 && statuses.every(status => status === 'completed')) return 'completed';
+    if (statuses.some(status => status === 'in-progress')) return 'in-progress';
+    if (statuses.every(status => status === 'scheduled' || status === 'completed')) return 'scheduled';
+    if (statuses.some(status => status === 'scheduled' || status === 'completed')) return 'partiallyScheduled';
+    return 'unscheduled';
+  }
+
+  private getJobExecutionStatus(order: any, job: any): CanonicalWorkOrderItemStatus {
+    const item = this.getWorkOrderJobItems(order).find(candidate => candidate.id === job.id);
+    return item ? this.getEffectiveWorkOrderItemStatus(order, item) : this.getCanonicalWorkOrderItemStatus(job.workorderItemStatus ?? job.status);
+  }
+
+  private getActivityExecutionStatus(order: any, activity: ActivityTile): CanonicalWorkOrderItemStatus {
+    const item = this.getWorkOrderActivityItems(order).find(candidate => candidate.id === activity.id || candidate.templateId === this.getActivityTemplateId(activity.id));
+    const activitySource = activity as ActivityTile & { workorderItemStatus?: WorkorderItemStatus; status?: WorkorderItemStatus };
+    return item ? this.resolveActivityItemStatus(order, item) : this.getCanonicalWorkOrderItemStatus(activitySource.workorderItemStatus ?? activitySource.status);
+  }
+
+  private getStatusLabel(status: CanonicalWorkOrderItemStatus | OrderPlanningState): string {
+    if (status === 'partiallyScheduled') return 'Partially scheduled';
+    if (status === 'in-progress') return 'In progress';
+    return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+  }
+
+  private getStatusBackground(status: CanonicalWorkOrderItemStatus | OrderPlanningState): string {
+    if (status === 'scheduled') return '#FFE8BF';
+    if (status === 'partiallyScheduled') return '#E0E0E0';
+    if (status === 'in-progress') return '#D0E2FF';
+    if (status === 'completed') return '#DEFBE6';
+    if (status === 'cancelled') return '#FFF1F1';
+    return 'white';
+  }
+
+  private getStatusColor(status: CanonicalWorkOrderItemStatus | OrderPlanningState): string {
+    if (status === 'scheduled') return '#D38700';
+    if (status === 'partiallyScheduled') return '#525252';
+    if (status === 'in-progress') return '#0F62FE';
+    if (status === 'completed') return '#198038';
+    if (status === 'cancelled') return '#DA1E28';
+    return '#161616';
+  }
+
+  private getStatusOutline(status: CanonicalWorkOrderItemStatus | OrderPlanningState): string {
+    return status === 'unscheduled' ? '1px solid #000' : '0';
+  }
+
+  private getWorkOrderItems(order: any): NormalizedWorkOrderItem[] {
+    return [
+      ...this.getWorkOrderJobItems(order),
+      ...this.getWorkOrderActivityItems(order),
+    ];
+  }
+
+  private getWorkOrderJobItems(order: any): NormalizedWorkOrderItem[] {
+    return this.getJobsForOrder(order)
+      .filter((job: any) => (job.workorderItemCategory ?? 'job') !== 'activity')
+      .map((job: any) => ({
+        id: job.id,
+        orderId: order.id,
+        title: job.title,
+        kind: 'job' as const,
+        source: job,
+        executionStatus: this.getCanonicalWorkOrderItemStatus(job.workorderItemStatus ?? job.status),
+      }));
+  }
+
+  getJobsForOrder(order: any): any[] {
+    return (order.jobs ?? []).filter((job: any) => (job.workorderItemCategory ?? 'job') !== 'activity');
+  }
+
+  private getWorkOrderActivityItems(order: any): NormalizedWorkOrderItem[] {
+    return (order.jobs ?? [])
+      .filter((job: any) => job.workorderItemCategory === 'activity' || this.isActivityId(job.id))
+      .map((activity: any) => {
+        const templateId = this.getActivityTemplateId(activity.templateId ?? activity.id);
+        return {
+          id: activity.id,
+          orderId: order.id,
+          title: activity.title,
+          kind: 'activity' as const,
+          source: activity,
+          templateId,
+          executionStatus: this.getCanonicalWorkOrderItemStatus(activity.workorderItemStatus ?? activity.status),
+        };
+      });
+  }
+
+  private isWorkOrderItemScheduled(order: any, item: NormalizedWorkOrderItem): boolean {
+    return this.hasWorkOrderItemAllocation(order, item);
+  }
+
+  private getEffectiveWorkOrderItemStatus(order: any, item: NormalizedWorkOrderItem): CanonicalWorkOrderItemStatus {
+    if (item.kind === 'activity') return this.resolveActivityItemStatus(order, item);
+    const explicitStatus = this.getCanonicalWorkOrderItemStatus(item.source?.workorderItemStatus ?? item.source?.status ?? item.executionStatus);
+    if (explicitStatus === 'completed' || explicitStatus === 'in-progress' || explicitStatus === 'cancelled') return explicitStatus;
+    return this.hasWorkOrderItemAllocation(order, item) ? 'scheduled' : 'unscheduled';
+  }
+
+  private resolveActivityItemStatus(order: any, item: NormalizedWorkOrderItem): CanonicalWorkOrderItemStatus {
+    const explicitStatus = this.getCanonicalWorkOrderItemStatus(item.source?.workorderItemStatus ?? item.source?.status ?? item.executionStatus);
+    if (explicitStatus === 'completed' || explicitStatus === 'in-progress' || explicitStatus === 'cancelled') return explicitStatus;
+
+    const entryStatus = this.getActivityScheduleEntryStatus(order, item);
+    if (entryStatus !== 'unscheduled') return entryStatus;
+
+    return this.hasWorkOrderItemAllocation(order, item) ? 'scheduled' : 'unscheduled';
+  }
+
+  private getActivityScheduleEntryStatus(order: any, item: NormalizedWorkOrderItem): CanonicalWorkOrderItemStatus {
+    const templateId = item.templateId ?? this.getActivityTemplateId(item.id);
+    const entry = this.getExistingScheduleEntriesForOrder(order).find(candidate =>
+      candidate.jobId === item.id || this.getActivityTemplateId(candidate.jobId) === templateId
+    );
+    return this.getCanonicalWorkOrderItemStatus(entry?.workorderItemStatus);
+  }
+
+  private hasWorkOrderItemAllocation(order: any, item: NormalizedWorkOrderItem): boolean {
+    return item.kind === 'activity'
+      ? !!this.getActivityBooking(this.toActivityTile(item.source), order.id)
+      : this.isJobScheduledForOrder(item.source, order);
+  }
+
+  private getCanonicalWorkOrderItemStatus(status: unknown): CanonicalWorkOrderItemStatus {
+    if (status === 'completed') return 'completed';
+    if (status === 'in-progress' || status === 'started') return 'in-progress';
+    if (status === 'cancelled') return 'cancelled';
+    if (status === 'scheduled') return 'scheduled';
+    return 'unscheduled';
+  }
+
+  private getWorkOrderItemFru(item: NormalizedWorkOrderItem): number {
+    return item.kind === 'activity'
+      ? this.getActivityFru(this.toActivityTile(item.source))
+      : this.getJobFru(item.source);
+  }
+
+  private toActivityTile(activity: any): WorkOrderActivityTile {
+    const templateId = this.getActivityTemplateId(activity.templateId ?? activity.id);
+    const template = this.getActivityTemplate(templateId);
+    return {
+      id: activity.id,
+      workOrderItemId: activity.id,
+      templateId,
+      title: activity.title ?? template?.title ?? templateId,
+      resourceType: activity.requiredResourceType ?? activity.resourceType ?? template?.resourceType ?? 'advisor',
+      resourceLabel: activity.resourceLabel ?? activity.resourceRequirements?.[0]?.label ?? template?.resourceLabel ?? 'Resource',
+      fru: Number(activity.fru ?? template?.fru ?? Math.max(0.25, (activity.estimatedDurationMinutes ?? template?.estimatedDurationMinutes ?? 0) / MINUTES_PER_FRU)),
+      estimatedDurationMinutes: activity.estimatedDurationMinutes ?? template?.estimatedDurationMinutes ?? 30,
+    };
   }
 
   onOrderDragStart(event: DragEvent, order: any): void {
@@ -778,13 +1166,15 @@ export class ServicePlannerComponent implements OnInit {
 
   onActivityDragStart(event: DragEvent, activity: ActivityTile, order: any): void {
     event.stopPropagation();
-    event.dataTransfer?.setData('jobId', activity.id);
+    const activityItem = activity as WorkOrderActivityTile;
+    const workOrderItemId = activityItem.workOrderItemId ?? activity.id;
+    event.dataTransfer?.setData('jobId', workOrderItemId);
     event.dataTransfer?.setData('orderId', order.id);
     event.dataTransfer?.setData('dropType', 'activity');
     event.dataTransfer?.setData('fru', String(this.getActivityFru(activity)));
     event.dataTransfer?.setData('resourceType', activity.resourceType ?? '');
-    event.dataTransfer?.setData('application/json', JSON.stringify({ type: 'activity', jobId: activity.id, orderId: order.id }));
-    event.dataTransfer?.setData('text/plain', activity.id);
+    event.dataTransfer?.setData('application/json', JSON.stringify({ type: 'activity', jobId: workOrderItemId, orderId: order.id }));
+    event.dataTransfer?.setData('text/plain', workOrderItemId);
   }
 
   isBookFirstDisabled(orderId: string): boolean {
@@ -795,7 +1185,7 @@ export class ServicePlannerComponent implements OnInit {
   onBookFirstAvailabilityForOrder(order: any): void {
     this.selectedPanelOrderId = order.id;
     this.restoreProposalStateForOrder(order.id);
-    const searchFrom = new Date(this.viewStart);
+    const searchFrom = this.getBookableSearchStart(this.viewStart);
     this.applyProposal(searchFrom, true);
   }
 
@@ -824,10 +1214,10 @@ export class ServicePlannerComponent implements OnInit {
         this.proposalHistory = [start];
         this.proposalEndHistory = [end];
         this.currentProposalIndex = 0;
-        this.applyProposal(new Date(end.getTime() + 15 * 60000), false);
+        this.applyProposal(this.getBookableSearchStart(new Date(end.getTime() + 15 * 60000)), false);
         return;
       }
-      this.applyProposal(new Date(this.viewStart.getTime() + 15 * 60000), true);
+      this.applyProposal(this.getBookableSearchStart(new Date(this.viewStart.getTime() + 15 * 60000)), true);
       return;
     }
     this.onBookNext();
@@ -948,6 +1338,26 @@ export class ServicePlannerComponent implements OnInit {
     );
   }
 
+  private getRelatedSplitEvents(event: SchedulerEvent): SchedulerEvent[] {
+    const entry = this.scheduleEntries.find(candidate => candidate.id === event.id) ?? event.meta?.entry;
+    if (!this.isJobScheduleEntry(entry)) return [event];
+    const splitRootId = this.getSplitRootId(entry);
+    return this.events
+      .filter(candidate => {
+        const candidateEntry = this.scheduleEntries.find(scheduleEntry => scheduleEntry.id === candidate.id) ?? candidate.meta?.entry;
+        return this.isJobScheduleEntry(candidateEntry) && this.getSplitRootId(candidateEntry) === splitRootId;
+      })
+      .sort((first, second) => first.start.getTime() - second.start.getTime() || first.resourceId.localeCompare(second.resourceId));
+  }
+
+  private getSplitRootId(entry: ScheduleEntry): string {
+    const entryAny = entry as ScheduleEntry & { splitRootId?: string; splitParentBookingSetId?: string };
+    if (entryAny.splitRootId) return entryAny.splitRootId;
+    if (entryAny.splitParentBookingSetId) return entryAny.splitParentBookingSetId;
+    const bookingSetId = this.getEntryBookingSetId(entry);
+    return bookingSetId.includes(':split:') ? bookingSetId.split(':split:')[0] : bookingSetId;
+  }
+
   private canSplitEvent(event: SchedulerEvent | undefined): boolean {
     if (!this.isJobEvent(event)) return false;
     const duration = event.end.getTime() - event.start.getTime();
@@ -968,13 +1378,12 @@ export class ServicePlannerComponent implements OnInit {
     return this.bookings.some(candidate => candidate.entryId === booking.entryId) || this.scheduleEntries.some(entry => entry.id === booking.entryId);
   }
 
-  getActivitiesForOrder(_order: any): ActivityTile[] {
-    return this.activityTiles.map(activity => ({
-      ...activity,
-      id: this.getOrderActivityId(_order.id, activity.id),
-      templateId: activity.id,
-      orderId: _order.id,
-    }));
+  getActivitiesForOrder(order: any): ActivityTile[] {
+    return this.getWorkOrderActivityItems(order).map(item => this.toActivityTile(item.source));
+  }
+
+  private hasOrderActivity(order: any, activityTemplateId: string): boolean {
+    return this.getWorkOrderActivityItems(order).some(item => item.templateId === activityTemplateId);
   }
 
   getActivityBooking(activity: ActivityTile, _orderId: string): JobBooking | undefined {
@@ -990,7 +1399,7 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   getActivityFru(activity: ActivityTile): number {
-    return activity.fru;
+    return Number(activity.fru ?? Math.max(0.25, (activity.estimatedDurationMinutes ?? 0) / MINUTES_PER_FRU));
   }
 
   getBookingScheduleSummary(booking: JobBooking): string {
@@ -1002,10 +1411,144 @@ export class ServicePlannerComponent implements OnInit {
   scrollToBookingInAvailabilityView(order: any, booking: JobBooking): void {
     this.selectedPanelOrderId = order.id;
     this.showBookingDetails = false;
-    this.scrollToEventId = null;
+    this.focusPlannerEvent(booking.entryId);
+  }
+
+  openBookingFromSearch(order: any, booking: JobBooking): void {
+    this.selectedPanelOrderId = order.id;
+    this.focusPlannerEvent(booking.entryId, { openDetails: true });
+  }
+
+  isOrderExpanded(order: any): boolean {
+    return this.expandedOrderIds.has(order.id);
+  }
+
+  shouldShowOrderDetails(order: any): boolean {
+    if (!this.isSearchActive) return this.isOrderExpanded(order);
+    return this.isOrderExpanded(order) || this.isOrderSearchRevealed(order) || this.getSearchMatchesForOrder(order).some(match => match.type !== 'order-header');
+  }
+
+  shouldShowJobForSearch(order: any, job: any): boolean {
+    if (!this.isSearchActive || this.isOrderExpanded(order)) return true;
+    return this.getSearchMatchesForOrder(order).some(match =>
+      (match.type === 'job' && match.jobId === job.id) ||
+      (match.type === 'booking-resource' && match.jobId === job.id)
+    );
+  }
+
+  shouldShowActivityForSearch(order: any, activity: ActivityTile): boolean {
+    if (!this.isSearchActive || this.isOrderExpanded(order)) return true;
+    return this.getSearchMatchesForOrder(order).some(match =>
+      (match.type === 'activity' && match.activityId === activity.id) ||
+      (match.type === 'booking-resource' && match.activityId === activity.id)
+    );
+  }
+
+  shouldShowJobsSection(order: any): boolean {
+    if (!this.isSearchActive || this.isOrderExpanded(order)) return true;
+    return this.getSearchMatchesForOrder(order).some(match => match.type === 'job' || (match.type === 'booking-resource' && !!match.jobId));
+  }
+
+  shouldShowActivitySection(order: any): boolean {
+    if (!this.isSearchActive || this.isOrderExpanded(order)) return true;
+    return this.getSearchMatchesForOrder(order).some(match => match.type === 'activity' || (match.type === 'booking-resource' && !!match.activityId));
+  }
+
+  private isOrderSearchRevealed(order: any): boolean {
+    return this.searchRevealedOrderIds.has(order.id);
+  }
+
+  isActiveOrderSearchMatch(order: any): boolean {
+    return this.panelSearchMatches[this.activeSearchResultIndex]?.orderId === order.id;
+  }
+
+  getSearchHighlightParts(value: unknown): SearchHighlightPart[] {
+    const text = String(value ?? '');
+    const query = this.bookingSearchQuery.trim();
+    if (!query) return [{ text, isMatch: false }];
+
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const parts: SearchHighlightPart[] = [];
+    let cursor = 0;
+    let index = lowerText.indexOf(lowerQuery, cursor);
+
+    while (index >= 0) {
+      if (index > cursor) {
+        parts.push({ text: text.slice(cursor, index), isMatch: false });
+      }
+      parts.push({ text: text.slice(index, index + query.length), isMatch: true });
+      cursor = index + query.length;
+      index = lowerText.indexOf(lowerQuery, cursor);
+    }
+
+    if (cursor < text.length) {
+      parts.push({ text: text.slice(cursor), isMatch: false });
+    }
+
+    return parts.length ? parts : [{ text, isMatch: false }];
+  }
+
+  getOrderSearchSummary(order: any): string {
+    const jobs = this.getWorkOrderJobItems(order);
+    const scheduledJobs = jobs.filter(item => this.getEffectiveWorkOrderItemStatus(order, item) === 'scheduled').length;
+    const pendingJobs = Math.max(0, jobs.length - scheduledJobs);
+    const activities = this.getWorkOrderActivityItems(order);
+    const scheduledActivities = activities.filter(item => this.getEffectiveWorkOrderItemStatus(order, item) === 'scheduled').length;
+    return `${jobs.length} jobs | ${scheduledJobs} booked | ${pendingJobs} pending | ${scheduledActivities}/${activities.length} activities`;
+  }
+
+  private revealActiveSearchMatch(): void {
+    const match = this.panelSearchMatches[this.activeSearchResultIndex];
+    if (!match) return;
+    this.searchRevealedOrderIds = new Set([...this.searchRevealedOrderIds, match.orderId]);
     queueMicrotask(() => {
-      this.scrollToEventId = booking.entryId;
+      document.getElementById(`order-panel-card-${match.orderId}`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     });
+  }
+
+  private getSearchMatchesForOrder(order: any, query = this.bookingSearchQuery.trim().toLowerCase()): PanelSearchMatch[] {
+    if (!query) return [];
+    const matches: PanelSearchMatch[] = [];
+    if (this.includesQuery([
+      order.referenceNumber,
+      order.id,
+      order.vehicle?.licensePlate,
+      order.customer?.name,
+    ], query)) {
+      matches.push({ type: 'order-header', orderId: order.id });
+    }
+
+    for (const job of this.getJobsForOrder(order)) {
+      if (this.includesQuery([job.id, job.title, job.description], query)) {
+        matches.push({ type: 'job', orderId: order.id, jobId: job.id });
+      }
+      for (const bookingSet of this.getJobBookingSets(job, order)) {
+        for (const booking of bookingSet.bookings) {
+          if (this.includesQuery([booking.resourceName, booking.entryId, bookingSet.summary], query)) {
+            matches.push({ type: 'booking-resource', orderId: order.id, jobId: job.id, bookingEntryId: booking.entryId });
+          }
+        }
+      }
+    }
+
+    for (const activity of this.getActivitiesForOrder(order)) {
+      if (this.includesQuery([activity.id, activity.title, activity.resourceLabel], query)) {
+        matches.push({ type: 'activity', orderId: order.id, activityId: activity.id });
+      }
+      const booking = this.getActivityBooking(activity, order.id);
+      if (booking && this.includesQuery([booking.resourceName, booking.entryId, this.getBookingScheduleSummary(booking)], query)) {
+        matches.push({ type: 'booking-resource', orderId: order.id, activityId: activity.id, bookingEntryId: booking.entryId });
+      }
+    }
+
+    return matches;
+  }
+
+  private includesQuery(values: unknown[], query: string): boolean {
+    return [
+      ...values,
+    ].filter(Boolean).join(' ').toLowerCase().includes(query);
   }
 
   private formatOrderScheduleDateTime(value: Date): string {
@@ -1024,11 +1567,6 @@ export class ServicePlannerComponent implements OnInit {
     if (hours && minutes) return `${hours}hr ${minutes}min`;
     if (hours) return `${hours}hr`;
     return `${minutes}min`;
-  }
-
-  private hasExistingScheduledEntriesForOrder(order: any): boolean {
-    const entries = this.getExistingScheduleEntriesForOrder(order);
-    return entries.length > 0 && entries.every(entry => entry.kind === 'blocked-order' || entry.kind === 'scheduled');
   }
 
   private getExistingScheduleEntriesForOrder(order: any): ScheduleEntry[] {
@@ -1091,6 +1629,7 @@ export class ServicePlannerComponent implements OnInit {
       ...this.scheduleEntries.filter(candidate => candidate.id !== entry.id),
       entry,
     ];
+    this.refreshWorkOrderItemStatusForEntry(entry);
   }
 
   private updateScheduleEntryTimes(entryId: string, start: Date, end: Date): void {
@@ -1111,6 +1650,48 @@ export class ServicePlannerComponent implements OnInit {
         ? { ...event, meta: { ...(event.meta ?? {}), entry: { ...(event.meta?.entry as ScheduleEntry), ...changes } } }
         : event
     );
+  }
+
+  private refreshWorkOrderItemStatusForEntry(entry: ScheduleEntry | undefined): void {
+    if (!entry) return;
+    const order = this.findOrderForScheduleEntry(entry);
+    if (!order) return;
+    const category = entry.workorderItemCategory ?? (this.isActivityScheduleEntry(entry) ? 'activity' : 'job');
+    const status = this.hasRemainingEntryForWorkOrderItem(order, entry, category) ? 'scheduled' : 'unscheduled';
+    this.setWorkOrderItemExecutionStatus(order, entry.jobId, category, status);
+  }
+
+  private refreshWorkOrderItemStatusesForEntries(entries: ScheduleEntry[]): void {
+    entries.forEach(entry => this.refreshWorkOrderItemStatusForEntry(entry));
+  }
+
+  private hasRemainingEntryForWorkOrderItem(order: any, entry: ScheduleEntry, category: 'job' | 'activity'): boolean {
+    return this.scheduleEntries.some(candidate => {
+      const candidateCategory = candidate.workorderItemCategory ?? (this.isActivityScheduleEntry(candidate) ? 'activity' : 'job');
+      if (candidateCategory !== category) return false;
+      if (category === 'activity') {
+        return this.getActivityTemplateId(candidate.jobId) === this.getActivityTemplateId(entry.jobId) && candidate.workOrderReference === order.referenceNumber;
+      }
+      return candidate.jobId === entry.jobId && this.findOrderForScheduleEntry(candidate)?.id === order.id;
+    });
+  }
+
+  private setWorkOrderItemExecutionStatus(order: any, itemId: string, category: 'job' | 'activity', status: CanonicalWorkOrderItemStatus): void {
+    const templateId = this.getActivityTemplateId(itemId);
+    order.jobs = (order.jobs ?? []).map((job: any) => {
+      const isTarget = category === 'activity'
+        ? this.getActivityTemplateId(job.templateId ?? job.id) === templateId
+        : job.id === itemId;
+      return isTarget ? { ...job, status, workorderItemStatus: status } : job;
+    });
+  }
+
+  private findOrderForScheduleEntry(entry: ScheduleEntry): any | undefined {
+    if (entry.workOrderReference) {
+      const byReference = this.allOrders.find(order => order.referenceNumber === entry.workOrderReference || order.id === entry.workOrderReference);
+      if (byReference) return byReference;
+    }
+    return this.allOrders.find(order => order.jobs?.some((job: any) => job.id === entry.jobId));
   }
 
   private getOccupyingEntriesForProposal(targetOrder: any | undefined): ScheduleEntry[] {
@@ -1161,6 +1742,7 @@ export class ServicePlannerComponent implements OnInit {
     entryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
     this.scheduleEntries = this.scheduleEntries.filter(entry => !entryIds.has(entry.id));
     this.events = this.events.filter(event => !entryIds.has(event.id));
+    this.refreshWorkOrderItemStatusesForEntries(entries);
     this.unavailability = this.unavailability.filter(block =>
       !entries.some(entry =>
         block.kind === 'blocked-order' &&
@@ -1226,6 +1808,16 @@ export class ServicePlannerComponent implements OnInit {
   onEventDropped(payload: EventDropPayload): void {
     this.isAutoProposalVisible = false;
     const activeOrderId = payload.orderId ?? this.getOrderIdForJob(payload.jobId) ?? this.getActiveWorkOrderId() ?? undefined;
+    if (payload.dropType === 'order' && activeOrderId) {
+      this.selectedPanelOrderId = activeOrderId;
+      this.restoreProposalStateForOrder(activeOrderId);
+      this.applyProposal(payload.start, true, false, {
+        orderId: activeOrderId,
+        preferredResourceIds: [payload.resourceId],
+      });
+      return;
+    }
+
     const activityTemplateId = this.getActivityTemplateId(payload.jobId);
     let start = payload.start;
     let end = payload.end;
@@ -1326,7 +1918,7 @@ export class ServicePlannerComponent implements OnInit {
         this.syncOrderAppointmentFromBookings(activeOrderId);
       }
 
-      // Business rule: when mobility is dropped, snap its span to check-in end→handover end if both booked
+      // Business rule: when mobility is dropped, snap its span to check-in endâ†’handover end if both booked
       if (activityTemplateId === 'act-mobility') {
         const span = this.getMobilitySpan(activeOrderId);
         if (span) {
@@ -1343,6 +1935,7 @@ export class ServicePlannerComponent implements OnInit {
 
   onUndoBooking(booking: JobBooking): void {
     const event = this.events.find(candidate => candidate.id === booking.entryId);
+    const removedEntry = event?.meta?.entry as ScheduleEntry | undefined;
     if (event?.resourceId && this.plannerMode === 'order') {
       this.pinVisibleResource(event.resourceId);
     }
@@ -1350,10 +1943,36 @@ export class ServicePlannerComponent implements OnInit {
       this.events = this.events.filter(e => e.id !== booking.entryId);
       this.scheduleEntries = this.scheduleEntries.filter(entry => entry.id !== booking.entryId);
       this.latestAutoBookingEntryIds.delete(booking.entryId);
+      this.refreshWorkOrderItemStatusForEntry(removedEntry);
       if (this.latestAutoBookingEntryIds.size === 0) {
         this.isAutoProposalVisible = false;
       }
     });
+  }
+
+  onUndoOrderBooking(order: any): void {
+    const orderBookings = this.bookings.filter(booking => booking.orderId === order.id);
+    if (!orderBookings.length) return;
+
+    const latestOrderAutoEntryIds = [...this.latestAutoBookingEntryIds].filter(entryId =>
+      orderBookings.some(booking => booking.entryId === entryId)
+    );
+    if (latestOrderAutoEntryIds.length) {
+      const removedEntries = this.scheduleEntries.filter(entry => latestOrderAutoEntryIds.includes(entry.id));
+      latestOrderAutoEntryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
+      const entryIds = new Set(latestOrderAutoEntryIds);
+      this.events = this.events.filter(event => !entryIds.has(event.id));
+      this.scheduleEntries = this.scheduleEntries.filter(entry => !entryIds.has(entry.id));
+      latestOrderAutoEntryIds.forEach(entryId => this.latestAutoBookingEntryIds.delete(entryId));
+      this.refreshWorkOrderItemStatusesForEntries(removedEntries);
+      if (this.latestAutoBookingEntryIds.size === 0) {
+        this.isAutoProposalVisible = false;
+      }
+      return;
+    }
+
+    const lastBooking = orderBookings[orderBookings.length - 1];
+    this.onUndoBooking(lastBooking);
   }
 
   private pinVisibleResource(resourceId: string): void {
@@ -1397,10 +2016,10 @@ export class ServicePlannerComponent implements OnInit {
     siblings.forEach((sibling, index) => {
       const originalEnd = new Date(sibling.end);
       const originalStart = new Date(sibling.start);
-      const normalizedSibling = { ...sibling, bookingSetId: originalSetId };
+      const normalizedSibling = { ...sibling, bookingSetId: originalSetId, splitRootId: originalSetId };
 
       this.scheduleRepo.reschedule(sibling.id, originalStart, midpoint).subscribe(updated => {
-        const firstHalf = { ...updated, bookingSetId: originalSetId };
+        const firstHalf = { ...updated, bookingSetId: originalSetId, splitRootId: originalSetId, splitSequence: 1 };
         this.events = this.events.map(candidate =>
           candidate.id === sibling.id
             ? {
@@ -1419,10 +2038,19 @@ export class ServicePlannerComponent implements OnInit {
           start: new Date(midpoint),
           end: originalEnd,
           bookingSetId: splitSetId,
+          splitRootId: originalSetId,
+          splitParentBookingSetId: originalSetId,
+          splitSequence: 2,
         };
 
         this.scheduleRepo.assign(secondHalf).subscribe(assigned => {
-          const assignedEntry = { ...assigned, bookingSetId: splitSetId };
+          const assignedEntry = {
+            ...assigned,
+            bookingSetId: splitSetId,
+            splitRootId: originalSetId,
+            splitParentBookingSetId: originalSetId,
+            splitSequence: 2,
+          };
           const sourceEvent = this.events.find(candidate => candidate.id === sibling.id) ?? event;
           if (!sourceEvent) return;
           this.events = [
@@ -1447,8 +2075,8 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   onBookFirstAvailability(): void {
-    const searchFrom = new Date(this.viewStart.getFullYear(), this.viewStart.getMonth(),
-                                this.viewStart.getDate(), 9, 30, 0, 0);
+    const searchFrom = this.getBookableSearchStart(new Date(this.viewStart.getFullYear(), this.viewStart.getMonth(),
+                                this.viewStart.getDate(), 9, 30, 0, 0));
     // Reset history
     this.proposalHistory = [];
     this.proposalEndHistory = [];
@@ -1461,7 +2089,7 @@ export class ServicePlannerComponent implements OnInit {
     const currentProposalEnd = this.proposalEndHistory[this.currentProposalIndex]
       ?? this.proposalHistory[this.currentProposalIndex];
     // Advance by 15 min from the current proposal end to find the next distinct slot
-    const nextSearchFrom = new Date(currentProposalEnd.getTime() + 15 * 60000);
+    const nextSearchFrom = this.getBookableSearchStart(new Date(currentProposalEnd.getTime() + 15 * 60000));
     this.applyProposal(nextSearchFrom, false);
   }
 
@@ -1473,13 +2101,19 @@ export class ServicePlannerComponent implements OnInit {
     this.applyProposal(searchFrom, false, true);
   }
 
-  private applyProposal(searchFrom: Date, resetHistory: boolean, isReplay = false): void {
-    const targetWorkOrderId = this.getActiveWorkOrderId();
+  private applyProposal(
+    searchFrom: Date,
+    resetHistory: boolean,
+    isReplay = false,
+    options: { orderId?: string; preferredResourceIds?: string[] } = {},
+  ): void {
+    searchFrom = this.getBookableSearchStart(searchFrom);
+    const targetWorkOrderId = options.orderId ?? this.getActiveWorkOrderId();
     const unscheduledTiles = this.jobTiles.filter(t => t.workOrder.id === targetWorkOrderId);
     const targetOrder = this.allOrders.find(order => order.id === targetWorkOrderId);
     const unscheduledJobs = unscheduledTiles.length
       ? unscheduledTiles.map(t => t.job)
-      : targetOrder?.jobs ?? [];
+      : targetOrder ? this.getJobsForOrder(targetOrder) : [];
     if (unscheduledJobs.length === 0) return;
 
     const rawResources = this.bookingEligibleResources.map(r => r.meta as Resource).filter(Boolean);
@@ -1494,6 +2128,7 @@ export class ServicePlannerComponent implements OnInit {
     const result = this.autoScheduler.schedule({
       jobs: unscheduledJobs,
       resources: rawResources,
+      preferredResourceIds: options.preferredResourceIds ?? [],
       existingEntries,
       unavailability: this.unavailability,
       searchFrom,
@@ -1579,14 +2214,22 @@ export class ServicePlannerComponent implements OnInit {
         this.upsertScheduleEntry(assigned);
         this.latestAutoBookingEntryIds.add(assigned.id);
         if (assigned.id === scrollTargetEntryId) {
-          this.scrollToEventId = assigned.id;
+          this.focusPlannerEvent(assigned.id);
         }
       });
     });
 
-    this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-checkin'),  checkinAdvisor,  checkinStart,  checkinEnd, targetWorkOrderId ?? undefined);
-    this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-handover'), handoverAdvisor, handoverStart, handoverEnd, targetWorkOrderId ?? undefined);
-    this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-mobility'), mobilityDriver,  checkinEnd,  handoverEnd, targetWorkOrderId ?? undefined);
+    if (targetOrder) {
+      if (this.hasOrderActivity(targetOrder, 'act-checkin')) {
+        this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-checkin'), checkinAdvisor, checkinStart, checkinEnd, targetWorkOrderId ?? undefined);
+      }
+      if (this.hasOrderActivity(targetOrder, 'act-handover')) {
+        this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-handover'), handoverAdvisor, handoverStart, handoverEnd, targetWorkOrderId ?? undefined);
+      }
+      if (this.hasOrderActivity(targetOrder, 'act-mobility')) {
+        this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-mobility'), mobilityDriver, checkinEnd, handoverEnd, targetWorkOrderId ?? undefined);
+      }
+    }
     if (targetWorkOrderId) {
       this.syncOrderAppointment(targetWorkOrderId, checkinStart, handoverEnd);
     }
@@ -1644,10 +2287,11 @@ export class ServicePlannerComponent implements OnInit {
       .filter(event => this.isEventForActiveWorkOrder(event))
       .sort((first, second) => first.start.getTime() - second.start.getTime())[0];
     if (!firstBooking) return;
-    this.scrollToEventId = null;
-    queueMicrotask(() => {
-      this.scrollToEventId = firstBooking.id;
-    });
+    this.focusPlannerEvent(firstBooking.id);
+  }
+
+  private getBookableSearchStart(candidate: Date): Date {
+    return candidate < this.mockCurrentTime ? new Date(this.mockCurrentTime) : new Date(candidate);
   }
 
   private isEventForActiveWorkOrder(event: SchedulerEvent): boolean {
@@ -1766,6 +2410,9 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   private clearCurrentBookings(orderId?: string): void {
+    const removedEntries = this.scheduleEntries.filter(entry =>
+      this.bookings.some(booking => booking.entryId === entry.id && (!orderId || booking.orderId === orderId))
+    );
     const autoEntryIds = new Set(
       this.bookings
         .filter(booking => !orderId || booking.orderId === orderId)
@@ -1774,6 +2421,7 @@ export class ServicePlannerComponent implements OnInit {
     autoEntryIds.forEach(id => this.scheduleRepo.unassign(id).subscribe());
     this.events = this.events.filter(e => !autoEntryIds.has(e.id));
     this.scheduleEntries = this.scheduleEntries.filter(entry => !autoEntryIds.has(entry.id));
+    this.refreshWorkOrderItemStatusesForEntries(removedEntries);
     for (const entryId of autoEntryIds) {
       this.latestAutoBookingEntryIds.delete(entryId);
     }
@@ -1901,7 +2549,7 @@ export class ServicePlannerComponent implements OnInit {
         && !this.unavailability.some(u => u.resourceId === resourceId && overlaps(start, end, u.start, u.end));
   }
 
-  /** Called by the ribbon Undo button — removes the most recently added booking */
+  /** Called by the ribbon Undo button â€” removes the most recently added booking */
   private undoLastBooking(): void {
     if (this.bookings.length === 0) return;
 
@@ -1910,11 +2558,13 @@ export class ServicePlannerComponent implements OnInit {
       const entryIds = [...this.latestAutoBookingEntryIds].filter(entryId =>
         !activeOrderId || this.isScheduleEntryForOrder(entryId, activeOrderId)
       );
+      const removedEntries = this.scheduleEntries.filter(entry => entryIds.includes(entry.id));
       entryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
       const entryIdSet = new Set(entryIds);
       this.events = this.events.filter(e => !entryIdSet.has(e.id));
       this.scheduleEntries = this.scheduleEntries.filter(entry => !entryIdSet.has(entry.id));
       entryIds.forEach(entryId => this.latestAutoBookingEntryIds.delete(entryId));
+      this.refreshWorkOrderItemStatusesForEntries(removedEntries);
       this.isAutoProposalVisible = false;
       return;
     }
@@ -1939,7 +2589,7 @@ export class ServicePlannerComponent implements OnInit {
     return !!entryReference && !!order?.referenceNumber && entryReference === order.referenceNumber;
   }
 
-  /** Returns the span [check-in end → handover end] if both are booked, else null */
+  /** Returns the span [check-in end â†’ handover end] if both are booked, else null */
   private getMobilitySpan(orderId?: string): { start: Date; end: Date } | null {
     const checkinActivityId = this.getOrderActivityId(orderId, 'act-checkin');
     const handoverActivityId = this.getOrderActivityId(orderId, 'act-handover');

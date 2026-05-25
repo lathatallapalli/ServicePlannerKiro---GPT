@@ -1,7 +1,7 @@
 import { ResourceType, Qualification } from './resource.model';
 
 export type JobStatus = 'unscheduled' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
-export type WorkorderItemStatus = 'scheduled' | 'started' | 'completed';
+export type WorkorderItemStatus = JobStatus | 'started';
 export type WorkorderItemCategory = 'job' | 'activity';
 
 export interface JobResourceRequirement {
@@ -25,6 +25,8 @@ export interface Job {
   status: JobStatus;
   workorderItemStatus?: WorkorderItemStatus;
   workorderItemCategory?: WorkorderItemCategory;
+  templateId?: string;
+  resourceLabel?: string;
   assignedResourceId?: string;
   scheduledStart?: Date;
   scheduledEnd?: Date;

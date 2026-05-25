@@ -83,6 +83,40 @@ export const MOCK_RESOURCES: Resource[] = [
 ];
 
 const baseDate = new Date('2024-04-10');
+const mockCurrentTime = new Date('2024-04-15T09:00:00');
+
+const getTimedExecutionStatus = (start: Date, end: Date) => {
+  if (end <= mockCurrentTime) return 'completed' as const;
+  if (start <= mockCurrentTime && mockCurrentTime < end) return 'in-progress' as const;
+  return 'scheduled' as const;
+};
+
+const defaultActivityItems = [
+  { templateId: 'act-checkin', title: 'Check-In', resourceType: 'advisor' as const, resourceLabel: 'Service Advisor', fru: 0.5, estimatedDurationMinutes: 30 },
+  { templateId: 'act-handover', title: 'Handover', resourceType: 'advisor' as const, resourceLabel: 'Service Advisor', fru: 0.5, estimatedDurationMinutes: 30 },
+];
+
+const optionalActivityItems = [
+  { templateId: 'act-mobility', title: 'Mobility Service', resourceType: 'driver' as const, resourceLabel: 'Courtesy Car', fru: 1, estimatedDurationMinutes: 60 },
+];
+
+const orderLifecycleScenarios: Record<string, {
+  status: WorkOrder['status'];
+  workflowState: NonNullable<WorkOrder['workflowState']>;
+}> = {
+  '014826455': { status: 'new', workflowState: 'request' },
+  '014826312': { status: 'edit', workflowState: 'offer' },
+  '014826500': { status: 'preparation', workflowState: 'preparation' },
+  '014826501': { status: 'preparation', workflowState: 'preparation' },
+  '014826502': { status: 'preparation', workflowState: 'preparation' },
+  '014826503': { status: 'preparation', workflowState: 'checkin' },
+  '014826504': { status: 'preparation', workflowState: 'preparation' },
+  '014826505': { status: 'preparation', workflowState: 'execution' },
+  '014826506': { status: 'preparation', workflowState: 'preparation' },
+  '014826507': { status: 'preparation', workflowState: 'preparation' },
+  '014826508': { status: 'preparation', workflowState: 'preparation' },
+  '014826509': { status: 'preparation', workflowState: 'preparation' },
+};
 
 const defaultBackgroundJobRequirements: JobResourceRequirement[] = [
   { resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' },
@@ -339,10 +373,16 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
 ];
 
 export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
-  { id: 'sch-bg-1002-phil-1', jobId: 'job-wo-bg-1002-1', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T10:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-bay-1', jobId: 'job-wo-bg-1002-1', resourceId: 'bay-pc-2', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T10:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-phil-2', jobId: 'job-wo-bg-1002-2', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:00:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-bay-2', jobId: 'job-wo-bg-1002-2', resourceId: 'bay-pc-2', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:00:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1001-frank-checkin', jobId: 'wo-bg-1001:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T09:00:00'), end: new Date('2024-04-15T09:30:00'), title: 'Check-In 014826500', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
+  { id: 'sch-bg-1001-mark-1', jobId: 'job-wo-bg-1001-1', resourceId: 'mech-mark-owen', start: new Date('2024-04-15T09:30:00'), end: new Date('2024-04-15T10:15:00'), title: 'Oil Leak Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
+  { id: 'sch-bg-1001-bay-1', jobId: 'job-wo-bg-1001-1', resourceId: 'bay-pc-1', start: new Date('2024-04-15T09:30:00'), end: new Date('2024-04-15T10:15:00'), title: 'Oil Leak Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
+  { id: 'sch-bg-1001-mark-2', jobId: 'job-wo-bg-1001-2', resourceId: 'mech-mark-owen', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T10:45:00'), title: 'Engine Bay Inspection', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
+  { id: 'sch-bg-1001-bay-2', jobId: 'job-wo-bg-1001-2', resourceId: 'bay-pc-1', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T10:45:00'), title: 'Engine Bay Inspection', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
+  { id: 'sch-bg-1001-frank-handover', jobId: 'wo-bg-1001:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:15:00'), title: 'Handover 014826500', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
+  { id: 'sch-bg-1002-phil-1', jobId: 'job-wo-bg-1002-1', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T11:15:00'), end: new Date('2024-04-15T11:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-bay-1', jobId: 'job-wo-bg-1002-1', resourceId: 'bay-pc-2', start: new Date('2024-04-15T11:15:00'), end: new Date('2024-04-15T11:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-phil-2', jobId: 'job-wo-bg-1002-2', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T11:45:00'), end: new Date('2024-04-15T12:00:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-bay-2', jobId: 'job-wo-bg-1002-2', resourceId: 'bay-pc-2', start: new Date('2024-04-15T11:45:00'), end: new Date('2024-04-15T12:00:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
   { id: 'sch-bg-1003-greg-1', jobId: 'job-wo-bg-1003-1', resourceId: 'mech-greg-jackson', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T14:15:00'), title: 'Air Conditioning Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
   { id: 'sch-bg-1003-bay-1', jobId: 'job-wo-bg-1003-1', resourceId: 'bay-pc-3', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T14:15:00'), title: 'Air Conditioning Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
   { id: 'sch-bg-1003-greg-2', jobId: 'job-wo-bg-1003-2', resourceId: 'mech-greg-jackson', start: new Date('2024-04-15T14:15:00'), end: new Date('2024-04-15T14:30:00'), title: 'Cabin Filter Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
@@ -372,9 +412,9 @@ export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
   { id: 'sch-bg-1010-bay-1', jobId: 'job-wo-bg-1010-1', resourceId: 'bay-pc-1', start: new Date('2024-04-16T16:15:00'), end: new Date('2024-04-16T17:00:00'), title: 'Seat Heating Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
   { id: 'sch-bg-1010-kelly-2', jobId: 'job-wo-bg-1010-2', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-16T17:00:00'), end: new Date('2024-04-16T17:30:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
   { id: 'sch-bg-1010-bay-2', jobId: 'job-wo-bg-1010-2', resourceId: 'bay-pc-1', start: new Date('2024-04-16T17:00:00'), end: new Date('2024-04-16T17:30:00'), title: 'Interior Trim Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826509' },
-  { id: 'sch-bg-1002-frank-checkin', jobId: 'wo-bg-1002:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T09:45:00'), end: new Date('2024-04-15T10:15:00'), title: 'Check-In 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-frank-handover', jobId: 'wo-bg-1002:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T11:00:00'), end: new Date('2024-04-15T11:30:00'), title: 'Handover 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
-  { id: 'sch-bg-1002-courtesy', jobId: 'wo-bg-1002:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T11:30:00'), title: 'Courtesy Car 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-frank-checkin', jobId: 'wo-bg-1002:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:15:00'), title: 'Check-In 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-frank-handover', jobId: 'wo-bg-1002:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T12:00:00'), end: new Date('2024-04-15T12:30:00'), title: 'Handover 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
+  { id: 'sch-bg-1002-courtesy', jobId: 'wo-bg-1002:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-04-15T11:15:00'), end: new Date('2024-04-15T12:30:00'), title: 'Courtesy Car 014826501', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
   { id: 'sch-bg-1003-ted-checkin', jobId: 'wo-bg-1003:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T13:00:00'), end: new Date('2024-04-15T13:30:00'), title: 'Check-In 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
   { id: 'sch-bg-1003-ted-handover', jobId: 'wo-bg-1003:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Handover 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
   { id: 'sch-bg-1003-courtesy', jobId: 'wo-bg-1003:act-mobility', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Courtesy Car 014826502', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
@@ -402,38 +442,184 @@ export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
 ];
 
 MOCK_WORK_ORDERS.forEach(order => {
-  order.workflowState ??= order.status === 'handover'
-    ? 'handover'
-    : order.status === 'follow-up'
-      ? 'followup'
-      : order.status === 'preparation'
-        ? 'preparation'
-        : 'offer';
+  const scheduledActivityTemplateIds = new Set(
+    MOCK_SCHEDULE_ENTRIES
+      .filter(entry => entry.workOrderReference === order.referenceNumber && entry.jobId.includes(':act-'))
+      .map(entry => entry.jobId.split(':').pop() ?? entry.jobId)
+  );
+  const activityDefinitions = [
+    ...defaultActivityItems,
+    ...optionalActivityItems.filter(activity => scheduledActivityTemplateIds.has(activity.templateId)),
+  ];
+  const existingActivityTemplateIds = new Set(
+    order.jobs
+      .filter(job => job.workorderItemCategory === 'activity' || job.id.includes(':act-'))
+      .map(job => job.templateId ?? job.id.split(':').pop() ?? job.id)
+  );
+
+  for (const activity of activityDefinitions) {
+    if (existingActivityTemplateIds.has(activity.templateId)) continue;
+    order.jobs.push({
+      id: `${order.id}:${activity.templateId}`,
+      workOrderId: order.id,
+      title: activity.title,
+      fru: activity.fru,
+      estimatedDurationMinutes: activity.estimatedDurationMinutes,
+      requiredResourceType: activity.resourceType,
+      requiredQualifications: [],
+      resourceRequirements: [{ resourceType: activity.resourceType, requiredQualifications: [], label: activity.resourceLabel }],
+      resourceLabel: activity.resourceLabel,
+      status: 'unscheduled',
+      workorderItemStatus: 'unscheduled',
+      workorderItemCategory: 'activity',
+      templateId: activity.templateId,
+    });
+  }
+});
+
+MOCK_WORK_ORDERS.forEach(order => {
+  const scenario = orderLifecycleScenarios[order.referenceNumber];
+  if (scenario) {
+    order.status = scenario.status;
+    order.workflowState = scenario.workflowState;
+  } else {
+    order.workflowState ??= order.status === 'handover'
+      ? 'handover'
+      : order.status === 'follow-up' || order.status === 'complete'
+        ? 'followup'
+        : order.status === 'preparation'
+          ? 'preparation'
+          : 'offer';
+  }
 
   order.jobs.forEach(job => {
     job.workorderItemCategory ??= 'job';
-    job.workorderItemStatus ??= job.status === 'completed'
-      ? 'completed'
-      : job.status === 'in-progress'
-        ? 'started'
-        : 'scheduled';
+    job.workorderItemStatus ??= job.status;
   });
 });
+
+const workOrderByReference = new Map(MOCK_WORK_ORDERS.map(order => [order.referenceNumber, order]));
+const workOrderByJobId = new Map(MOCK_WORK_ORDERS.flatMap(order => order.jobs.map(job => [job.id, order])));
+const jobStatusById = new Map<string, 'unscheduled' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled'>();
+
+MOCK_SCHEDULE_ENTRIES
+  .filter(entry => !entry.jobId.includes(':act-'))
+  .forEach(entry => {
+    const currentStatus = jobStatusById.get(entry.jobId);
+    const timedStatus = getTimedExecutionStatus(entry.start, entry.end);
+    if (currentStatus === 'in-progress' || timedStatus === 'in-progress') {
+      jobStatusById.set(entry.jobId, 'in-progress');
+    } else if (currentStatus === 'scheduled' || timedStatus === 'scheduled') {
+      jobStatusById.set(entry.jobId, 'scheduled');
+    } else {
+      jobStatusById.set(entry.jobId, 'completed');
+    }
+  });
+
+MOCK_WORK_ORDERS.forEach(order => {
+  order.jobs.forEach(job => {
+    const status = jobStatusById.get(job.id) ?? job.status;
+    job.status = status;
+    job.workorderItemStatus = status;
+  });
+
+  const statuses = order.jobs.map(job => job.workorderItemStatus ?? job.status);
+  const hasTimedBooking = order.jobs.some(job => jobStatusById.has(job.id));
+  if (hasTimedBooking) {
+    if (statuses.some(status => status === 'in-progress')) {
+      order.workflowState = 'execution';
+    } else if (statuses.length > 0 && statuses.every(status => status === 'completed')) {
+      order.workflowState = 'handover';
+      order.status = 'handover';
+    } else if (statuses.some(status => status === 'scheduled' || status === 'completed')) {
+      order.workflowState = 'preparation';
+      order.status = 'preparation';
+    }
+  }
+});
+
+const getActivityStatusForOrder = (order: WorkOrder | undefined, activityId: string) => {
+  const templateId = activityId.split(':').pop();
+  if (!order) return 'scheduled' as const;
+  if (templateId === 'act-checkin') return getTimedExecutionStatusFromActivity(order, 'act-checkin');
+  if (templateId === 'act-handover') {
+    return getTimedExecutionStatusFromActivity(order, 'act-handover');
+  }
+  if (templateId === 'act-mobility') return getTimedExecutionStatusFromActivity(order, 'act-mobility');
+  return 'scheduled' as const;
+};
+
+function getTimedExecutionStatusFromActivity(order: WorkOrder, activityTemplateId: string) {
+  const entry = MOCK_SCHEDULE_ENTRIES.find(candidate =>
+    candidate.workOrderReference === order.referenceNumber && candidate.jobId.endsWith(`:${activityTemplateId}`)
+  );
+  return entry ? getTimedExecutionStatus(entry.start, entry.end) : 'unscheduled' as const;
+}
 
 MOCK_SCHEDULE_ENTRIES.forEach(entry => {
   const title = (entry.title ?? '').toLowerCase();
   if (title.startsWith('check-in') || title.startsWith('handover')) {
     entry.end = new Date(entry.start.getTime() + 30 * 60000);
   }
-  entry.workorderItemStatus ??= 'scheduled';
   entry.workorderItemCategory ??= title.startsWith('check-in') ||
     title.startsWith('handover') ||
     title.startsWith('courtesy car')
       ? 'activity'
       : 'job';
+  const order = entry.workOrderReference ? workOrderByReference.get(entry.workOrderReference) : undefined;
+  entry.workorderItemStatus = entry.workorderItemCategory === 'activity'
+    ? getActivityStatusForOrder(order, entry.jobId)
+    : jobStatusById.get(entry.jobId) ?? 'scheduled';
   if (entry.workorderItemCategory === 'job') {
     entry.bookingSetId ??= `${entry.workOrderReference ?? ''}:${entry.jobId}:${entry.start.getTime()}-${entry.end.getTime()}`;
   }
+});
+
+MOCK_WORK_ORDERS.forEach(order => {
+  order.jobs.forEach(item => {
+    if (item.workorderItemCategory !== 'activity') return;
+    const templateId = item.templateId ?? item.id.split(':').pop() ?? item.id;
+    const entry = MOCK_SCHEDULE_ENTRIES.find(candidate =>
+      candidate.workOrderReference === order.referenceNumber && candidate.jobId.endsWith(`:${templateId}`)
+    );
+    const status = entry?.workorderItemStatus ?? 'unscheduled';
+    item.status = status === 'started' ? 'in-progress' : status;
+    item.workorderItemStatus = item.status;
+  });
+});
+
+MOCK_WORK_ORDERS.forEach(order => {
+  const entries = MOCK_SCHEDULE_ENTRIES.filter(entry => entry.workOrderReference === order.referenceNumber);
+  if (!entries.length) return;
+
+  const inProgressEntry = entries.find(entry => entry.workorderItemStatus === 'in-progress');
+  if (inProgressEntry) {
+    const activityTemplateId = inProgressEntry.jobId.split(':').pop();
+    order.workflowState = activityTemplateId === 'act-checkin'
+      ? 'checkin'
+      : activityTemplateId === 'act-handover'
+        ? 'handover'
+        : 'execution';
+    order.status = order.workflowState === 'handover' ? 'handover' : 'preparation';
+    return;
+  }
+
+  const handoverEntry = entries.find(entry => entry.jobId.endsWith(':act-handover'));
+  if (handoverEntry?.workorderItemStatus === 'completed') {
+    order.workflowState = 'followup';
+    order.status = 'complete';
+    return;
+  }
+
+  const checkinEntry = entries.find(entry => entry.jobId.endsWith(':act-checkin'));
+  if (checkinEntry?.workorderItemStatus === 'completed') {
+    order.workflowState = 'execution';
+    order.status = 'preparation';
+    return;
+  }
+
+  order.workflowState = 'preparation';
+  order.status = 'preparation';
 });
 
 export const MOCK_UNAVAILABILITY: UnavailabilityBlock[] = [
