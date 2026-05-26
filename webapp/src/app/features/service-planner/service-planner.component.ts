@@ -195,6 +195,7 @@ export class ServicePlannerComponent implements OnInit {
   viewStart = new Date('2024-04-15T09:00:00');
   viewEnd   = new Date('2024-04-15T21:00:00');
   selectedMonthPreviewDate: Date | null = null;
+  private nextViewModeAnchor: Date | null = null;
 
   get slotDurationMinutes(): number {
     return this.plannerSettings.slotDurationMinutes();
@@ -297,9 +298,8 @@ export class ServicePlannerComponent implements OnInit {
 
   openSelectedMonthPreviewInDayView(): void {
     if (!this.selectedMonthPreviewDate) return;
+    this.nextViewModeAnchor = new Date(this.selectedMonthPreviewDate);
     this.plannerSettings.setViewMode('day');
-    this.setViewWindowForMode('day', this.selectedMonthPreviewDate);
-    this.reloadScheduleEntries();
   }
 
   getMonthPreviewEventStyle(event: SchedulerEvent): Record<string, string> {
@@ -551,10 +551,13 @@ export class ServicePlannerComponent implements OnInit {
     });
     effect(() => {
       const mode = this.plannerSettings.viewMode();
+      const anchor = this.nextViewModeAnchor ?? this.mockCurrentTime;
+      this.nextViewModeAnchor = null;
       if (mode === 'month') {
         this.isOrderPanelOpen = false;
+        this.selectedMonthPreviewDate = new Date(this.mockCurrentTime);
       }
-      this.setViewWindowForMode(mode, this.viewStart);
+      this.setViewWindowForMode(mode, anchor);
       if (this.isPlannerReady) {
         this.reloadScheduleEntries();
       }

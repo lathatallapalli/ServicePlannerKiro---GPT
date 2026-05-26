@@ -50,8 +50,8 @@
   <main class="service-planner__main" style="display:flex;flex:1 1 auto;min-width:0;min-height:0;height:100%;overflow:hidden">
   @if (plannerViewMode === 'month') {
     <section class="month-overview" aria-label="Month planner overview">
-      <header class="month-overview__header">
-        <div>
+      <div class="month-overview__body">
+        <div class="month-overview__calendar">
           <div class="month-overview__title-row" aria-label="Month navigation">
             <button type="button" class="month-overview__nav-button" aria-label="Previous month" (click)="goToPreviousMonth()">
               <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
@@ -65,10 +65,6 @@
               </svg>
             </button>
           </div>
-        </div>
-      </header>
-      <div class="month-overview__body">
-        <div class="month-overview__calendar">
           <div class="month-overview__weekdays" aria-hidden="true">
             <span>Mon</span>
             <span>Tue</span>

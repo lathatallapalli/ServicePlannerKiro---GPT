@@ -29,23 +29,7 @@
   box-sizing: border-box;
 }
 
-.month-overview__header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  padding-bottom: 4px;
-}
-
-.month-overview__eyebrow {
-  margin: 0;
-  color: var(--Text-text-secondary, #525252);
-  font-size: 12px;
-  line-height: 16px;
-  letter-spacing: .32px;
-}
-
-.month-overview__header h2 {
+.month-overview__title-row h2 {
   margin: 0;
   font-size: 28px;
   font-weight: 400;
@@ -53,7 +37,7 @@
 }
 
 .month-overview__title-row {
-  margin-top: 4px;
+  margin-bottom: 8px;
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -97,6 +81,7 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow: auto;
+  order: 2;
 }
 
 .month-overview__weekdays {

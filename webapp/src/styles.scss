@@ -138,6 +138,7 @@ app-root {
 .month-preview {
   flex: 0 0 min(560px, 44vw);
   min-width: 440px;
+  order: 1;
   border: 1px solid var(--Border-border-subtle-01, #C6C6C6);
   background: var(--Layer-layer-01, #F4F4F4);
   display: flex;

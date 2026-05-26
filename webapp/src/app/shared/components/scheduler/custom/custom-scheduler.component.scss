@@ -179,10 +179,6 @@ $month-bar-height: 60px;
     box-sizing: border-box;
   }
 
-  &__day-cell--single {
-    justify-content: center;
-  }
-
   &__day-label {
     position: sticky;
     left: 16px;
@@ -194,7 +190,7 @@ $month-bar-height: 60px;
   }
 
   &__day-cell--single &__day-label {
-    position: static;
+    position: sticky;
   }
 
   &__day-num {
