@@ -139,6 +139,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private resizing: { event: SchedulerEvent; edge: 'left' | 'right'; startX: number; originalStart: Date; originalEnd: Date } | null = null;
   dragPreview: { event: SchedulerEvent; resourceId: string; left: number; top: number; width: number } | null = null;
   resizePreview: { event: SchedulerEvent; left: number; top: number; width: number } | null = null;
+  hoverTooltip: { text: string; x: number; y: number } | null = null;
 
   constructor(private zone: NgZone) {}
 
@@ -242,6 +243,48 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getEventsForResource(resourceId: string): SchedulerEvent[] {
     return this.events.filter(e => e.resourceId === resourceId);
+  }
+
+  getRenderedEventsForResource(resourceId: string): SchedulerEvent[] {
+    const rendered = new Map<string, SchedulerEvent>();
+    for (const event of this.getEventsForResource(resourceId)) {
+      for (const segment of this.getRenderedEventSegments(event)) {
+        const key = `${this.getSourceEventId(segment)}:${segment.resourceId}:${segment.start.getTime()}:${segment.end.getTime()}`;
+        if (!rendered.has(key)) rendered.set(key, segment);
+      }
+    }
+    return [...rendered.values()];
+  }
+
+  private getRenderedEventSegments(event: SchedulerEvent): SchedulerEvent[] {
+    const segments: SchedulerEvent[] = [];
+    const cursor = new Date(event.start);
+    cursor.setSeconds(0, 0);
+
+    while (cursor < event.end) {
+      const dayStart = new Date(cursor);
+      dayStart.setHours(9, 0, 0, 0);
+      const dayEnd = new Date(cursor);
+      dayEnd.setHours(21, 0, 0, 0);
+      const segmentStart = cursor < dayStart ? dayStart : new Date(cursor);
+      const segmentEnd = event.end < dayEnd ? new Date(event.end) : dayEnd;
+
+      if (segmentStart < segmentEnd) {
+        const segment = {
+          ...event,
+          id: segments.length === 0 ? event.id : `${event.id}__day-${segments.length + 1}`,
+          start: segmentStart,
+          end: segmentEnd,
+          meta: { ...(event.meta ?? {}), sourceEventId: event.id } as any,
+        };
+        segments.push(segment);
+      }
+
+      cursor.setDate(cursor.getDate() + 1);
+      cursor.setHours(9, 0, 0, 0);
+    }
+
+    return segments.length ? segments : [event];
   }
 
   getUnavailabilityForResource(resourceId: string): UnavailabilityBlock[] {
@@ -358,14 +401,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getRenderedEventLeft(event: SchedulerEvent): number {
-    if (this.dragPreview?.event.id === event.id) return this.dragPreview.left;
-    if (this.resizePreview?.event.id === event.id) return this.resizePreview.left;
+    const eventId = this.getSourceEventId(event);
+    if (this.dragPreview?.event.id === eventId) return this.dragPreview.left;
+    if (this.resizePreview?.event.id === eventId) return this.resizePreview.left;
     return this.getEventLeft(event);
   }
 
   getRenderedEventWidth(event: SchedulerEvent): number {
-    if (this.dragPreview?.event.id === event.id) return this.dragPreview.width;
-    if (this.resizePreview?.event.id === event.id) return this.resizePreview.width;
+    const eventId = this.getSourceEventId(event);
+    if (this.dragPreview?.event.id === eventId) return this.dragPreview.width;
+    if (this.resizePreview?.event.id === eventId) return this.resizePreview.width;
     return this.getEventWidth(event);
   }
 
@@ -422,17 +467,23 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   isPreviewingEvent(event: SchedulerEvent): boolean {
-    return this.dragPreview?.event.id === event.id || this.resizePreview?.event.id === event.id;
+    const eventId = this.getSourceEventId(event);
+    return this.dragPreview?.event.id === eventId || this.resizePreview?.event.id === eventId;
   }
 
   shouldRenderEventForResource(event: SchedulerEvent, resourceId: string): boolean {
-    if (this.dragPreview?.event.id === event.id) return false;
-    if (this.resizePreview?.event.id === event.id) return false;
+    const eventId = this.getSourceEventId(event);
+    if (this.dragPreview?.event.id === eventId) return false;
+    if (this.resizePreview?.event.id === eventId) return false;
     return event.resourceId === resourceId;
   }
 
   shouldShowEventDetails(event: SchedulerEvent): boolean {
-    return this.showOrderTiles || this.detailedEventIds.includes(event.id);
+    return this.showOrderTiles || this.detailedEventIds.includes(this.getSourceEventId(event));
+  }
+
+  private getSourceEventId(event: SchedulerEvent): string {
+    return (event.meta as any)?.sourceEventId ?? event.id;
   }
 
   getPreviewEvent(): SchedulerEvent | null {
@@ -453,18 +504,24 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getEventTagLabel(event: SchedulerEvent): string {
     const status = this.getWorkorderItemStatus(event);
+    if (status === 'unscheduled') return 'Unscheduled';
     if (status === 'scheduled') return 'Scheduled';
-    if (status === 'started') return 'Started';
+    if (status === 'in-progress' || status === 'started') return 'In progress';
     if (status === 'completed') return 'Completed';
-    return 'Scheduled';
+    if (status === 'cancelled') return 'Cancelled';
+    return '';
   }
 
   getWorkorderItemStatus(event: SchedulerEvent): WorkorderItemStatus {
     const entryStatus = event.meta?.entry?.workorderItemStatus;
     const jobStatus = event.meta?.job?.workorderItemStatus;
-    if (entryStatus === 'started' || entryStatus === 'completed' || entryStatus === 'scheduled') return entryStatus;
-    if (jobStatus === 'started' || jobStatus === 'completed' || jobStatus === 'scheduled') return jobStatus;
-    return 'scheduled';
+    return this.normalizeWorkorderItemStatus(entryStatus ?? jobStatus);
+  }
+
+  private normalizeWorkorderItemStatus(status: unknown): WorkorderItemStatus {
+    if (status === 'scheduled' || status === 'completed' || status === 'cancelled' || status === 'unscheduled') return status;
+    if (status === 'started' || status === 'in-progress') return 'in-progress';
+    return 'unscheduled';
   }
 
   isBlockedOrderEvent(event: SchedulerEvent): boolean {
@@ -473,6 +530,44 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getEventDetail(event: SchedulerEvent): string {
     return `${this.formatEventTimeRange(event)} | ${this.getEventDuration(event)}`;
+  }
+
+  getEventTooltip(event: SchedulerEvent): string {
+    const resource = this.resources.find(candidate => candidate.id === event.resourceId);
+    const status = this.getEventTagLabel(event) || String(this.getWorkorderItemStatus(event));
+    const order = (event.meta as any)?.order;
+    const vehicle = order?.vehicle?.licensePlate ?? order?.licensePlate;
+    const customer = order?.customer?.name ?? order?.customerName;
+    return [
+      event.title,
+      `Order: ${this.getEventOrderReference(event)} ${this.getEventOrderSequence(event)}`,
+      vehicle ? `Vehicle: ${vehicle}` : '',
+      customer ? `Customer: ${customer}` : '',
+      resource ? `Resource: ${resource.label}` : `Resource: ${event.resourceId}`,
+      `Time: ${this.formatEventTimeRange(event)}`,
+      `Duration: ${this.getEventDuration(event)}`,
+      `Status: ${status}`,
+    ].filter(Boolean).join('\n');
+  }
+
+  showEventTooltip(event: SchedulerEvent, mouseEvent: MouseEvent): void {
+    this.hoverTooltip = {
+      text: this.getEventTooltip(event),
+      x: mouseEvent.clientX + 12,
+      y: mouseEvent.clientY + 12,
+    };
+  }
+
+  moveEventTooltip(event: SchedulerEvent, mouseEvent: MouseEvent): void {
+    this.hoverTooltip = {
+      text: this.getEventTooltip(event),
+      x: mouseEvent.clientX + 12,
+      y: mouseEvent.clientY + 12,
+    };
+  }
+
+  hideEventTooltip(): void {
+    this.hoverTooltip = null;
   }
 
   getEventOrderReference(event: SchedulerEvent): string {
@@ -684,11 +779,18 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   onEventMouseDown(e: MouseEvent, event: SchedulerEvent): void {
     if (this.readonly) return;
+    if (e.button === 2) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
 
+    const sourceEvent = this.getSourceEvent(event);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    this.dragging = { event, offsetX: e.clientX - rect.left, startY: e.clientY };
+    this.dragging = { event: sourceEvent, offsetX: e.clientX - rect.left, startY: e.clientY };
 
     const onMove = (me: MouseEvent) => this.onDragMove(me);
     const onUp   = (me: MouseEvent) => {
@@ -795,14 +897,21 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   onResizeMouseDown(e: MouseEvent, event: SchedulerEvent, edge: 'left' | 'right'): void {
     if (this.readonly) return;
+    if (e.button === 2) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
 
+    const sourceEvent = this.getSourceEvent(event);
     this.resizing = {
-      event, edge,
+      event: sourceEvent, edge,
       startX: e.clientX,
-      originalStart: new Date(event.start),
-      originalEnd: new Date(event.end),
+      originalStart: new Date(sourceEvent.start),
+      originalEnd: new Date(sourceEvent.end),
     };
 
     const onMove = (me: MouseEvent) => this.onResizeMove(me);
@@ -866,13 +975,19 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   onEventClick(e: MouseEvent, event: SchedulerEvent): void {
     e.stopPropagation();
-    this.eventClicked.emit({ eventId: event.id });
+    this.eventClicked.emit({ eventId: this.getSourceEventId(event) });
   }
 
   onEventContextMenu(e: MouseEvent, event: SchedulerEvent): void {
     e.preventDefault();
     e.stopPropagation();
-    this.eventContextMenu.emit({ eventId: event.id, x: e.clientX, y: e.clientY });
+    this.hideEventTooltip();
+    this.eventContextMenu.emit({ eventId: this.getSourceEventId(event), x: e.clientX, y: e.clientY });
+  }
+
+  private getSourceEvent(event: SchedulerEvent): SchedulerEvent {
+    const sourceEventId = this.getSourceEventId(event);
+    return this.events.find(candidate => candidate.id === sourceEventId) ?? event;
   }
 
   dropTargetResourceId: string | null = null;

@@ -81,7 +81,10 @@
   </main>
 
   @if (!isFullPlanner() || isOrderPanelOpen) {
-    <aside class="order-panel" aria-label="Orders panel" style="width:342px;height:100%;padding-left:32px;padding-top:0;display:inline-flex;flex-direction:column;gap:16px;overflow:hidden;box-sizing:border-box;flex:0 0 342px">
+    <aside class="order-panel" aria-label="Orders panel" [style.width.px]="orderPanelWidth" [style.flex-basis.px]="orderPanelWidth" style="height:100%;padding-left:32px;padding-top:0;display:inline-flex;flex-direction:column;gap:16px;overflow:hidden;box-sizing:border-box;flex-shrink:0;position:relative">
+      <div role="separator" aria-orientation="vertical" aria-label="Resize orders panel" (pointerdown)="startOrderPanelResize($event)" style="position:absolute;left:0;top:0;width:8px;height:100%;cursor:col-resize;z-index:1;display:flex;justify-content:center">
+        <div style="width:1px;height:100%;background:transparent"></div>
+      </div>
       <div class="booking-details-toggle" style="align-self:stretch;background:#fff;padding:0;display:inline-flex;flex-direction:column;align-items:flex-start;gap:8px">
         <div style="color:var(--Text-text-secondary,#525252);font-size:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:16px;letter-spacing:.32px">Booking details</div>
         <div style="display:inline-flex;align-items:flex-start;gap:8px">
@@ -91,78 +94,104 @@
           <div style="padding-top:3px;padding-bottom:3px;color:var(--Text-text-primary,#161616);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px">{{ showBookingDetails ? 'Details visible' : 'Availability only' }}</div>
         </div>
       </div>
-      <div class="order-panel__search" style="align-self:stretch;background:var(--Field-field-01,#F4F4F4);border-bottom:1px solid var(--Border-border-strong-01,#8D8D8D);display:inline-flex;align-items:center">
+      <header class="order-panel__header" style="align-self:stretch;height:42px;display:inline-flex;justify-content:space-between;align-items:flex-end">
+        <div style="padding-left:6px;padding-bottom:4px;display:flex;align-items:center;gap:2px">
+          <h2 style="margin:0;color:var(--Text-text-primary,#161616);font-size:20px;font-weight:400;line-height:28px">Orders</h2>
+        </div>
+      </header>
+      <div class="order-panel__search" style="align-self:stretch;background:var(--Field-field-01,#F4F4F4);display:inline-flex;align-items:center">
         <span style="padding:8px;display:flex;align-items:center;color:var(--Icon-icon-secondary,#525252)">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.795 10.724 10.019A5.51 5.51 0 1 0 10.017 10.726L13.793 14.5021 14.5 13.795ZM2 6.50208A4.5 4.5 0 1 1 6.5 11.0021 4.505 4.505 0 0 1 2 6.50208Z" fill="currentColor"/></svg>
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M14.5001 13.7931L10.7241 10.017C11.6314 8.9277 12.0839 7.5305 11.9873 6.11608C11.8908 4.70165 11.2526 3.37891 10.2057 2.423C9.15867 1.4671 7.78347 0.951637 6.36612 0.983845C4.94877 1.01605 3.5984 1.59345 2.59593 2.59593C1.59345 3.5984 1.01605 4.94877 0.983845 6.36612C0.951637 7.78347 1.4671 9.15867 2.423 10.2057C3.37891 11.2526 4.70165 11.8908 6.11608 11.9873C7.5305 12.0839 8.9277 11.6314 10.017 10.7241L13.7931 14.5001L14.5001 13.7931ZM2.00012 6.50012C2.00012 5.6101 2.26404 4.74007 2.75851 4.00005C3.25297 3.26003 3.95578 2.68325 4.77804 2.34266C5.60031 2.00207 6.50511 1.91295 7.37802 2.08658C8.25094 2.26022 9.05276 2.6888 9.6821 3.31814C10.3114 3.94747 10.74 4.7493 10.9137 5.62221C11.0873 6.49513 10.9982 7.39993 10.6576 8.22219C10.317 9.04446 9.7402 9.74726 9.00018 10.2417C8.26016 10.7362 7.39013 11.0001 6.50012 11.0001C5.30705 10.9988 4.16323 10.5243 3.3196 9.68064C2.47597 8.83701 2.00144 7.69319 2.00012 6.50012Z" fill="currentColor"/></svg>
         </span>
-        <input type="search" aria-label="Search orders" placeholder="Search orders" [value]="orderPanelSearch" (input)="onOrderPanelSearch($any($event.target).value)" style="flex:1 1 0;min-width:0;height:32px;border:0;background:transparent;color:#161616;font:400 14px/18px 'IBM Plex Sans',sans-serif;letter-spacing:.16px;outline:none" />
-        <button type="button" aria-label="Search" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:var(--Icon-icon-on-color,white);display:flex;align-items:center;justify-content:center;padding:8px">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.795 10.724 10.019A5.51 5.51 0 1 0 10.017 10.726L13.793 14.5021 14.5 13.795ZM2 6.50208A4.5 4.5 0 1 1 6.5 11.0021 4.505 4.505 0 0 1 2 6.50208Z" fill="currentColor"/></svg>
+        <input type="text" role="searchbox" aria-label="Search order, customer, vehicle" placeholder="Search order, customer, vehicle" [value]="orderPanelSearch" (input)="onOrderPanelSearch($any($event.target).value)" style="flex:1 1 0;min-width:0;height:32px;border:0;background:transparent;color:#161616;font:400 14px/18px 'IBM Plex Sans',sans-serif;letter-spacing:.16px;outline:none" />
+        @if (isSearchActive) {
+          <button type="button" aria-label="Clear search" (click)="clearBookingSearch()" style="width:32px;height:32px;border:0;background:transparent;color:var(--Icon-icon-primary,#161616);padding:8px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M12 4.7L11.3 4L8 7.3L4.7 4L4 4.7L7.3 8L4 11.3L4.7 12L8 8.7L11.3 12L12 11.3L8.7 8L12 4.7Z" fill="currentColor"/></svg>
+          </button>
+        }
+        <button type="button" aria-label="Search" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:var(--Icon-icon-on-color,white);display:flex;align-items:center;justify-content:center;padding:8px;cursor:pointer">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="currentColor" style="mix-blend-mode:multiply"/><path fill-rule="evenodd" clip-rule="evenodd" d="M14.4999 13.7931L10.7238 10.017C12.6088 7.75408 12.3804 4.4088 10.2054 2.42301C8.03043 0.437223 4.67823 0.513399 2.59569 2.59593C0.513155 4.67847 0.436979 8.03067 2.42277 10.2057C4.40855 12.3806 7.75384 12.609 10.0168 10.7241L13.7928 14.5001L14.4999 13.7931ZM1.99988 6.50012C1.99988 4.01484 4.0146 2.00012 6.49988 2.00012C8.98516 2.00012 10.9999 4.01484 10.9999 6.50012C10.9999 8.98541 8.98516 11.0001 6.49988 11.0001C4.01574 10.9974 2.00264 8.98426 1.99988 6.50012Z" fill="currentColor"/></svg>
         </button>
       </div>
 
+      @if (isSearchActive) {
+        <section aria-label="Search result navigation" style="align-self:stretch;display:inline-flex;justify-content:flex-start;align-items:center;gap:4px;padding:8px 0 8px 4px;background:#fff;color:var(--Text-text-primary,#161616)">
+          <button type="button" aria-label="Previous result" [disabled]="!searchMatchCount" (click)="previousSearchResult()" style="width:24px;height:24px;border:0;background:transparent;color:var(--Text-text-primary,#161616);padding:4px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.00001 8L10 3L10.7 3.7L6.40001 8L10.7 12.3L10 13L5.00001 8Z" fill="currentColor"/></svg>
+          </button>
+          <span style="color:var(--Text-text-primary,#161616);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px">{{ activeSearchMatchPosition }} of {{ searchMatchCount }}</span>
+          <button type="button" aria-label="Next result" [disabled]="!searchMatchCount" (click)="nextSearchResult()" style="width:24px;height:24px;border:0;background:transparent;color:var(--Text-text-primary,#161616);padding:4px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M11 8L5.99999 13L5.29999 12.3L9.59999 8L5.29999 3.7L5.99999 3L11 8Z" fill="currentColor"/></svg>
+          </button>
+        </section>
+      }
+
       <section class="order-panel__accordion" style="align-self:stretch;display:flex;flex-direction:column;gap:4px;min-height:0;overflow:hidden">
-        <header class="order-panel__header" style="align-self:stretch;height:42px;display:inline-flex;justify-content:space-between;align-items:flex-end">
-          <div style="padding-left:6px;padding-bottom:4px;display:flex;align-items:center;gap:2px">
-            <h2 style="margin:0;color:var(--Text-text-primary,#161616);font-size:20px;font-weight:400;line-height:28px">Orders</h2>
-          </div>
-        </header>
-        <div class="order-panel__divider" style="align-self:stretch;height:1px;background:var(--Border-border-subtle-01,#C6C6C6)"></div>
-        @if (isFullPlanner()) {
-          <div class="order-panel__tabs" role="tablist" aria-label="Order planning status" style="align-self:stretch;justify-content:flex-start;align-items:flex-start;gap:1px;display:inline-flex">
-            <div style="flex:1 1 0;overflow:hidden;justify-content:flex-start;align-items:flex-start;gap:1px;display:flex">
-              <button type="button" role="tab" [attr.aria-selected]="orderPanelTab === 'pending'" (click)="selectOrderPanelTab('pending')" [style.border-bottom-color]="orderPanelTab === 'pending' ? 'var(--Border-border-interactive,#4C68B1)' : 'var(--Border-border-subtle-01,#C6C6C6)'" [style.color]="orderPanelTab === 'pending' ? 'var(--Text-text-primary,#161616)' : 'var(--Text-text-secondary,#525252)'" [style.font-weight]="orderPanelTab === 'pending' ? '600' : '400'" style="flex:1 1 0;padding:11px 16px;background:var(--Background-background,white);border:0;border-bottom:2px solid;justify-content:flex-start;align-items:center;gap:8px;display:flex;text-align:left;cursor:pointer">
-                <span style="height:18px;overflow:hidden;color:inherit;font-size:14px;font-family:'IBM Plex Sans',sans-serif;line-height:18px;letter-spacing:.16px;white-space:nowrap">Pending</span>
-              </button>
-              <button type="button" role="tab" [attr.aria-selected]="orderPanelTab === 'scheduled'" (click)="selectOrderPanelTab('scheduled')" [style.border-bottom-color]="orderPanelTab === 'scheduled' ? 'var(--Border-border-interactive,#4C68B1)' : 'var(--Border-border-subtle-01,#C6C6C6)'" [style.color]="orderPanelTab === 'scheduled' ? 'var(--Text-text-primary,#161616)' : 'var(--Text-text-secondary,#525252)'" [style.font-weight]="orderPanelTab === 'scheduled' ? '600' : '400'" style="flex:1 1 0;padding:11px 16px;background:var(--Background-background,white);border:0;border-bottom:2px solid;justify-content:flex-start;align-items:center;gap:8px;display:flex;text-align:left;cursor:pointer">
-                <span style="height:18px;overflow:hidden;color:inherit;font-size:14px;font-family:'IBM Plex Sans',sans-serif;line-height:18px;letter-spacing:.16px;white-space:nowrap">Scheduled</span>
-              </button>
-              <button type="button" role="tab" [attr.aria-selected]="orderPanelTab === 'all'" (click)="selectOrderPanelTab('all')" [style.border-bottom-color]="orderPanelTab === 'all' ? 'var(--Border-border-interactive,#4C68B1)' : 'var(--Border-border-subtle-01,#C6C6C6)'" [style.color]="orderPanelTab === 'all' ? 'var(--Text-text-primary,#161616)' : 'var(--Text-text-secondary,#525252)'" [style.font-weight]="orderPanelTab === 'all' ? '600' : '400'" style="padding:11px 16px;background:var(--Background-background,white);border:0;border-bottom:2px solid;justify-content:flex-start;align-items:center;gap:8px;display:flex;text-align:left;cursor:pointer">
-                <span style="height:18px;overflow:hidden;color:inherit;font-size:14px;font-family:'IBM Plex Sans',sans-serif;line-height:18px;letter-spacing:.16px;white-space:nowrap">All</span>
-              </button>
-            </div>
-          </div>
-        }
-        <div class="order-panel__list" style="min-height:0;overflow:auto;display:flex;flex-direction:column;gap:16px;padding-top:12px;padding-bottom:24px">
-          @for (order of filteredPanelOrders; track order.id) {
-            <article class="order-panel__order-card" draggable="true" (dragstart)="onOrderDragStart($event, order)" style="width:310px;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab">
+        <div class="order-panel__list" style="align-self:stretch;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:16px;padding-top:12px;padding-bottom:24px">
+          <ng-template #orderCard let-order>
+            <article class="order-panel__order-card" [attr.id]="'order-panel-card-' + order.id" draggable="true" (dragstart)="onOrderDragStart($event, order)" [style.outline]="isActiveOrderSearchMatch(order) ? '2px solid #4C68B1' : null" style="align-self:stretch;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab;outline-offset:-2px">
               <div style="align-self:stretch;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
                 <div style="align-self:stretch;display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                  <strong style="min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getOrderLabel(order) }}</strong>
-                  <span [style.background]="isOrderFullyScheduled(order) ? '#FFE8BF' : 'white'" [style.color]="isOrderFullyScheduled(order) ? '#D38700' : '#161616'" [style.outline]="isOrderFullyScheduled(order) ? '0' : '1px solid #000'" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ isOrderFullyScheduled(order) ? 'Scheduled' : (formatHours(getOrderFru(order)) + ' hrs') }}</span>
+                  <strong style="min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                    @for (part of getSearchHighlightParts(getOrderLabel(order)); track $index) {
+                      @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                    }
+                  </strong>
+                  <span [style.background]="getOrderPlanningStateBackground(order)" [style.color]="getOrderPlanningStateColor(order)" [style.outline]="getOrderPlanningStateOutline(order)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getOrderPlanningStateLabel(order) }}</span>
                 </div>
-                <div style="align-self:stretch;padding-right:128px;position:relative;display:flex;flex-direction:column;gap:2px">
-                  <span style="color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ order.vehicle?.licensePlate ?? 'No vehicle' }}</span>
-                  <span style="color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ order.customer?.name ?? 'Unknown customer' }}</span>
-                  <span style="position:absolute;left:138px;top:3px;display:inline-flex;justify-content:flex-end;align-items:center;gap:4px">
-                    <button type="button" aria-label="Open order" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 14H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h5v1H3v10h10V8h1v5a1 1 0 0 1-1 1Z" fill="currentColor"/><path d="M10 1v1h3.293L9 6.293 9.707 7 14 2.707V6h1V1h-5Z" fill="currentColor"/></svg></button>
-                    <button type="button" aria-label="Delete order" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 4h-1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4H2V3h12v1ZM4 14h8V4H4v10ZM7 12H6V6h1v6Zm3 0H9V6h1v6Zm0-10H6V1h4v1Z" fill="currentColor"/></svg></button>
-                    <button type="button" aria-label="Undo" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5H3.907L5.701 3.207 5 2.5l-3 3 3 3 .701-.707L3.909 6H10a3 3 0 1 1 0 6H6v1h4a4 4 0 0 0 0-8Z" fill="currentColor"/></svg></button>
-                    <button type="button" aria-label="Collapse" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 5 13 10l-.7.7L8 6.4l-4.3 4.3L3 10l5-5Z" fill="currentColor"/></svg></button>
+                <div style="align-self:stretch;padding-right:92px;position:relative;display:flex;flex-direction:column;gap:2px">
+                  <span style="color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                    @for (part of getSearchHighlightParts(order.vehicle?.licensePlate ?? 'No vehicle'); track $index) {
+                      @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                    }
+                  </span>
+                  <span style="color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                    @for (part of getSearchHighlightParts(order.customer?.name ?? 'Unknown customer'); track $index) {
+                      @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                    }
+                  </span>
+                  <span style="position:absolute;right:0;top:3px;display:inline-flex;justify-content:flex-end;align-items:center;gap:4px">
+                    <button type="button" aria-label="Open order" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 14H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h5v1H3v10h10V8h1v5a1 1 0 0 1-1 1Z" fill="currentColor"/><path d="M10 1v1h3.293L9 6.293 9.707 7 14 2.707V6h1V1h-5Z" fill="currentColor"/></svg></button>
+                    <button type="button" aria-label="Undo order booking" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="onUndoOrderBooking(order); $event.stopPropagation()" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex;cursor:pointer"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5H3.907L5.701 3.207 5 2.5l-3 3 3 3 .701-.707L3.909 6H10a3 3 0 1 1 0 6H6v1h4a4 4 0 0 0 0-8Z" fill="currentColor"/></svg></button>
+                    <button type="button" [attr.aria-label]="isOrderExpanded(order) ? 'Collapse order' : 'Expand order'" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="toggleOrderExpanded(order.id, $event)" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex;cursor:pointer"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderExpanded(order) ? 'none' : 'rotate(180deg)'"><path d="M8 5 13 10l-.7.7L8 6.4l-4.3 4.3L3 10l5-5Z" fill="currentColor"/></svg></button>
                   </span>
                 </div>
               </div>
+              @if (shouldShowOrderDetails(order)) {
               <div style="align-self:stretch;padding:0 16px 16px;display:flex;flex-direction:column;gap:2px">
-                <div style="align-self:stretch;background:var(--Layer-layer-01,#F4F4F4);display:inline-flex;justify-content:space-between;align-items:center">
-                  <strong style="font-size:16px;font-weight:600;line-height:22px;color:#161616">Jobs</strong>
-                </div>
-                @for (job of order.jobs ?? []; track job.id) {
-                  <div draggable="true" (dragstart)="onJobDragStart($event, job, order)" style="align-self:stretch;background:var(--Layer-layer-02,white);display:flex;flex-direction:column;gap:8px;padding:12px;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);cursor:grab">
+                @if (shouldShowJobsSection(order)) {
+                  <div style="align-self:stretch;background:var(--Layer-layer-01,#F4F4F4);display:inline-flex;justify-content:space-between;align-items:center">
+                    <strong style="font-size:16px;font-weight:600;line-height:22px;color:#161616">Jobs</strong>
+                  </div>
+                  @for (job of getJobsForOrder(order); track job.id) {
+                    @if (shouldShowJobForSearch(order, job)) {
+                    <div draggable="true" (dragstart)="onJobDragStart($event, job, order)" style="align-self:stretch;background:var(--Layer-layer-02,white);display:flex;flex-direction:column;gap:8px;padding:12px;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);cursor:grab">
                     <div style="display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                      <strong style="min-width:0;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ job.title }}</strong>
-                      <span [style.background]="isJobScheduled(job) ? '#FFE8BF' : 'white'" [style.color]="isJobScheduled(job) ? '#D38700' : '#161616'" [style.outline]="isJobScheduled(job) ? '0' : '1px solid #000'" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ isJobScheduled(job) ? 'Scheduled' : (formatHours(getJobFru(job)) + ' hrs') }}</span>
+                      <strong style="min-width:0;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                        @for (part of getSearchHighlightParts(job.title); track $index) {
+                          @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                        }
+                      </strong>
+                      <span [style.background]="getJobExecutionStatusBackground(order, job)" [style.color]="getJobExecutionStatusColor(order, job)" [style.outline]="getJobExecutionStatusOutline(order, job)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getJobExecutionStatusLabel(order, job) }}</span>
                     </div>
                     @if (getJobBookingSets(job, order); as bookingSets) {
                       @for (bookingSet of bookingSets; track bookingSet.id) {
                         <div style="display:flex;flex-direction:column;gap:2px">
-                          <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px">{{ bookingSet.summary }}</div>
+                          <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px">@for (part of getSearchHighlightParts(bookingSet.summary); track $index) { @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}} }</div>
                           @for (booking of bookingSet.bookings; track booking.entryId) {
                             <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
                               <button type="button" aria-label="Show booking on planner" (click)="scrollToBookingInAvailabilityView(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M6 1V2H10V1H11V2H13C13.2652 2 13.5195 2.10543 13.707 2.29297C13.8946 2.48051 14 2.73478 14 3V6H13V3H11V4H10V3H6V4H5V3H3V13H5V14H3C2.73478 14 2.48051 13.8946 2.29297 13.707C2.10543 13.5195 2 13.2652 2 13V3C2 2.73478 2.10543 2.48051 2.29297 2.29297C2.48051 2.10543 2.73478 2 3 2H5V1H6ZM10.5 8.5L8.5 10.7002H14.2002V11.6602L8.5 11.5L10.5 13.5L10 14L7 11L10 8L10.5 8.5Z" fill="currentColor"/></svg>
                               </button>
-                              <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ booking.resourceName }}</span>
+                              <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                                @for (part of getSearchHighlightParts(booking.resourceName); track $index) {
+                                  @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                                }
+                              </span>
                               <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                              <button type="button" aria-label="Open booking details" (click)="openBookingFromSearch(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2Zm0 1a5 5 0 1 0 0 10A5 5 0 0 0 8 3Zm-.5 4h1v4h-1V7Zm0-2h1v1h-1V5Z" fill="currentColor"/></svg>
+                              </button>
                               @if (canUndoBooking(booking)) {
                                 <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
@@ -179,26 +208,41 @@
                         </div>
                       }
                     }
-                  </div>
+                    </div>
+                  }
+                  }
                 }
-                <div style="align-self:stretch;padding-top:12px;background:var(--Layer-layer-01,#F4F4F4);display:inline-flex;justify-content:space-between;align-items:center">
-                  <strong style="font-size:16px;font-weight:600;line-height:22px;color:#161616">Activity</strong>
-                </div>
-                @for (activity of getActivitiesForOrder(order); track activity.id) {
-                  <div draggable="true" (dragstart)="onActivityDragStart($event, activity, order)" style="align-self:stretch;background:var(--Layer-layer-02,white);padding:12px 16px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);cursor:grab">
+                @if (shouldShowActivitySection(order)) {
+                  <div style="align-self:stretch;padding-top:12px;background:var(--Layer-layer-01,#F4F4F4);display:inline-flex;justify-content:space-between;align-items:center">
+                    <strong style="font-size:16px;font-weight:600;line-height:22px;color:#161616">Activity</strong>
+                  </div>
+                  @for (activity of getActivitiesForOrder(order); track activity.id) {
+                    @if (shouldShowActivityForSearch(order, activity)) {
+                    <div draggable="true" (dragstart)="onActivityDragStart($event, activity, order)" style="align-self:stretch;background:var(--Layer-layer-02,white);padding:12px 16px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);cursor:grab">
                     <div style="display:inline-flex;justify-content:space-between;gap:8px">
-                      <strong style="font-size:16px;font-weight:600;line-height:22px;color:#161616">{{ activity.title }}</strong>
-                      <span [style.background]="getActivityBooking(activity, order.id) ? '#FFE8BF' : 'white'" [style.color]="getActivityBooking(activity, order.id) ? '#D38700' : '#161616'" [style.outline]="getActivityBooking(activity, order.id) ? '0' : '1px solid #000'" style="border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getActivityBooking(activity, order.id) ? 'Scheduled' : (formatHours(getActivityFru(activity)) + ' hrs') }}</span>
+                      <strong style="font-size:16px;font-weight:600;line-height:22px;color:#161616">
+                        @for (part of getSearchHighlightParts(activity.title); track $index) {
+                          @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                        }
+                      </strong>
+                      <span [style.background]="getActivityExecutionStatusBackground(order, activity)" [style.color]="getActivityExecutionStatusColor(order, activity)" [style.outline]="getActivityExecutionStatusOutline(order, activity)" style="border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getActivityExecutionStatusLabel(order, activity) }}</span>
                     </div>
                     @if (getActivityBooking(activity, order.id); as booking) {
                       <div style="display:flex;flex-direction:column;gap:2px">
-                        <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px">{{ getBookingScheduleSummary(booking) }}</div>
+                        <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px">@for (part of getSearchHighlightParts(getBookingScheduleSummary(booking)); track $index) { @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}} }</div>
                         <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
                           <button type="button" aria-label="Show booking on planner" (click)="scrollToBookingInAvailabilityView(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M6 1V2H10V1H11V2H13C13.2652 2 13.5195 2.10543 13.707 2.29297C13.8946 2.48051 14 2.73478 14 3V6H13V3H11V4H10V3H6V4H5V3H3V13H5V14H3C2.73478 14 2.48051 13.8946 2.29297 13.707C2.10543 13.5195 2 13.2652 2 13V3C2 2.73478 2.10543 2.48051 2.29297 2.29297C2.48051 2.10543 2.73478 2 3 2H5V1H6ZM10.5 8.5L8.5 10.7002H14.2002V11.6602L8.5 11.5L10.5 13.5L10 14L7 11L10 8L10.5 8.5Z" fill="currentColor"/></svg>
                           </button>
-                          <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ booking.resourceName }}</span>
+                          <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                            @for (part of getSearchHighlightParts(booking.resourceName); track $index) {
+                              @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                            }
+                          </span>
                           <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                          <button type="button" aria-label="Open booking details" (click)="openBookingFromSearch(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2Zm0 1a5 5 0 1 0 0 10A5 5 0 0 0 8 3Zm-.5 4h1v4h-1V7Zm0-2h1v1h-1V5Z" fill="currentColor"/></svg>
+                          </button>
                           <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
                           </button>
@@ -210,7 +254,9 @@
                         <span style="text-align:right;color:var(--Color-Secondary-70,#919396);font-size:12px;line-height:16px;letter-spacing:.32px">PENDING</span>
                       </div>
                     }
-                  </div>
+                    </div>
+                  }
+                  }
                 }
                 <div style="align-self:stretch;padding-top:16px;display:inline-flex;justify-content:flex-start;align-items:flex-start;gap:8px">
                   <button type="button" [disabled]="isBookFirstDisabled(order.id)" (click)="onBookFirstAvailabilityForOrder(order)" [style.background]="isBookFirstDisabled(order.id) ? 'var(--Button-button-disabled,#C6C6C6)' : 'var(--Button-button-secondary,#626469)'" [style.color]="isBookFirstDisabled(order.id) ? 'rgba(22,22,22,.25)' : 'var(--Text-text-on-color,white)'" [style.cursor]="isBookFirstDisabled(order.id) ? 'not-allowed' : 'pointer'" style="flex:1 1 0;height:32px;border:0;display:inline-flex;align-items:center;justify-content:flex-start;padding:7px 48px 7px 16px;position:relative;overflow:hidden;font-size:14px;line-height:18px;letter-spacing:.16px;text-align:left">
@@ -225,7 +271,44 @@
                   </button>
                 </div>
               </div>
+              }
             </article>
+          </ng-template>
+
+          @if (isFullPlanner()) {
+            <button type="button" aria-controls="pending-orders" [attr.aria-expanded]="!isOrderGroupCollapsed('pending')" (click)="toggleOrderGroup('pending')" style="align-self:stretch;width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Background-background,white);padding:8px 12px 8px 6px;display:flex;align-items:center;gap:2px;cursor:pointer;text-align:left;color:#161616">
+              <span style="font-size:16px;font-weight:600;line-height:22px;letter-spacing:0">Pending</span>
+              <span style="width:32px;height:32px;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderGroupCollapsed('pending') ? 'rotate(180deg)' : 'none'"><path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/></svg></span>
+              <span style="margin-left:auto;min-height:24px;padding:4px 8px;background:var(--Tag-tag-background-gray,#E0E0E0);color:var(--Tag-tag-color-gray,#161616);border-radius:999px;font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">{{ visiblePendingOrders.length }} {{ isSearchActive ? 'Results' : 'Orders' }}</span>
+            </button>
+            @if (!isOrderGroupCollapsed('pending')) {
+              <div id="pending-orders" style="align-self:stretch;display:flex;flex-direction:column;gap:16px">
+                @for (order of visiblePendingOrders; track order.id) {
+                  <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
+                } @empty {
+                  <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">No Results</div>
+                }
+              </div>
+            }
+
+            <button type="button" aria-controls="planned-orders" [attr.aria-expanded]="!isOrderGroupCollapsed('planned')" (click)="toggleOrderGroup('planned')" style="align-self:stretch;width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Background-background,white);padding:8px 12px 8px 6px;display:flex;align-items:center;gap:2px;cursor:pointer;text-align:left;color:#161616">
+              <span style="font-size:16px;font-weight:600;line-height:22px;letter-spacing:0">Planned</span>
+              <span style="width:32px;height:32px;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderGroupCollapsed('planned') ? 'rotate(180deg)' : 'none'"><path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/></svg></span>
+              <span style="margin-left:auto;min-height:24px;padding:4px 8px;background:var(--Tag-tag-background-gray,#E0E0E0);color:var(--Tag-tag-color-gray,#161616);border-radius:999px;font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">{{ visiblePlannedOrders.length }} {{ isSearchActive ? 'Results' : 'Orders' }}</span>
+            </button>
+            @if (!isOrderGroupCollapsed('planned')) {
+              <div id="planned-orders" style="align-self:stretch;display:flex;flex-direction:column;gap:16px">
+                @for (order of visiblePlannedOrders; track order.id) {
+                  <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
+                } @empty {
+                  <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">No Results</div>
+                }
+              </div>
+            }
+          } @else {
+            @for (order of visiblePanelOrders; track order.id) {
+              <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
+            }
           }
         </div>
       </section>
@@ -233,8 +316,7 @@
   }
 
   @if (eventContextMenu) {
-    <div role="presentation" (click)="closeEventContextMenu()" style="position:fixed;inset:0;z-index:1000;background:transparent"></div>
-    <div role="menu" [style.left.px]="eventContextMenu.x" [style.top.px]="eventContextMenu.y" style="position:fixed;z-index:1001;min-width:160px;max-width:288px;box-shadow:0 2px 6px rgba(0,0,0,.30);display:inline-flex;flex-direction:column;background:var(--Layer-layer-01,#F4F4F4);font-family:'IBM Plex Sans',sans-serif">
+    <div role="menu" [style.left.px]="eventContextMenu.x" [style.top.px]="eventContextMenu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()" style="position:fixed;z-index:1001;min-width:160px;max-width:288px;box-shadow:0 2px 6px rgba(0,0,0,.30);display:inline-flex;flex-direction:column;background:var(--Layer-layer-01,#F4F4F4);font-family:'IBM Plex Sans',sans-serif">
       <button type="button" role="menuitem" [disabled]="!canSplitContextEvent()" (click)="splitContextEvent()" style="width:100%;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:15px 16px 11px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
         <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Split</span>
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M12 6.5C12.5304 6.5 13.0391 6.28929 13.4142 5.91421C13.7893 5.53914 14 5.03043 14 4.5V4C14 3.46957 13.7893 2.96086 13.4142 2.58579C13.0391 2.21071 12.5304 2 12 2H11.5C10.9696 2 10.4609 2.21071 10.0858 2.58579C9.71071 2.96086 9.5 3.46957 9.5 4V5.5H6.5V4C6.5 3.46957 6.28929 2.96086 5.91421 2.58579C5.53914 2.21071 5.03043 2 4.5 2H4C3.46957 2 2.96086 2.21071 2.58579 2.58579C2.21071 2.96086 2 3.46957 2 4V4.5C2 5.03043 2.21071 5.53914 2.58579 5.91421C2.96086 6.28929 3.46957 6.5 4 6.5H5.5V9.5H4C3.46957 9.5 2.96086 9.71071 2.58579 10.0858C2.21071 10.4609 2 10.9696 2 11.5V12C2 12.5304 2.21071 13.0391 2.58579 13.4142C2.96086 13.7893 3.46957 14 4 14H4.5C5.03043 14 5.53914 13.7893 5.91421 13.4142C6.28929 13.0391 6.5 12.5304 6.5 12V10.5H9.5V12C9.5 12.5304 9.71071 13.0391 10.0858 13.4142C10.4609 13.7893 10.9696 14 11.5 14H12C12.5304 14 13.0391 13.7893 13.4142 13.4142C13.7893 13.0391 14 12.5304 14 12V11.5C14 10.9696 13.7893 10.4609 13.4142 10.0858C13.0391 9.71071 12.5304 9.5 12 9.5H10.5V6.5H12ZM9.5 9.5H6.5V6.5H9.5V9.5Z" fill="currentColor"/></svg>
@@ -382,6 +464,12 @@
                   [value]="bookingModalEndTime"
                   (valueChange)="onBookingModalTimeChange('end', $event)"
                 />
+              </div>
+              <div class="booking-modal__field-column">
+                <ibm-text-label class="booking-carbon-field booking-carbon-field--readonly" size="md">
+                  Segment duration
+                  <input ibmText type="text" [value]="getBookingSegmentInfo(bookingEvent)" readonly style="background:var(--Layer-layer-02,#fff)" />
+                </ibm-text-label>
               </div>
             </div>
           </section>

@@ -13,6 +13,9 @@ export interface ScheduleEntry {
   workorderItemStatus?: WorkorderItemStatus;
   workorderItemCategory?: WorkorderItemCategory;
   bookingSetId?: string;
+  splitRootId?: string;
+  splitParentBookingSetId?: string;
+  splitSequence?: number;
 }
 
 export interface ScheduleConflict {

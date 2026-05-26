@@ -157,7 +157,7 @@
 
 .booking-modal__field-grid--time {
   justify-content: flex-start;
-  gap: 96px;
+  gap: 48px;
 }
 
 .booking-modal__field-column {
@@ -240,9 +240,6 @@
   &--order {
     padding: 16px;
     gap: 0;
-  }
-
-  &__error {
   }
 
   &__main,
