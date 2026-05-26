@@ -125,9 +125,32 @@
     </div>
     <div class="scheduler__header-scroll" #headerScroll>
       <div [style.width.px]="totalWidth">
-        <div class="scheduler__day-row" [style.height.px]="DATE_ROW_HEIGHT">
+        <div class="scheduler__navigation-row" [style.width.px]="navigationRowWidth">
+          <button type="button" class="scheduler__navigation-button" [attr.aria-label]="previousNavigationLabel" (click)="previousPeriod.emit()">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M12.5 15 7.5 10 12.5 5 13.375 5.875 9.25 10 13.375 14.125 12.5 15Z" fill="currentColor"/>
+            </svg>
+          </button>
+          <div class="scheduler__navigation-label">
+            <span class="scheduler__navigation-meta">{{ navigationMeta }}</span>
+            <span class="scheduler__navigation-title">{{ navigationTitle }}</span>
+          </div>
+          <button type="button" class="scheduler__navigation-button" [attr.aria-label]="nextNavigationLabel" (click)="nextPeriod.emit()">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M7.5 5 12.5 10 7.5 15 6.625 14.125 10.75 10 6.625 5.875 7.5 5Z" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+        <div
+          class="scheduler__day-row"
+          [class.scheduler__day-row--single]="isSingleDayView"
+          [style.width.px]="isSingleDayView ? navigationRowWidth : null"
+          [style.height.px]="DATE_ROW_HEIGHT">
           @for (day of daySlots; track day.getTime()) {
-            <div class="scheduler__day-cell" [style.width.px]="getDayWidth()">
+            <div
+              class="scheduler__day-cell"
+              [class.scheduler__day-cell--single]="isSingleDayView"
+              [style.width.px]="isSingleDayView ? navigationRowWidth : getDayWidth()">
               <span class="scheduler__day-label">
                 <span class="scheduler__day-num">{{ formatDay(day) }}</span>
                 <span class="scheduler__day-name">{{ formatWeekday(day) }}</span>

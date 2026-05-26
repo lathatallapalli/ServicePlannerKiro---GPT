@@ -9,7 +9,7 @@ import { SchedulerResource, SchedulerEvent, SchedulerGroup, EventMovePayload, Ev
 import { ResourceRepository } from '../../core/services/resource.repository';
 import { ScheduleRepository } from '../../core/services/schedule.repository';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
-import { PlannerSettingsService } from './services/planner-settings.service';
+import { PlannerSettingsService, PlannerViewMode } from './services/planner-settings.service';
 import { AutoSchedulerService } from './services/auto-scheduler.service';
 import { ResourceViewsService } from './services/resource-views.service';
 import { forkJoin } from 'rxjs';
@@ -43,6 +43,21 @@ interface PanelSearchMatch {
 interface SearchHighlightPart {
   text: string;
   isMatch: boolean;
+}
+
+interface PlannerMonthDay {
+  date: Date;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+  bookingCount: number;
+  resourceCount: number;
+}
+
+interface MonthPreviewResource {
+  resource: SchedulerResource;
+  events: SchedulerEvent[];
+  unavailable: UnavailabilityBlock[];
 }
 
 type WorkOrderItemKind = 'job' | 'activity';
@@ -178,10 +193,125 @@ export class ServicePlannerComponent implements OnInit {
 
   private readonly mockCurrentTime = new Date('2024-04-15T09:00:00');
   viewStart = new Date('2024-04-15T09:00:00');
-  viewEnd   = new Date('2024-04-19T21:00:00');
+  viewEnd   = new Date('2024-04-15T21:00:00');
+  selectedMonthPreviewDate: Date | null = null;
 
   get slotDurationMinutes(): number {
     return this.plannerSettings.slotDurationMinutes();
+  }
+
+  get plannerViewMode(): PlannerViewMode {
+    return this.plannerSettings.viewMode();
+  }
+
+  get monthOverviewDays(): PlannerMonthDay[] {
+    const monthStart = new Date(this.viewStart.getFullYear(), this.viewStart.getMonth(), 1);
+    const gridStart = new Date(monthStart);
+    const startDay = gridStart.getDay();
+    gridStart.setDate(gridStart.getDate() - (startDay === 0 ? 6 : startDay - 1));
+    gridStart.setHours(0, 0, 0, 0);
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(gridStart);
+      date.setDate(gridStart.getDate() + index);
+      const dayStart = new Date(date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(date);
+      dayEnd.setHours(23, 59, 59, 999);
+      const dayEvents = this.events.filter(event => event.start <= dayEnd && event.end >= dayStart);
+      const resourceIds = new Set(dayEvents.map(event => event.resourceId));
+
+      return {
+        date,
+        isCurrentMonth: date.getMonth() === this.viewStart.getMonth(),
+        isToday: this.isSameCalendarDay(date, this.mockCurrentTime),
+        isSelected: this.selectedMonthPreviewDate ? this.isSameCalendarDay(date, this.selectedMonthPreviewDate) : false,
+        bookingCount: dayEvents.length,
+        resourceCount: resourceIds.size,
+      };
+    });
+  }
+
+  get monthOverviewTitle(): string {
+    return this.viewStart.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  }
+
+  get monthPreviewTitle(): string {
+    return this.selectedMonthPreviewDate
+      ? this.selectedMonthPreviewDate.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+      : '';
+  }
+
+  get monthPreviewResources(): MonthPreviewResource[] {
+    if (!this.selectedMonthPreviewDate) return [];
+    const dayStart = this.getDayBoundary(this.selectedMonthPreviewDate, 9, 0);
+    const dayEnd = this.getDayBoundary(this.selectedMonthPreviewDate, 21, 0);
+    return this.visibleSchedulerResources.map(resource => ({
+      resource,
+      events: this.events
+        .filter(event => event.resourceId === resource.id && event.start < dayEnd && event.end > dayStart)
+        .sort((first, second) => first.start.getTime() - second.start.getTime()),
+      unavailable: this.unavailability
+        .filter(block => block.resourceId === resource.id && block.start < dayEnd && block.end > dayStart)
+        .sort((first, second) => first.start.getTime() - second.start.getTime()),
+    }));
+  }
+
+  get plannerNavigationTitle(): string {
+    if (this.plannerViewMode === 'week') {
+      return `${this.formatShortDate(this.viewStart)} - ${this.formatShortDate(this.viewEnd)}`;
+    }
+    return this.formatLongDate(this.viewStart);
+  }
+
+  get plannerNavigationMeta(): string {
+    if (this.plannerViewMode === 'week') {
+      return `Calendar week ${this.getCalendarWeek(this.viewStart)}`;
+    }
+    return this.viewStart.toLocaleDateString('en-GB', { weekday: 'long' });
+  }
+
+  goToPreviousPlannerPeriod(): void {
+    this.shiftPlannerWindow(-1);
+  }
+
+  goToNextPlannerPeriod(): void {
+    this.shiftPlannerWindow(1);
+  }
+
+  goToPreviousMonth(): void {
+    this.shiftPlannerWindow(-1);
+  }
+
+  goToNextMonth(): void {
+    this.shiftPlannerWindow(1);
+  }
+
+  selectMonthPreviewDay(date: Date): void {
+    this.selectedMonthPreviewDate = new Date(date);
+  }
+
+  closeMonthPreview(): void {
+    this.selectedMonthPreviewDate = null;
+  }
+
+  openSelectedMonthPreviewInDayView(): void {
+    if (!this.selectedMonthPreviewDate) return;
+    this.plannerSettings.setViewMode('day');
+    this.setViewWindowForMode('day', this.selectedMonthPreviewDate);
+    this.reloadScheduleEntries();
+  }
+
+  getMonthPreviewEventStyle(event: SchedulerEvent): Record<string, string> {
+    return this.getMonthPreviewRangeStyle(event.start, event.end);
+  }
+
+  getMonthPreviewUnavailabilityStyle(block: UnavailabilityBlock): Record<string, string> {
+    return this.getMonthPreviewRangeStyle(block.start, block.end);
+  }
+
+  getMonthPreviewEventLabel(event: SchedulerEvent): string {
+    return event.title || event.meta?.entry?.title || 'Booking';
   }
 
   get manualDropSnapMinutes(): number {
@@ -419,6 +549,16 @@ export class ServicePlannerComponent implements OnInit {
       if (trigger === 0) return; // skip initial value
       this.undoLastBooking();
     });
+    effect(() => {
+      const mode = this.plannerSettings.viewMode();
+      if (mode === 'month') {
+        this.isOrderPanelOpen = false;
+      }
+      this.setViewWindowForMode(mode, this.viewStart);
+      if (this.isPlannerReady) {
+        this.reloadScheduleEntries();
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -436,7 +576,7 @@ export class ServicePlannerComponent implements OnInit {
       this.allOrders = orders;
       this.activeOrderId = this.resolveWorkOrderId(this.activeOrderId) ?? this.activeOrderId;
       const activeOrder = this.allOrders.find(order => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId);
-      this.alignViewWindowToOrder(activeOrder);
+      this.alignViewWindowToOrder(activeOrder, this.plannerViewMode);
 
       this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
         this.scheduleEntries = entries;
@@ -2488,20 +2628,94 @@ export class ServicePlannerComponent implements OnInit {
     return this.selectedPanelOrderId || this.activeOrderId || this.jobTiles[0]?.workOrder.id || null;
   }
 
-  private alignViewWindowToOrder(order: any | undefined): void {
+  private alignViewWindowToOrder(order: any | undefined, mode: PlannerViewMode = this.plannerViewMode): void {
     const selection = order ? this.quickViewSelection.getSelection(order.id) : null;
     const anchor = selection?.checkinStart ?? order?.appointmentStart;
-    if (!anchor) return;
+    this.setViewWindowForMode(mode, anchor ? new Date(anchor) : this.viewStart);
+  }
+
+  private setViewWindowForMode(mode: PlannerViewMode, anchor: Date): void {
     const start = new Date(anchor);
-    const day = start.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    start.setDate(start.getDate() + diff);
     start.setHours(9, 0, 0, 0);
-    this.viewStart = start;
     const end = new Date(start);
-    end.setDate(start.getDate() + 4);
+    if (mode === 'week') {
+      const day = start.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      start.setDate(start.getDate() + diff);
+      start.setHours(9, 0, 0, 0);
+      end.setTime(start.getTime());
+      end.setDate(start.getDate() + 4);
+    } else if (mode === 'month') {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      end.setFullYear(start.getFullYear(), start.getMonth() + 1, 0);
+    }
     end.setHours(21, 0, 0, 0);
+    this.viewStart = start;
     this.viewEnd = end;
+  }
+
+  private shiftPlannerWindow(direction: -1 | 1): void {
+    const anchor = new Date(this.viewStart);
+    if (this.plannerViewMode === 'week') {
+      anchor.setDate(anchor.getDate() + direction * 7);
+    } else if (this.plannerViewMode === 'month') {
+      anchor.setMonth(anchor.getMonth() + direction);
+    } else {
+      anchor.setDate(anchor.getDate() + direction);
+    }
+    this.setViewWindowForMode(this.plannerViewMode, anchor);
+    this.reloadScheduleEntries();
+  }
+
+  private reloadScheduleEntries(): void {
+    this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
+      this.scheduleEntries = entries;
+      this.events = this.mapScheduleEntriesToEvents(entries);
+    });
+  }
+
+  private getMonthPreviewRangeStyle(start: Date, end: Date): Record<string, string> {
+    if (!this.selectedMonthPreviewDate) return {};
+    const dayStart = this.getDayBoundary(this.selectedMonthPreviewDate, 9, 0);
+    const dayEnd = this.getDayBoundary(this.selectedMonthPreviewDate, 21, 0);
+    const clippedStart = Math.max(start.getTime(), dayStart.getTime());
+    const clippedEnd = Math.min(end.getTime(), dayEnd.getTime());
+    const totalMs = dayEnd.getTime() - dayStart.getTime();
+    const left = ((clippedStart - dayStart.getTime()) / totalMs) * 100;
+    const width = Math.max(((clippedEnd - clippedStart) / totalMs) * 100, 2);
+    return {
+      left: `${left}%`,
+      width: `${width}%`,
+    };
+  }
+
+  private getDayBoundary(date: Date, hour: number, minute: number): Date {
+    const boundary = new Date(date);
+    boundary.setHours(hour, minute, 0, 0);
+    return boundary;
+  }
+
+  private isSameCalendarDay(first: Date, second: Date): boolean {
+    return first.getFullYear() === second.getFullYear() &&
+      first.getMonth() === second.getMonth() &&
+      first.getDate() === second.getDate();
+  }
+
+  private getCalendarWeek(date: Date): number {
+    const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const day = target.getUTCDay() || 7;
+    target.setUTCDate(target.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+    return Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
+
+  private formatShortDate(date: Date): string {
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  }
+
+  private formatLongDate(date: Date): string {
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   }
 
   private applyQuickViewSelection(): void {
@@ -2511,7 +2725,7 @@ export class ServicePlannerComponent implements OnInit {
     if (!order) return;
     const selection = this.quickViewSelection.getSelection(order.id);
     if (!selection) return;
-    this.alignViewWindowToOrder(order);
+    this.alignViewWindowToOrder(order, this.plannerViewMode);
     this.syncOrderAppointment(order.id, selection.checkinStart, selection.handoverEnd);
     this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
       this.scheduleEntries = entries;

@@ -1,7 +1,7 @@
-ï»¿import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
-import { ActionRibbon } from './components/action-ribbon/action-ribbon';
+import { ActionRibbon, ActionRibbonItem } from './components/action-ribbon/action-ribbon';
 import { MenuBar } from './components/menu-bar/menu-bar';
 import { Stepper } from './components/stepper/stepper';
 import { TopPanel, TopPanelTile } from './components/top-panel/top-panel';
@@ -9,7 +9,7 @@ import { Footer } from './components/footer/footer';
 import { PageTitle } from './components/page-title/page-title';
 import { ResourceCatalogSelectionService } from './features/resource-catalog/data/resource-catalog-selection.service';
 import { QuickViewSelectionService } from './features/quick-view/quick-view-selection.service';
-import { PlannerSettingsService } from './features/service-planner/services/planner-settings.service';
+import { PlannerSettingsService, PlannerViewMode } from './features/service-planner/services/planner-settings.service';
 import { ResourceViewsService } from './features/service-planner/services/resource-views.service';
 import { MOCK_WORK_ORDERS } from './core/services/mock/mock-data';
 import { findTransactionById, findWorkOrderByIdOrReference } from './core/services/mock/mock-transactions';
@@ -62,7 +62,7 @@ export class App implements OnInit {
       resourceIds: ['mech-mark-owen', 'mech-phil-parker', 'mech-greg-jackson', 'advisor-ted-phillips', 'advisor-frank-miller', 'bay-pc-1', 'bay-pc-2', 'device-bea-950', 'car-audi-a4-kl657og'],
       groups: [
         { label: 'Mechanics', children: [
-          { label: 'Mechanic Group A', children: ['Hans MÃ¼ller', 'Klaus Weber'] },
+          { label: 'Mechanic Group A', children: ['Hans Müller', 'Klaus Weber'] },
           { label: 'Mechanic Group B', children: ['Stefan Braun'] },
         ] },
         { label: 'Service Advisors', children: ['John Doe', 'Maria Schmidt'] },
@@ -77,7 +77,7 @@ export class App implements OnInit {
       resourceIds: ['mech-mark-owen', 'mech-phil-parker', 'advisor-ted-phillips', 'advisor-frank-miller', 'bay-pc-1', 'bay-pc-2', 'bay-pc-3', 'bay-lt-1', 'device-bea-950', 'device-eps-708', 'car-audi-a4-kl657og', 'car-audi-a3-kl643ju'],
       groups: [
         { label: 'Mechanics', children: [
-          { label: 'Mechanic Group A', children: ['Hans MÃ¼ller', 'Klaus Weber'] },
+          { label: 'Mechanic Group A', children: ['Hans Müller', 'Klaus Weber'] },
         ] },
         { label: 'Service Advisors', children: ['John Doe', 'Maria Schmidt'] },
         { label: 'Bays', children: ['Bay 1', 'Bay 2', 'Bay 3', 'Bay 4'] },
@@ -105,7 +105,7 @@ export class App implements OnInit {
       resourceIds: ['mech-mark-owen', 'mech-greg-jackson', 'bay-pc-1', 'advisor-ted-phillips', 'advisor-frank-miller', 'car-audi-a4-kl657og', 'car-audi-a3-kl643ju'],
       groups: [
         { label: 'Mechanics', children: [
-          { label: 'Mechanic Group A', children: ['Hans Mï¿½ller'] },
+          { label: 'Mechanic Group A', children: ['Hans M?ller'] },
           { label: 'Mechanic Group B', children: ['Stefan Braun'] },
         ] },
         { label: 'Service Advisors', children: ['John Doe', 'Maria Schmidt'] },
@@ -119,7 +119,7 @@ export class App implements OnInit {
       resourceIds: ['mech-mark-owen', 'mech-phil-parker', 'mech-greg-jackson', 'mech-jeff-goldberg', 'advisor-ted-phillips', 'advisor-frank-miller', 'bay-pc-1', 'bay-pc-2', 'bay-pc-3', 'bay-lt-1', 'device-bea-950', 'device-eps-708'],
       groups: [
         { label: 'Mechanics', children: [
-          { label: 'Mechanic Group A', children: ['Hans MÃ¼ller', 'Klaus Weber'] },
+          { label: 'Mechanic Group A', children: ['Hans Müller', 'Klaus Weber'] },
           { label: 'Mechanic Group B', children: ['Stefan Braun', 'Erik Hoffmann'] },
         ] },
         { label: 'Service Advisors', children: ['John Doe', 'Maria Schmidt'] },
@@ -182,7 +182,19 @@ export class App implements OnInit {
     private quickViewSelection: QuickViewSelectionService,
     private workOrderRepo: WorkOrderRepository,
     private appointmentSync: AppointmentSyncService,
-  ) {}
+  ) {
+    effect(() => {
+      const mode = this.plannerSettings.viewMode();
+      const viewItem = this.actionRibbonItems.find(item => item.label === 'View');
+      if (viewItem) {
+        viewItem.selectedValue = mode;
+      }
+      const timescaleItem = this.actionRibbonItems.find(item => item.label === 'Scheduler Timescale');
+      if (timescaleItem) {
+        timescaleItem.disabled = mode === 'month';
+      }
+    });
+  }
 
   ngOnInit(): void {
     const defaultView = this.resourceViewsService.getByValue('view-full') ?? this.resourceViewsService.getAll()[0];
@@ -193,7 +205,7 @@ export class App implements OnInit {
       .subscribe(event => this.updateShellForUrl(event.urlAfterRedirects));
   }
 
-  actionRibbonItems = [
+  actionRibbonItems: ActionRibbonItem[] = [
     {
       label: 'Undo Booking', type: 'link' as const,
       icon: 'M15 7.5H5.86117L8.55172 4.81058L7.5 3.75L3 8.25L7.5 12.75L8.55172 11.689L5.86343 9H15C16.1935 9 17.3381 9.47411 18.182 10.318C19.0259 11.1619 19.5 12.3065 19.5 13.5C19.5 14.6935 19.0259 15.8381 18.182 16.682C17.3381 17.5259 16.1935 18 15 18H9V19.5H15C16.5913 19.5 18.1174 18.8679 19.2426 17.7426C20.3679 16.6174 21 15.0913 21 13.5C21 11.9087 20.3679 10.3826 19.2426 9.25736C18.1174 8.13214 16.5913 7.5 15 7.5Z',
@@ -206,7 +218,8 @@ export class App implements OnInit {
         { label: 'Week', value: 'week' },
         { label: 'Month', value: 'month' },
       ],
-      selectedValue: 'week',
+      selectedValue: 'day',
+      onSelect: (opt: any) => this.setPlannerViewMode(opt.value as PlannerViewMode),
     },
     {
       label: 'Scheduler Timescale', type: 'dropdown' as const,
@@ -229,6 +242,18 @@ export class App implements OnInit {
       action: () => this.plannerSettings.openSettings(),
     },
   ];
+
+  private setPlannerViewMode(mode: PlannerViewMode): void {
+    this.plannerSettings.setViewMode(mode);
+    const viewItem = this.actionRibbonItems.find(item => item.label === 'View');
+    if (viewItem) {
+      viewItem.selectedValue = mode;
+    }
+      const timescaleItem = this.actionRibbonItems.find(item => item.label === 'Scheduler Timescale');
+      if (timescaleItem) {
+        timescaleItem.disabled = mode === 'month';
+      }
+  }
 
 
 
@@ -682,3 +707,9 @@ export class App implements OnInit {
     });
   }
 }
+
+
+
+
+
+
