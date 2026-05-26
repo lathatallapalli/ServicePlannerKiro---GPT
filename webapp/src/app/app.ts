@@ -673,7 +673,7 @@ export class App implements OnInit {
       return;
     }
 
-    this.appointmentSync.updateAppointment(order.id, selection.checkinStart, selection.handoverEnd).subscribe(savedOrder => {
+    this.appointmentSync.updateAppointment(order.id, selection.checkinStart, selection.handoverStart ?? selection.handoverEnd).subscribe(savedOrder => {
       if (savedOrder) {
         this.activeOrder.set(savedOrder);
         this.topPanelTiles = this.buildTopPanelTiles(savedOrder);

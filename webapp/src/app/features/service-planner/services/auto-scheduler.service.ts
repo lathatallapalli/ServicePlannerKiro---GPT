@@ -7,6 +7,8 @@ import { UnavailabilityBlock } from '../../../core/models/availability.model';
 const MINUTES_PER_FRU = 60;
 const CHECKIN_DURATION_MINUTES = 30;
 const HANDOVER_DURATION_MINUTES = 30;
+const LUNCH_START_HOUR = 12;
+const LUNCH_END_HOUR = 13;
 
 export interface AutoScheduleRequest {
   jobs: Job[];
@@ -15,6 +17,8 @@ export interface AutoScheduleRequest {
   existingEntries: ScheduleEntry[];       // already booked slots on the scheduler
   unavailability: UnavailabilityBlock[];  // known unavailability blocks
   searchFrom: Date;                       // earliest possible start
+  fixedCheckin?: { start: Date; end: Date; resourceId?: string };
+  handoverSearchFrom?: Date;
   dayStartHour: number;                   // e.g. 9
   dayEndHour: number;                     // e.g. 21
   vehicleGroups?: string[][];             // jobs grouped by vehicle — jobs in same group cannot overlap
@@ -35,7 +39,7 @@ export interface AutoScheduleResult {
 export class AutoSchedulerService {
 
   schedule(req: AutoScheduleRequest): AutoScheduleResult | null {
-    const { jobs, resources, preferredResourceIds, existingEntries, unavailability, searchFrom, dayStartHour, dayEndHour } = req;
+    const { jobs, resources, preferredResourceIds, existingEntries, unavailability, searchFrom, fixedCheckin, handoverSearchFrom, dayStartHour, dayEndHour } = req;
     const SLOT_MINUTES = 15;
 
     const allEntries: ScheduleEntry[] = [...existingEntries];
@@ -48,17 +52,27 @@ export class AutoSchedulerService {
     const jobsByWorkOrder = this.groupJobsByWorkOrder(jobs);
 
     for (const workOrderJobs of jobsByWorkOrder) {
-      const checkinSlot = this.findActivitySlot({
-        resourceType: 'advisor',
-        resources,
-        allEntries,
-        unavailability,
-        searchFrom,
-        durationMinutes: CHECKIN_DURATION_MINUTES,
-        dayStartHour,
-        dayEndHour,
-        slotMinutes: SLOT_MINUTES,
-      });
+      const checkinSlot = fixedCheckin
+        ? this.resolveFixedActivitySlot({
+            resourceType: 'advisor',
+            resources,
+            allEntries,
+            unavailability,
+            fixedSlot: fixedCheckin,
+            dayStartHour,
+            dayEndHour,
+          })
+        : this.findActivitySlot({
+            resourceType: 'advisor',
+            resources,
+            allEntries,
+            unavailability,
+            searchFrom,
+            durationMinutes: CHECKIN_DURATION_MINUTES,
+            dayStartHour,
+            dayEndHour,
+            slotMinutes: SLOT_MINUTES,
+          });
       if (!checkinSlot) return null;
       allEntries.push(this.createActivityHold('act-checkin', checkinSlot.resource.id, checkinSlot.start, checkinSlot.end));
 
@@ -109,11 +123,14 @@ export class AutoSchedulerService {
       }
 
       if (!latestJobEnd) return null;
+      const handoverEarliest = handoverSearchFrom && handoverSearchFrom > latestJobEnd
+        ? handoverSearchFrom
+        : latestJobEnd;
       const handoverSlot = this.findHandoverSlotWithMobility({
         resources,
         allEntries,
         unavailability,
-        searchFrom: latestJobEnd,
+        searchFrom: handoverEarliest,
         mobilityStart: checkinSlot.end,
         dayStartHour,
         dayEndHour,
@@ -291,6 +308,39 @@ export class AutoSchedulerService {
     return null;
   }
 
+  private resolveFixedActivitySlot(params: {
+    resourceType: string;
+    resources: Resource[];
+    allEntries: ScheduleEntry[];
+    unavailability: UnavailabilityBlock[];
+    fixedSlot: { start: Date; end: Date; resourceId?: string };
+    dayStartHour: number;
+    dayEndHour: number;
+  }): { start: Date; end: Date; resource: Resource } | null {
+    const { resourceType, resources, allEntries, unavailability, fixedSlot, dayStartHour, dayEndHour } = params;
+    const start = new Date(fixedSlot.start);
+    const end = new Date(fixedSlot.end);
+
+    if (
+      start >= end ||
+      start.toDateString() !== end.toDateString() ||
+      !this.isWithinDay(start, dayStartHour, dayEndHour) ||
+      !this.isWithinDay(end, dayStartHour, dayEndHour)
+    ) {
+      return null;
+    }
+
+    const candidates = resources.filter(resource =>
+      resource.type === resourceType && (!fixedSlot.resourceId || resource.id === fixedSlot.resourceId)
+    );
+
+    const resource = candidates.find(candidate =>
+      this.isResourceFree(candidate.id, start, end, allEntries, unavailability)
+    );
+
+    return resource ? { start, end, resource } : null;
+  }
+
   private findHandoverSlotWithMobility(params: {
     resources: Resource[];
     allEntries: ScheduleEntry[];
@@ -355,6 +405,8 @@ export class AutoSchedulerService {
   ): boolean {
     const overlaps = (a: Date, b: Date, c: Date, d: Date) => a < d && c < b;
 
+    if (this.overlapsLunchBreak(start, end)) return false;
+
     const busyEntry = entries.find(e =>
       e.resourceId === resourceId && overlaps(start, end, e.start, e.end)
     );
@@ -370,6 +422,15 @@ export class AutoSchedulerService {
     const h = date.getHours();
     const m = date.getMinutes();
     return h >= dayStartHour && (h < dayEndHour || (h === dayEndHour && m === 0));
+  }
+
+  private overlapsLunchBreak(start: Date, end: Date): boolean {
+    if (start.toDateString() !== end.toDateString()) return true;
+    const lunchStart = new Date(start);
+    lunchStart.setHours(LUNCH_START_HOUR, 0, 0, 0);
+    const lunchEnd = new Date(start);
+    lunchEnd.setHours(LUNCH_END_HOUR, 0, 0, 0);
+    return start < lunchEnd && lunchStart < end;
   }
 
   private snapToSlot(date: Date, slotMinutes: number, dayStartHour: number): Date {

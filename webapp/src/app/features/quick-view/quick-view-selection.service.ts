@@ -4,6 +4,7 @@ import { BehaviorSubject } from 'rxjs';
 export interface QuickViewSelection {
   orderId: string;
   checkinStart: Date;
+  handoverStart?: Date;
   handoverEnd: Date;
 }
 

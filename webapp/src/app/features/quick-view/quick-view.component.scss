@@ -23,14 +23,14 @@
   min-height: max-content;
   display: flex;
   flex-direction: column;
-  gap: 48px;
-  padding: 32px 96px 80px;
+  gap: 20px;
+  padding: 32px 96px 180px;
 }
 
 .generic-card,
 .timeslots-card {
   width: 100%;
-  padding-bottom: 24px;
+  padding-bottom: 8px;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -98,7 +98,7 @@
 .timeslots-card__content {
   box-sizing: border-box;
   width: 100%;
-  padding: 32px 96px 0;
+  padding: 16px 96px 0;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -107,7 +107,7 @@
 }
 
 .timeslots-card__content {
-  padding: 32px 36px 0;
+  padding: 12px 36px 0;
 }
 
 .generic-card__content--work {
@@ -230,11 +230,14 @@
 
 .timeslots-grid {
   width: 100%;
+  max-height: 84px;
   padding: 0;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
   gap: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .timeslots-column {
@@ -248,7 +251,7 @@
 
 .timeslot-button {
   align-self: stretch;
-  min-height: 58px;
+  min-height: 40px;
   padding: 11px 16px;
   border: 0;
   background: #ffffff;
@@ -287,6 +290,43 @@
   color: #525252;
   font-size: 14px;
   line-height: 20px;
+}
+
+.quick-view-page__handover-slots {
+  width: 100%;
+  min-height: 44px;
+  scroll-margin-bottom: 160px;
+}
+
+.quick-view-page__select-checkin {
+  width: calc(100% - 120px);
+  min-height: 40px;
+  margin: 8px 60px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e0e0e0;
+  color: #161616;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: 0.16px;
+}
+
+.quick-view-page__status,
+.quick-view-page__error {
+  width: 100%;
+  margin: 16px 60px 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.quick-view-page__status {
+  color: #525252;
+}
+
+.quick-view-page__error {
+  color: #da1e28;
 }
 
 @media (max-width: 1200px) {

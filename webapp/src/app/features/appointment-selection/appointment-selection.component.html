@@ -1,4 +1,4 @@
-﻿<section class="appointment-selection-page">
+﻿<section class="appointment-selection-page" (input)="onAppointmentFieldsDomChange()" (change)="onAppointmentFieldsDomChange()" (focusout)="onAppointmentFieldsDomChange()">
   <div class="appointment-selection-page__cards">
     <article class="generic-card generic-card--work">
       <header class="generic-card__header">
@@ -62,6 +62,7 @@
             dateFormat="d/m/Y"
             size="md"
             [value]="getDateValue(workOrder?.appointmentStart)"
+            (valueChange)="onAppointmentDateChange('checkin', $event)"
           />
 
           <ibm-timepicker
@@ -71,8 +72,9 @@
             placeholder="hh:mm"
             size="md"
             [value]="getTimeValue(workOrder?.appointmentStart)"
+            (valueChange)="onAppointmentTimeChange('checkin', $event)"
           >
-            <ibm-timepicker-select id="check-in-time-period" ariaLabel="Check-in time period">
+            <ibm-timepicker-select id="check-in-time-period" ariaLabel="Check-in time period" (change)="onAppointmentMeridiemChange('checkin', $event)">
               <option value="AM" [selected]="getMeridiem(workOrder?.appointmentStart) === 'AM'">AM</option>
               <option value="PM" [selected]="getMeridiem(workOrder?.appointmentStart) === 'PM'">PM</option>
             </ibm-timepicker-select>
@@ -90,6 +92,7 @@
             dateFormat="d/m/Y"
             size="md"
             [value]="getDateValue(workOrder?.appointmentEnd)"
+            (valueChange)="onAppointmentDateChange('handover', $event)"
           />
 
           <ibm-timepicker
@@ -99,8 +102,9 @@
             placeholder="hh:mm"
             size="md"
             [value]="getTimeValue(workOrder?.appointmentEnd)"
+            (valueChange)="onAppointmentTimeChange('handover', $event)"
           >
-            <ibm-timepicker-select id="handover-time-period" ariaLabel="Handover time period">
+            <ibm-timepicker-select id="handover-time-period" ariaLabel="Handover time period" (change)="onAppointmentMeridiemChange('handover', $event)">
               <option value="AM" [selected]="getMeridiem(workOrder?.appointmentEnd) === 'AM'">AM</option>
               <option value="PM" [selected]="getMeridiem(workOrder?.appointmentEnd) === 'PM'">PM</option>
             </ibm-timepicker-select>
@@ -114,6 +118,7 @@
             dateFormat="d/m/Y"
             size="md"
             [value]="getDateValue(workOrder?.appointmentEnd)"
+            (valueChange)="onAppointmentDateChange('agreed', $event)"
           />
 
           <ibm-timepicker
@@ -123,8 +128,9 @@
             placeholder="hh:mm"
             size="md"
             [value]="getTimeValue(workOrder?.appointmentEnd)"
+            (valueChange)="onAppointmentTimeChange('agreed', $event)"
           >
-            <ibm-timepicker-select id="agreed-time-period" ariaLabel="Agreed time period">
+            <ibm-timepicker-select id="agreed-time-period" ariaLabel="Agreed time period" (change)="onAppointmentMeridiemChange('agreed', $event)">
               <option value="AM" [selected]="getMeridiem(workOrder?.appointmentEnd) === 'AM'">AM</option>
               <option value="PM" [selected]="getMeridiem(workOrder?.appointmentEnd) === 'PM'">PM</option>
             </ibm-timepicker-select>

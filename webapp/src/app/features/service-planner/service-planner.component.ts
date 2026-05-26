@@ -20,7 +20,7 @@ import { JobResourceRequirement } from '../../core/models/job.model';
 import { Resource } from '../../core/models/resource.model';
 import { ResourceFavoriteView } from './services/planner-settings.service';
 import { AppointmentSyncService } from '../../core/services/appointment-sync.service';
-import { QuickViewSelectionService } from '../quick-view/quick-view-selection.service';
+import { QuickViewSelection, QuickViewSelectionService } from '../quick-view/quick-view-selection.service';
 
 const MINUTES_PER_FRU = 60;
 
@@ -97,6 +97,9 @@ export class ServicePlannerComponent implements OnInit {
 
   viewStart = new Date('2024-04-15T09:00:00');
   viewEnd   = new Date('2024-04-19T21:00:00');
+  private readonly appointmentDayEndHour = 18;
+  private readonly lunchStartHour = 12;
+  private readonly lunchEndHour = 13;
 
   get slotDurationMinutes(): number {
     return this.plannerSettings.slotDurationMinutes();
@@ -328,6 +331,8 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   onEventMoved(payload: EventMovePayload): void {
+    if (!this.isWithinAppointmentBookingHours(payload.start, payload.end)) return;
+
     this.scheduleRepo.reschedule(payload.eventId, payload.start, payload.end).subscribe(updated => {
       this.events = this.events.map(e =>
         e.id === payload.eventId
@@ -346,6 +351,8 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   onEventResized(payload: EventResizePayload): void {
+    if (!this.isWithinAppointmentBookingHours(payload.start, payload.end)) return;
+
     this.scheduleRepo.reschedule(payload.eventId, payload.start, payload.end).subscribe(updated => {
       this.events = this.events.map(e =>
         e.id === payload.eventId
@@ -356,6 +363,9 @@ export class ServicePlannerComponent implements OnInit {
       if (this.isJobEvent(this.events.find(e => e.id === payload.eventId))) {
         this.syncJobSiblings(payload.eventId, updated.start, updated.end);
       }
+      const orderId = this.getOrderIdForEventId(payload.eventId);
+      this.syncMobilitySpan(orderId);
+      this.syncOrderAppointmentFromBookings(orderId);
     });
   }
 
@@ -500,12 +510,14 @@ export class ServicePlannerComponent implements OnInit {
   deleteSelectedBooking(): void {
     const event = this.selectedBookingEvent;
     if (!event) return;
+    const orderId = this.getOrderIdForEventId(event.id);
 
     this.scheduleRepo.unassign(event.id).subscribe(() => {
       this.events = this.events.filter(candidate => candidate.id !== event.id);
       this.scheduleEntries = this.scheduleEntries.filter(entry => entry.id !== event.id);
       this.latestAutoBookingEntryIds.delete(event.id);
       this.selectedBookingEvent = null;
+      this.syncOrderAppointmentFromBookings(orderId);
     });
   }
 
@@ -516,6 +528,7 @@ export class ServicePlannerComponent implements OnInit {
     const start = this.combineBookingDateTime(this.bookingModalStartDate, this.bookingModalStartTime);
     const end = this.combineBookingDateTime(this.bookingModalEndDate, this.bookingModalEndTime);
     if (!start || !end || end <= start) return;
+    if (!this.isWithinAppointmentBookingHours(start, end)) return;
 
     const currentBooking = this.bookings.find(booking => booking.entryId === event.id);
     const orderId = currentBooking?.orderId;
@@ -1276,6 +1289,8 @@ export class ServicePlannerComponent implements OnInit {
       if (span) { start = span.start; end = span.end; }
     }
 
+    if (!this.isWithinAppointmentBookingHours(start, end)) return;
+
     const entry = {
       id: `se-${Date.now()}`,
       jobId: payload.jobId,
@@ -1350,6 +1365,7 @@ export class ServicePlannerComponent implements OnInit {
       this.events = this.events.filter(e => e.id !== booking.entryId);
       this.scheduleEntries = this.scheduleEntries.filter(entry => entry.id !== booking.entryId);
       this.latestAutoBookingEntryIds.delete(booking.entryId);
+      this.syncOrderAppointmentFromBookings(booking.orderId);
       if (this.latestAutoBookingEntryIds.size === 0) {
         this.isAutoProposalVisible = false;
       }
@@ -1498,7 +1514,7 @@ export class ServicePlannerComponent implements OnInit {
       unavailability: this.unavailability,
       searchFrom,
       dayStartHour: 9,
-      dayEndHour: 21,
+      dayEndHour: this.appointmentDayEndHour,
     });
 
     if (!result) return;
@@ -1588,7 +1604,7 @@ export class ServicePlannerComponent implements OnInit {
     this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-handover'), handoverAdvisor, handoverStart, handoverEnd, targetWorkOrderId ?? undefined);
     this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-mobility'), mobilityDriver,  checkinEnd,  handoverEnd, targetWorkOrderId ?? undefined);
     if (targetWorkOrderId) {
-      this.syncOrderAppointment(targetWorkOrderId, checkinStart, handoverEnd);
+      this.syncOrderAppointment(targetWorkOrderId, checkinStart, handoverStart, handoverEnd);
     }
   }
 
@@ -1604,11 +1620,16 @@ export class ServicePlannerComponent implements OnInit {
     const day = start.getDay();
     const diff = day === 0 ? -6 : 1 - day;
     start.setDate(start.getDate() + diff);
-    start.setHours(9, 0, 0, 0);
+    start.setHours(8, 0, 0, 0);
     this.viewStart = start;
     const end = new Date(start);
     end.setDate(start.getDate() + 4);
     end.setHours(21, 0, 0, 0);
+    const appointmentEnd = selection?.handoverEnd ?? selection?.handoverStart ?? order?.appointmentEnd;
+    if (appointmentEnd && new Date(appointmentEnd) > end) {
+      end.setTime(new Date(appointmentEnd).getTime());
+      end.setHours(21, 0, 0, 0);
+    }
     this.viewEnd = end;
   }
 
@@ -1620,10 +1641,11 @@ export class ServicePlannerComponent implements OnInit {
     const selection = this.quickViewSelection.getSelection(order.id);
     if (!selection) return;
     this.alignViewWindowToOrder(order);
-    this.syncOrderAppointment(order.id, selection.checkinStart, selection.handoverEnd);
+    this.syncOrderAppointment(order.id, selection.checkinStart, selection.handoverStart ?? selection.handoverEnd, selection.handoverEnd);
     this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
       this.scheduleEntries = entries;
       this.events = this.mapScheduleEntriesToEvents(entries);
+      this.ensureQuickViewAppointmentActivityEntries(order, selection);
       if (this.plannerMode === 'order') {
         this.latestAutoBookingEntryIds = new Set(
           this.scheduleEntries
@@ -1633,6 +1655,60 @@ export class ServicePlannerComponent implements OnInit {
         this.isAutoProposalVisible = this.latestAutoBookingEntryIds.size > 0;
       }
       this.scrollToActiveOrderBooking();
+    });
+  }
+
+  private ensureQuickViewAppointmentActivityEntries(order: any, selection: QuickViewSelection): void {
+    const checkinStart = new Date(selection.checkinStart);
+    const checkinEnd = new Date(checkinStart.getTime() + this.getActivityDurationMinutes('act-checkin') * 60000);
+    const handoverStart = new Date(selection.handoverStart ?? selection.handoverEnd);
+    const handoverEnd = new Date(selection.handoverEnd ?? handoverStart.getTime() + this.getActivityDurationMinutes('act-handover') * 60000);
+
+    this.upsertAppointmentActivityEntry(order, 'act-checkin', 'Check-In', checkinStart, checkinEnd);
+    this.upsertAppointmentActivityEntry(order, 'act-handover', 'Handover', handoverStart, handoverEnd);
+  }
+
+  private upsertAppointmentActivityEntry(order: any, activityTemplateId: string, title: string, start: Date, end: Date): void {
+    if (!this.isWithinAppointmentBookingHours(start, end)) return;
+
+    const existingEntry = this.scheduleEntries.find(entry =>
+      entry.workOrderReference === order.referenceNumber && this.getActivityTemplateId(entry.jobId) === activityTemplateId
+    );
+
+    if (existingEntry) {
+      if (existingEntry.start.getTime() === start.getTime() && existingEntry.end.getTime() === end.getTime()) return;
+      this.scheduleRepo.reschedule(existingEntry.id, start, end).subscribe(updated => {
+        this.updateScheduleEntryTimes(existingEntry.id, updated.start, updated.end);
+        this.events = this.events.map(event =>
+          event.id === existingEntry.id
+            ? { ...event, start: updated.start, end: updated.end, meta: { ...(event.meta ?? {}), entry: { ...(event.meta?.entry as ScheduleEntry), ...updated } } }
+            : event
+        );
+      });
+      return;
+    }
+
+    const advisor = this.resources.find(resource => (resource.meta as Resource | undefined)?.type === 'advisor');
+    if (!advisor) return;
+
+    const entry: ScheduleEntry = {
+      id: `appt-${activityTemplateId}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      jobId: this.getOrderActivityId(order.id, activityTemplateId),
+      resourceId: advisor.id,
+      start,
+      end,
+      title,
+      kind: 'scheduled',
+      workOrderReference: order.referenceNumber,
+      workorderItemStatus: 'scheduled',
+      workorderItemCategory: 'activity',
+    };
+
+    this.scheduleRepo.assign(entry).subscribe(assigned => {
+      this.upsertScheduleEntry(assigned);
+      this.events = [...this.events, ...this.mapScheduleEntriesToEvents([assigned])];
+      this.latestAutoBookingEntryIds.add(assigned.id);
+      this.isAutoProposalVisible = this.plannerMode === 'order' || this.isAutoProposalVisible;
     });
   }
 
@@ -1789,6 +1865,8 @@ export class ServicePlannerComponent implements OnInit {
     const normalizedEnd = this.isFixedDurationActivity(activityId)
       ? new Date(start.getTime() + this.getActivityDurationMinutes(activityId) * 60000)
       : end;
+    if (!this.isWithinAppointmentBookingHours(start, normalizedEnd)) return;
+
     const entry = {
       id: `auto-act-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       jobId: activityId,
@@ -1834,6 +1912,21 @@ export class ServicePlannerComponent implements OnInit {
   private isFixedDurationActivity(activityId: string): boolean {
     const activityTemplateId = this.getActivityTemplateId(activityId);
     return activityTemplateId === 'act-checkin' || activityTemplateId === 'act-handover';
+  }
+
+  private isWithinAppointmentBookingHours(start: Date, end: Date): boolean {
+    if (start.toDateString() !== end.toDateString()) return false;
+    const cutoff = new Date(start);
+    cutoff.setHours(this.appointmentDayEndHour, 0, 0, 0);
+    return start < end && end <= cutoff && !this.overlapsLunchBreak(start, end);
+  }
+
+  private overlapsLunchBreak(start: Date, end: Date): boolean {
+    const lunchStart = new Date(start);
+    lunchStart.setHours(this.lunchStartHour, 0, 0, 0);
+    const lunchEnd = new Date(start);
+    lunchEnd.setHours(this.lunchEndHour, 0, 0, 0);
+    return start < lunchEnd && lunchStart < end;
   }
 
   private getCheckinEndForOrder(orderId?: string): Date | null {
@@ -1993,16 +2086,27 @@ export class ServicePlannerComponent implements OnInit {
     const checkinEvent = checkinBooking ? this.events.find(event => event.id === checkinBooking.entryId) : undefined;
     const handoverEvent = handoverBooking ? this.events.find(event => event.id === handoverBooking.entryId) : undefined;
     if (!checkinEvent || !handoverEvent) return;
-    this.syncOrderAppointment(orderId, checkinEvent.start, handoverEvent.end);
+    this.syncOrderAppointment(orderId, checkinEvent.start, handoverEvent.start, handoverEvent.end);
   }
 
-  private syncOrderAppointment(orderId: string, checkinStart: Date, handoverEnd: Date): void {
+  private getOrderIdForEventId(eventId: string): string | undefined {
+    const booking = this.bookings.find(candidate => candidate.entryId === eventId);
+    if (booking?.orderId) return booking.orderId;
+
+    const event = this.events.find(candidate => candidate.id === eventId);
+    const order = event ? this.findOrderForEvent(event) : null;
+    return order?.id;
+  }
+
+  private syncOrderAppointment(orderId: string, checkinStart: Date, handoverStart: Date, handoverEnd?: Date): void {
+    const resolvedHandoverEnd = handoverEnd ?? new Date(handoverStart.getTime() + 30 * 60000);
     this.quickViewSelection.setSelection({
       orderId,
       checkinStart: new Date(checkinStart),
-      handoverEnd: new Date(handoverEnd),
+      handoverStart: new Date(handoverStart),
+      handoverEnd: new Date(resolvedHandoverEnd),
     });
-    this.appointmentSync.updateAppointment(orderId, checkinStart, handoverEnd).subscribe(savedOrder => {
+    this.appointmentSync.updateAppointment(orderId, checkinStart, handoverStart).subscribe(savedOrder => {
       if (!savedOrder) return;
       this.allOrders = this.allOrders.map(order => order.id === savedOrder.id ? savedOrder : order);
     });
