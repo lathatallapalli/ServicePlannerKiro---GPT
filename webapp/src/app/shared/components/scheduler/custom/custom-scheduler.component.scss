@@ -95,11 +95,77 @@ $month-bar-height: 60px;
     z-index: 1;
   }
 
+  &__navigation-row {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    min-height: 48px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--Border-border-subtle-01, #C6C6C6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #fff;
+    color: var(--Text-text-primary, #161616);
+    font-family: 'IBM Plex Sans', Arial, sans-serif;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
+  &__navigation-button {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    padding: 6px;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    color: var(--Icon-icon-primary, #161616);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--Layer-layer-hover-01, #E8E8E8);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--Focus-focus, #4C68B1);
+      outline-offset: -2px;
+    }
+  }
+
+  &__navigation-label {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__navigation-meta {
+    color: var(--Text-text-secondary, #525252);
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: .32px;
+  }
+
+  &__navigation-title {
+    color: var(--Text-text-primary, #161616);
+    font-size: 14px;
+    line-height: 18px;
+    letter-spacing: .16px;
+  }
 
   &__day-row {
     display: flex;
     border-bottom: 1px solid #C6C6C6;
     background: #fff;
+  }
+
+  &__day-row--single {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    flex-shrink: 0;
   }
 
   &__day-cell {
@@ -121,6 +187,10 @@ $month-bar-height: 60px;
     align-items: center;
     gap: 6px;
     background: #fff;
+  }
+
+  &__day-cell--single &__day-label {
+    position: sticky;
   }
 
   &__day-num {
@@ -346,6 +416,10 @@ $month-bar-height: 60px;
     width: 1px;
     background: #E0E0E0;
     pointer-events: none;
+  }
+
+  &__slot-line--minor {
+    background: var(--Layer-layer-01, var(--cds-layer-01, #F4F4F4));
   }
 
   &__day-line {

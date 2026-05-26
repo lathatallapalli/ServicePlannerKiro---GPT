@@ -48,6 +48,102 @@
 
   <div class="service-planner__content" style="display:flex;flex:1 1 auto;min-width:0;min-height:0;overflow:hidden">
   <main class="service-planner__main" style="display:flex;flex:1 1 auto;min-width:0;min-height:0;height:100%;overflow:hidden">
+  @if (plannerViewMode === 'month') {
+    <section class="month-overview" aria-label="Month planner overview">
+      <div class="month-overview__body">
+        <div class="month-overview__calendar">
+          <div class="month-overview__title-row" aria-label="Month navigation">
+            <button type="button" class="month-overview__nav-button" aria-label="Previous month" (click)="goToPreviousMonth()">
+              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M12.5 15 7.5 10 12.5 5 13.375 5.875 9.25 10 13.375 14.125 12.5 15Z" fill="currentColor"/>
+              </svg>
+            </button>
+            <h2>{{ monthOverviewTitle }}</h2>
+            <button type="button" class="month-overview__nav-button" aria-label="Next month" (click)="goToNextMonth()">
+              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M7.5 5 12.5 10 7.5 15 6.625 14.125 10.75 10 6.625 5.875 7.5 5Z" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+          <div class="month-overview__weekdays" aria-hidden="true">
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+            <span>Sun</span>
+          </div>
+          <div class="month-overview__grid">
+            @for (day of monthOverviewDays; track day.date.getTime()) {
+              <button
+                type="button"
+                class="month-overview__day"
+                [class.month-overview__day--outside]="!day.isCurrentMonth"
+                [class.month-overview__day--today]="day.isToday"
+                [class.month-overview__day--selected]="day.isSelected"
+                [attr.aria-label]="'Preview ' + (day.date | date:'fullDate')"
+                (click)="selectMonthPreviewDay(day.date)">
+                <span class="month-overview__day-heading">
+                  <span>{{ day.date | date:'d' }}</span>
+                  @if (day.isToday) {
+                    <span class="month-overview__today-label">Today</span>
+                  }
+                </span>
+                @if (day.bookingCount) {
+                  <span class="month-overview__summary">
+                    <strong>{{ day.bookingCount }}</strong>
+                    <span>{{ day.bookingCount === 1 ? 'booking' : 'bookings' }}</span>
+                  </span>
+                  <span class="month-overview__resources">
+                    {{ day.resourceCount }} {{ day.resourceCount === 1 ? 'resource' : 'resources' }}
+                  </span>
+                } @else {
+                  <span class="month-overview__empty">No bookings</span>
+                }
+              </button>
+            }
+          </div>
+        </div>
+        @if (selectedMonthPreviewDate) {
+          <aside class="month-preview" aria-label="Selected day preview">
+            <header class="month-preview__header">
+              <div>
+                <p class="month-preview__eyebrow">Day preview</p>
+                <h3>{{ monthPreviewTitle }}</h3>
+              </div>
+              <button type="button" class="month-preview__close" aria-label="Close day preview" (click)="closeMonthPreview()">
+                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M15 5.875 14.125 5 10 9.125 5.875 5 5 5.875 9.125 10 5 14.125 5.875 15 10 10.875 14.125 15 15 14.125 10.875 10 15 5.875Z" fill="currentColor"/></svg>
+              </button>
+            </header>
+            <div class="month-preview__axis" aria-hidden="true">
+              <span>09:00</span>
+              <span>12:00</span>
+              <span>15:00</span>
+              <span>18:00</span>
+              <span>21:00</span>
+            </div>
+            <div class="month-preview__resources">
+              @for (row of monthPreviewResources; track row.resource.id) {
+                <div class="month-preview__resource-row">
+                  <span class="month-preview__resource-name">{{ row.resource.label }}</span>
+                  <div class="month-preview__timeline">
+                    @for (block of row.unavailable; track block.start.getTime()) {
+                      <span class="month-preview__unavailable" [ngStyle]="getMonthPreviewUnavailabilityStyle(block)" [attr.title]="block.title ?? block.reason ?? 'Unavailable'"></span>
+                    }
+                    @for (event of row.events; track event.id) {
+                      <span class="month-preview__event" [ngStyle]="getMonthPreviewEventStyle(event)" [attr.title]="getMonthPreviewEventLabel(event)"></span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+            <button type="button" class="month-preview__open-day" (click)="openSelectedMonthPreviewInDayView()">Open day view</button>
+          </aside>
+        }
+      </div>
+    </section>
+  } @else {
   <app-custom-scheduler
     style="display:flex;flex:1 1 auto;min-width:0;min-height:0;height:100%;overflow:hidden"
     [resources]="visibleSchedulerResources"
@@ -70,6 +166,10 @@
     [resourceViews]="resourceViews"
     [selectedResourceView]="selectedResourceView"
     [rightPaneOpen]="!isFullPlanner() || isOrderPanelOpen"
+    [navigationMeta]="plannerNavigationMeta"
+    [navigationTitle]="plannerNavigationTitle"
+    [previousNavigationLabel]="plannerViewMode === 'week' ? 'Previous week' : 'Previous day'"
+    [nextNavigationLabel]="plannerViewMode === 'week' ? 'Next week' : 'Next day'"
     (eventMoved)="onEventMoved($event)"
     (eventDragStarted)="onSchedulerEventDragStarted($event.eventId, $event.pointerOffsetMinutes)"
     (eventDragEnded)="onSchedulerEventDragEnded($event.eventId)"
@@ -86,7 +186,10 @@
     (resourceViewListRequested)="openResourceViewList($any($event))"
     (resourceViewAddRequested)="addResourceView()"
     (rightPaneToggle)="toggleOrderPanel()"
+    (previousPeriod)="goToPreviousPlannerPeriod()"
+    (nextPeriod)="goToNextPlannerPeriod()"
   />
+  }
   </main>
 
   @if (!isFullPlanner() || isOrderPanelOpen) {

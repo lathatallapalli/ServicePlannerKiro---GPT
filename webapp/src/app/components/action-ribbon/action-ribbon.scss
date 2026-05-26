@@ -41,8 +41,18 @@
     }
 
     &:disabled {
-      opacity: 0.5;
+      color: var(--Text-text-on-color-disabled, var(--Icon-icon-on-color-disabled, var(--cds-text-on-color-disabled, #8D8D8D)));
+      opacity: 1;
       cursor: not-allowed;
+
+      .action-ribbon__label,
+      .action-ribbon__icon {
+        color: var(--Text-text-on-color-disabled, var(--Icon-icon-on-color-disabled, var(--cds-text-on-color-disabled, #8D8D8D)));
+      }
+
+      &:hover {
+        background: transparent;
+      }
     }
 
     &--open {

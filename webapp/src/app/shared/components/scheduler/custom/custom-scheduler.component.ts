@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter,
   OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy,
-  ElementRef, ViewChild, AfterViewInit, NgZone, ChangeDetectorRef
+  ElementRef, ViewChild, AfterViewInit, NgZone, ChangeDetectorRef, OnDestroy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -64,7 +64,7 @@ interface DropPreview {
   changeDetection: ChangeDetectionStrategy.Default,
   host: { style: 'display: flex; flex: 1; min-height: 0; overflow: hidden;' }
 })
-export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewInit {
+export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   @Input() public resources: SchedulerResource[] = [];
   @Input() public events: SchedulerEvent[] = [];
   @Input() public groups: SchedulerGroup[] = [];
@@ -86,6 +86,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public scrollToEventId: string | null = null;
   @Input() public invalidDropRanges: SchedulerInvalidDropRange[] = [];
   @Input() public dropVisualContext: SchedulerDropVisualContext | null = null;
+  @Input() public navigationTitle = '';
+  @Input() public navigationMeta = '';
+  @Input() public previousNavigationLabel = 'Previous period';
+  @Input() public nextNavigationLabel = 'Next period';
 
   @Output() public eventMoved   = new EventEmitter<EventMovePayload>();
   @Output() public eventResized = new EventEmitter<EventResizePayload>();
@@ -103,6 +107,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Output() public resourceViewListRequested = new EventEmitter<ResourceFavoriteView | null>();
   @Output() public resourceViewAddRequested = new EventEmitter<void>();
   @Output() public rightPaneToggle = new EventEmitter<void>();
+  @Output() public previousPeriod = new EventEmitter<void>();
+  @Output() public nextPeriod = new EventEmitter<void>();
 
   @ViewChild('headerScroll') headerScrollRef!: ElementRef<HTMLElement>;
   @ViewChild('bodyScroll') bodyScrollRef!: ElementRef<HTMLElement>;
@@ -117,9 +123,15 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   readonly RESOURCE_COL_WIDTH = RESOURCE_COL_WIDTH;
   readonly GROUP_ROW_HEIGHT = GROUP_ROW_HEIGHT;
 
+  private timelineViewportWidth = 0;
+  private resizeObserver: ResizeObserver | null = null;
+  private removeBodyScrollListener: (() => void) | null = null;
+
   // dynamic: one slot always = 60px, so hour width scales with slot duration
   get HOUR_WIDTH(): number {
-    return SLOT_WIDTH * (60 / this.slotDurationMinutes);
+    const fixedHourWidth = SLOT_WIDTH * (60 / this.slotDurationMinutes);
+    if (this.daySlots.length !== 1 || !this.timelineViewportWidth) return fixedHourWidth;
+    return Math.max(fixedHourWidth, this.timelineViewportWidth / 12);
   }
 
   get rowHeight(): number {
@@ -132,6 +144,14 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   get totalWidth(): number {
     return this.daySlots.length * 12 * this.HOUR_WIDTH;
+  }
+
+  get navigationRowWidth(): number {
+    return this.timelineViewportWidth || this.totalWidth;
+  }
+
+  get isSingleDayView(): boolean {
+    return this.daySlots.length === 1;
   }
 
   months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -186,15 +206,31 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   ngAfterViewInit(): void {
     this.zone.runOutsideAngular(() => {
       if (this.bodyScrollRef) {
-        this.bodyScrollRef.nativeElement.addEventListener('scroll', () => this.syncHeaderScroll());
+        const body = this.bodyScrollRef.nativeElement;
+        const syncScroll = () => this.syncHeaderScroll();
+        body.addEventListener('scroll', syncScroll);
+        this.removeBodyScrollListener = () => body.removeEventListener('scroll', syncScroll);
+        this.updateTimelineViewportWidth();
+        if (typeof ResizeObserver !== 'undefined') {
+          this.resizeObserver = new ResizeObserver(() => {
+            this.updateTimelineViewportWidth();
+          });
+          this.resizeObserver.observe(body);
+        }
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.removeBodyScrollListener?.();
+    this.resizeObserver?.disconnect();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['viewStart'] || changes['viewEnd'] || changes['slotDurationMinutes']) {
       this.selectedMonth = this.viewStart.getMonth();
       this.buildTimeSlots();
+      queueMicrotask(() => this.updateTimelineViewportWidth());
     }
     if (changes['groups']) {
       const groupIds = this.groups.map(group => group.id);
@@ -254,12 +290,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return 12 * this.HOUR_WIDTH;
   }
 
-  getHourOffsetInDay(hour: Date): number {
-    return (hour.getHours() - 9) * this.HOUR_WIDTH;
+  getHourOffsetInDay(slot: Date): number {
+    return (slot.getHours() - 9 + slot.getMinutes() / 60) * this.HOUR_WIDTH;
   }
 
   isFirstHourSlot(slot: Date): boolean {
     return slot.getHours() === 9 && slot.getMinutes() === 0;
+  }
+
+  isMinorSlotLine(slot: Date): boolean {
+    return slot.getMinutes() !== 0;
   }
 
   formatDay(day: Date): string {
@@ -965,6 +1005,14 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private syncHeaderScroll(): void {
     if (!this.headerScrollRef || !this.bodyScrollRef) return;
     this.headerScrollRef.nativeElement.scrollLeft = this.bodyScrollRef.nativeElement.scrollLeft;
+  }
+
+  private updateTimelineViewportWidth(): void {
+    if (!this.bodyScrollRef) return;
+    const width = Math.max(0, this.bodyScrollRef.nativeElement.clientWidth - RESOURCE_COL_WIDTH);
+    if (Math.abs(width - this.timelineViewportWidth) < 1) return;
+    this.timelineViewportWidth = width;
+    this.cdr.detectChanges();
   }
 
   private scrollToEvent(eventId: string | null): void {
