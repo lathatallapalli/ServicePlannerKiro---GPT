@@ -144,51 +144,75 @@
       </div>
     </section>
   } @else {
-  <app-custom-scheduler
-    style="display:flex;flex:1 1 auto;min-width:0;min-height:0;height:100%;overflow:hidden"
-    [resources]="visibleSchedulerResources"
-    [events]="visibleSchedulerEvents"
-    [groups]="visibleSchedulerGroups"
-    [selectedResourceIds]="selectedResourceIds"
-    [viewStart]="viewStart"
-    [viewEnd]="viewEnd"
-    [slotDurationMinutes]="slotDurationMinutes"
-    [dropSnapMinutes]="manualDropSnapMinutes"
-    [unavailability]="visibleSchedulerUnavailability"
-    [invalidDropRanges]="manualDropInvalidRanges"
-    [dropVisualContext]="manualDropVisualContext"
-    [showOrderTiles]="showSchedulerBookingDetails"
-    [showAvailabilityBlocks]="!showSchedulerBookingDetails"
-    [preserveRowHeightOnAvailability]="isFullPlanner()"
-    [detailedEventIds]="plannedBookingEventIds"
-    [detailedOrderIds]="detailedOrderIds"
-    [scrollToEventId]="scrollToEventId"
-    [resourceViews]="resourceViews"
-    [selectedResourceView]="selectedResourceView"
-    [rightPaneOpen]="!isFullPlanner() || isOrderPanelOpen"
-    [navigationMeta]="plannerNavigationMeta"
-    [navigationTitle]="plannerNavigationTitle"
-    [previousNavigationLabel]="plannerViewMode === 'week' ? 'Previous week' : 'Previous day'"
-    [nextNavigationLabel]="plannerViewMode === 'week' ? 'Next week' : 'Next day'"
-    (eventMoved)="onEventMoved($event)"
-    (eventDragStarted)="onSchedulerEventDragStarted($event.eventId, $event.pointerOffsetMinutes)"
-    (eventDragEnded)="onSchedulerEventDragEnded($event.eventId)"
-    (eventResizeStarted)="onSchedulerEventResizeStarted($event.eventId)"
-    (eventResizeEnded)="onSchedulerEventResizeEnded($event.eventId)"
-    (eventResized)="onEventResized($event)"
-    (eventClicked)="onEventClicked($event)"
-    (orderFocusRequested)="onOrderFocusRequested($event)"
-    (eventContextMenu)="onEventContextMenu($event)"
-    (eventDropped)="onEventDropped($event)"
-    (resourceSelectionChange)="onResourceSelectionChange($event)"
-    (resourceTypeSelectionChange)="onResourceTypeSelectionChange($event)"
-    (resourceViewChange)="onResourceViewChange($event)"
-    (resourceViewListRequested)="openResourceViewList($any($event))"
-    (resourceViewAddRequested)="addResourceView()"
-    (rightPaneToggle)="toggleOrderPanel()"
-    (previousPeriod)="goToPreviousPlannerPeriod()"
-    (nextPeriod)="goToNextPlannerPeriod()"
-  />
+  <div style="flex:1 1 auto;min-width:0;min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden">
+    @if (autoBookingRangeNotice) {
+      <div role="status" aria-live="polite" style="width:100%;min-height:48px;flex:0 0 auto;display:inline-flex;align-items:stretch;gap:16px;background:var(--Notification-notification-info-background,#EDF5FF);outline:1px solid var(--Notification-notification-info-border,rgba(69,137,255,.30));outline-offset:-1px;color:var(--Text-text-primary,#161616);font-family:'IBM Plex Sans',Arial,sans-serif">
+        <div style="width:3px;flex:0 0 3px;background:var(--Support-support-info,#4589FF)"></div>
+        <div aria-hidden="true" style="flex:0 0 auto;display:flex;align-items:center;color:var(--Support-support-info,#4589FF)">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply"/>
+            <path d="M10 1.25A8.75 8.75 0 1 0 10 18.75A8.75 8.75 0 0 0 10 1.25ZM9.375 5H10.625V6.25H9.375V5ZM11.25 15H8.75V13.75H9.375V8.75H8.75V7.5H10.625V13.75H11.25V15Z" fill="currentColor"/>
+          </svg>
+        </div>
+        <div style="flex:1 1 auto;min-width:0;padding:15px 0;display:flex;align-items:center;gap:8px;font-size:14px;line-height:18px;letter-spacing:.16px">
+          <strong style="flex:0 0 auto;font-weight:600">{{ autoBookingRangeNotice.title }}</strong>
+          <span style="min-width:0">{{ autoBookingRangeNotice.message }}</span>
+        </div>
+        <button type="button" (click)="goToAutoBookingRangeNoticeTarget()" style="flex:0 0 auto;padding:0 16px;border:0;background:transparent;color:var(--Link-link-primary,#4C68B1);font-family:inherit;font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">Go to booked date</button>
+        <button type="button" aria-label="Close auto booking notice" (click)="clearAutoBookingRangeNotice()" style="width:48px;flex:0 0 48px;border:0;background:transparent;color:var(--Icon-icon-primary,#161616);display:grid;place-items:center;cursor:pointer">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+            <path d="M12 4.7L11.3 4L8 7.3L4.7 4L4 4.7L7.3 8L4 11.3L4.7 12L8 8.7L11.3 12L12 11.3L8.7 8L12 4.7Z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+    }
+    <app-custom-scheduler
+      style="display:flex;flex:1 1 auto;min-width:0;min-height:0;height:100%;overflow:hidden"
+      [resources]="visibleSchedulerResources"
+      [events]="visibleSchedulerEvents"
+      [groups]="visibleSchedulerGroups"
+      [selectedResourceIds]="selectedResourceIds"
+      [viewStart]="viewStart"
+      [viewEnd]="viewEnd"
+      [slotDurationMinutes]="slotDurationMinutes"
+      [dropSnapMinutes]="manualDropSnapMinutes"
+      [unavailability]="visibleSchedulerUnavailability"
+      [invalidDropRanges]="manualDropInvalidRanges"
+      [dropVisualContext]="manualDropVisualContext"
+      [showOrderTiles]="showSchedulerBookingDetails"
+      [showAvailabilityBlocks]="!showSchedulerBookingDetails"
+      [preserveRowHeightOnAvailability]="isFullPlanner()"
+      [detailedEventIds]="plannedBookingEventIds"
+      [detailedOrderIds]="detailedOrderIds"
+      [scrollToEventId]="scrollToEventId"
+      [resourceViews]="resourceViews"
+      [selectedResourceView]="selectedResourceView"
+      [rightPaneOpen]="!isFullPlanner() || isOrderPanelOpen"
+      [navigationMeta]="plannerNavigationMeta"
+      [navigationTitle]="plannerNavigationTitle"
+      [previousNavigationLabel]="plannerViewMode === 'week' ? 'Previous week' : 'Previous day'"
+      [nextNavigationLabel]="plannerViewMode === 'week' ? 'Next week' : 'Next day'"
+      (eventMoved)="onEventMoved($event)"
+      (eventDragStarted)="onSchedulerEventDragStarted($event.eventId, $event.pointerOffsetMinutes)"
+      (eventDragEnded)="onSchedulerEventDragEnded($event.eventId)"
+      (eventResizeStarted)="onSchedulerEventResizeStarted($event.eventId)"
+      (eventResizeEnded)="onSchedulerEventResizeEnded($event.eventId)"
+      (eventResized)="onEventResized($event)"
+      (eventClicked)="onEventClicked($event)"
+      (orderFocusRequested)="onOrderFocusRequested($event)"
+      (eventContextMenu)="onEventContextMenu($event)"
+      (eventDropped)="onEventDropped($event)"
+      (resourceSelectionChange)="onResourceSelectionChange($event)"
+      (resourceTypeSelectionChange)="onResourceTypeSelectionChange($event)"
+      (resourceViewChange)="onResourceViewChange($event)"
+      (resourceViewListRequested)="openResourceViewList($any($event))"
+      (resourceViewAddRequested)="addResourceView()"
+      (rightPaneToggle)="toggleOrderPanel()"
+      (previousPeriod)="goToPreviousPlannerPeriod()"
+      (nextPeriod)="goToNextPlannerPeriod()"
+    />
+  </div>
   }
   </main>
 

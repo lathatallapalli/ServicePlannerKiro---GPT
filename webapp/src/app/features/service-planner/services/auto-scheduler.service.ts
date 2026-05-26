@@ -202,6 +202,10 @@ export class AutoSchedulerService {
 
     while (cursor <= maxSearchEnd) {
       const start = new Date(cursor);
+      if (!this.isWorkday(start)) {
+        cursor = this.nextDayStart(start, dayStartHour);
+        continue;
+      }
       if (!this.isWithinDay(start, dayStartHour, dayEndHour)) {
         cursor = this.nextDayStart(start, dayStartHour);
         continue;
@@ -274,6 +278,10 @@ export class AutoSchedulerService {
 
     while (cursor <= maxSearchEnd) {
       const end = new Date(cursor.getTime() + durationMinutes * 60000);
+      if (!this.isWorkday(cursor)) {
+        cursor = this.nextDayStart(cursor, dayStartHour);
+        continue;
+      }
       if (
         this.isWithinDay(cursor, dayStartHour, dayEndHour) &&
         end.toDateString() === cursor.toDateString() &&
@@ -312,6 +320,10 @@ export class AutoSchedulerService {
 
     while (cursor <= maxSearchEnd) {
       const end = new Date(cursor.getTime() + HANDOVER_DURATION_MINUTES * 60000);
+      if (!this.isWorkday(cursor)) {
+        cursor = this.nextDayStart(cursor, dayStartHour);
+        continue;
+      }
       if (
         this.isWithinDay(cursor, dayStartHour, dayEndHour) &&
         end.toDateString() === cursor.toDateString() &&
@@ -370,6 +382,11 @@ export class AutoSchedulerService {
     const h = date.getHours();
     const m = date.getMinutes();
     return h >= dayStartHour && (h < dayEndHour || (h === dayEndHour && m === 0));
+  }
+
+  private isWorkday(date: Date): boolean {
+    const day = date.getDay();
+    return day >= 1 && day <= 5;
   }
 
   private snapToSlot(date: Date, slotMinutes: number, dayStartHour: number): Date {

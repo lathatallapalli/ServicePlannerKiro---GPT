@@ -10,7 +10,7 @@ import { ResourceRepository } from '../../core/services/resource.repository';
 import { ScheduleRepository } from '../../core/services/schedule.repository';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
 import { PlannerSettingsService, PlannerViewMode } from './services/planner-settings.service';
-import { AutoSchedulerService } from './services/auto-scheduler.service';
+import { AutoScheduleResult, AutoSchedulerService } from './services/auto-scheduler.service';
 import { ResourceViewsService } from './services/resource-views.service';
 import { forkJoin } from 'rxjs';
 import { MOCK_UNAVAILABILITY } from '../../core/services/mock/mock-data';
@@ -58,6 +58,13 @@ interface MonthPreviewResource {
   resource: SchedulerResource;
   events: SchedulerEvent[];
   unavailable: UnavailabilityBlock[];
+}
+
+interface AutoBookingRangeNotice {
+  title: string;
+  message: string;
+  targetDate: Date;
+  targetEventId?: string;
 }
 
 type WorkOrderItemKind = 'job' | 'activity';
@@ -176,6 +183,7 @@ export class ServicePlannerComponent implements OnInit {
   selectedPanelOrderId = '';
   public schedulingError: string | null = null;
   public schedulingErrorTitle = 'Unable to book first availability';
+  autoBookingRangeNotice: AutoBookingRangeNotice | null = null;
   showBookingDetails = true;
   plannerMode: 'order' | 'full' = 'full';
   activeOrderId: string | null = null;
@@ -551,7 +559,7 @@ export class ServicePlannerComponent implements OnInit {
     });
     effect(() => {
       const mode = this.plannerSettings.viewMode();
-      const anchor = this.nextViewModeAnchor ?? this.mockCurrentTime;
+      const anchor = this.nextViewModeAnchor ?? (this.isPlannerReady ? this.viewStart : this.mockCurrentTime);
       this.nextViewModeAnchor = null;
       if (mode === 'month') {
         this.isOrderPanelOpen = false;
@@ -920,6 +928,18 @@ export class ServicePlannerComponent implements OnInit {
 
   clearSchedulingError(): void {
     this.schedulingError = null;
+  }
+
+  clearAutoBookingRangeNotice(): void {
+    this.autoBookingRangeNotice = null;
+  }
+
+  goToAutoBookingRangeNoticeTarget(): void {
+    const notice = this.autoBookingRangeNotice;
+    if (!notice) return;
+    this.setViewWindowForMode(this.plannerViewMode, notice.targetDate);
+    this.autoBookingRangeNotice = null;
+    this.reloadScheduleEntries(notice.targetEventId);
   }
 
   private setSchedulingError(message: string, title = 'Unable to book first availability'): void {
@@ -2526,12 +2546,17 @@ export class ServicePlannerComponent implements OnInit {
       dayEndHour: 21,
     });
 
-    if (!result) return;
+    if (!result) {
+      this.setSchedulingError('No complete booking proposal was found from the selected start time. Try a later date, a broader resource view, or fewer resource filters.');
+      return;
+    }
 
     const checkinStart = new Date(result.checkinStart);
     const checkinEnd = new Date(result.checkinEnd);
     const handoverStart = new Date(result.handoverStart);
     const handoverEnd = new Date(result.handoverEnd);
+    const currentViewMode = this.plannerViewMode;
+    const visibleRangeAtProposal = { start: new Date(this.viewStart), end: new Date(this.viewEnd) };
 
     const checkinAdvisor = rawResources.find((r: any) => r.id === result.checkinResourceId);
     const handoverAdvisor = rawResources.find((r: any) => r.id === result.handoverResourceId);
@@ -2574,6 +2599,7 @@ export class ServicePlannerComponent implements OnInit {
     // Apply job entries
     const shouldScrollToFirstEntry = options.scrollToFirstEntry ?? true;
     const scrollTargetEntryId = shouldScrollToFirstEntry ? result.entries[0]?.id : undefined;
+    this.autoBookingRangeNotice = this.buildAutoBookingRangeNotice(result, visibleRangeAtProposal, currentViewMode, scrollTargetEntryId);
     result.entries.forEach(entry => {
       const persistedEntry = {
         ...entry,
@@ -2652,29 +2678,74 @@ export class ServicePlannerComponent implements OnInit {
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
       end.setFullYear(start.getFullYear(), start.getMonth() + 1, 0);
+    } else {
+      this.moveToNearestWorkday(start, 1);
+      end.setTime(start.getTime());
     }
     end.setHours(21, 0, 0, 0);
     this.viewStart = start;
     this.viewEnd = end;
   }
 
+  private buildAutoBookingRangeNotice(
+    result: AutoScheduleResult,
+    visibleRange: { start: Date; end: Date },
+    mode: PlannerViewMode,
+    targetEventId?: string,
+  ): AutoBookingRangeNotice | null {
+    if (mode === 'month') return null;
+
+    const scheduledDates = [
+      result.checkinStart,
+      result.checkinEnd,
+      result.handoverStart,
+      result.handoverEnd,
+      ...result.entries.flatMap(entry => [entry.start, entry.end]),
+    ].map(date => new Date(date));
+
+    const outsideDates = scheduledDates.filter(date =>
+      date < visibleRange.start || date > visibleRange.end
+    );
+    if (!outsideDates.length) return null;
+
+    outsideDates.sort((first, second) => first.getTime() - second.getTime());
+    const targetDate = new Date(outsideDates[0]);
+    const periodLabel = mode === 'week' ? 'week' : 'day';
+    const targetLabel = mode === 'week'
+      ? 'next available week'
+      : outsideDates.some(date => !this.isSameCalendarDay(date, visibleRange.start))
+        ? 'next available day'
+        : 'next available time period';
+
+    return {
+      title: 'Auto booking adjusted',
+      message: `Part of this order could not be scheduled in the current ${periodLabel} and was placed in the ${targetLabel}.`,
+      targetDate,
+      targetEventId,
+    };
+  }
+
   private shiftPlannerWindow(direction: -1 | 1): void {
+    this.autoBookingRangeNotice = null;
     const anchor = new Date(this.viewStart);
     if (this.plannerViewMode === 'week') {
       anchor.setDate(anchor.getDate() + direction * 7);
     } else if (this.plannerViewMode === 'month') {
       anchor.setMonth(anchor.getMonth() + direction);
     } else {
-      anchor.setDate(anchor.getDate() + direction);
+      this.moveToAdjacentWorkday(anchor, direction);
     }
     this.setViewWindowForMode(this.plannerViewMode, anchor);
     this.reloadScheduleEntries();
   }
 
-  private reloadScheduleEntries(): void {
+  private reloadScheduleEntries(focusEventId?: string): void {
     this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
       this.scheduleEntries = entries;
       this.events = this.mapScheduleEntriesToEvents(entries);
+      if (focusEventId) {
+        this.focusPlannerEvent(focusEventId);
+      }
     });
   }
 
@@ -2703,6 +2774,28 @@ export class ServicePlannerComponent implements OnInit {
     return first.getFullYear() === second.getFullYear() &&
       first.getMonth() === second.getMonth() &&
       first.getDate() === second.getDate();
+  }
+
+  private moveToAdjacentWorkday(date: Date, direction: -1 | 1): void {
+    do {
+      date.setDate(date.getDate() + direction);
+    } while (!this.isWorkday(date));
+  }
+
+  private moveToNearestWorkday(date: Date, direction: -1 | 1): void {
+    while (!this.isWorkday(date)) {
+      date.setDate(date.getDate() + direction);
+    }
+  }
+
+  private isWorkday(date: Date): boolean {
+    const day = date.getDay();
+    return day >= 1 && day <= 5;
+  }
+
+  private isSameCalendarWeek(first: Date, second: Date): boolean {
+    return first.getFullYear() === second.getFullYear() &&
+      this.getCalendarWeek(first) === this.getCalendarWeek(second);
   }
 
   private getCalendarWeek(date: Date): number {
