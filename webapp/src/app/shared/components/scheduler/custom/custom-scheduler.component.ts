@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy,
-  ElementRef, ViewChild, AfterViewInit, NgZone
+  OnChanges, OnDestroy, OnInit, SimpleChanges, ChangeDetectionStrategy,
+  ChangeDetectorRef, ElementRef, ViewChild, AfterViewInit, NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -47,7 +47,7 @@ interface SchedulerOrderRun {
   changeDetection: ChangeDetectionStrategy.Default,
   host: { style: 'display: flex; flex: 1; min-height: 0; overflow: hidden;' }
 })
-export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewInit {
+export class CustomSchedulerComponent implements OnInit, OnChanges, OnDestroy, AfterViewInit {
   @Input() public resources: SchedulerResource[] = [];
   @Input() public events: SchedulerEvent[] = [];
   @Input() public groups: SchedulerGroup[] = [];
@@ -108,6 +108,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return this.daySlots.length * 12 * this.HOUR_WIDTH;
   }
 
+  get bodyContentHeight(): number {
+    const groupedHeight = this.visibleGroups.reduce((height, group) => height + this.getGroupHeight(group.id), 0);
+    return groupedHeight + this.getUngroupedResources().length * this.rowHeight;
+  }
+
   months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   selectedMonth = this.viewStart.getMonth();
   resourceSearch = '';
@@ -117,6 +122,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   showSelectedOnlyByGroup = new Set<string>();
   collapsedGroupIds = new Set<string>();
   private hasInitializedGroupSelection = false;
+  showCurrentTimeIndicator = false;
+  currentTimeIndicatorDate = this.createCurrentTimeIndicatorDate();
+  private currentTimeTimer: ReturnType<typeof setInterval> | null = null;
+  private isProgrammaticTimelineScroll = false;
+  private lastBodyScrollLeft = 0;
 
   get selectedYear(): number { return this.viewStart.getFullYear(); }
 
@@ -140,7 +150,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   dragPreview: { event: SchedulerEvent; resourceId: string; left: number; top: number; width: number } | null = null;
   resizePreview: { event: SchedulerEvent; left: number; top: number; width: number } | null = null;
 
-  constructor(private zone: NgZone) {}
+  constructor(private zone: NgZone, private cdr: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     this.selectedMonth = this.viewStart.getMonth();
@@ -155,10 +165,15 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     });
   }
 
+  ngOnDestroy(): void {
+    this.stopCurrentTimeIndicatorTimer();
+  }
+
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['viewStart'] || changes['viewEnd'] || changes['slotDurationMinutes']) {
       this.selectedMonth = this.viewStart.getMonth();
       this.buildTimeSlots();
+      this.hideCurrentTimeIndicatorIfOutOfRange();
     }
     if (changes['groups']) {
       const groupIds = this.groups.map(group => group.id);
@@ -592,7 +607,87 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   public onBodyScroll(): void {
+    this.hideCurrentTimeIndicatorOnUserHorizontalScroll();
     this.syncHeaderScroll();
+  }
+
+  public scrollToToday(): void {
+    if (!this.bodyScrollRef) return;
+
+    const target = this.createCurrentTimeIndicatorDate();
+    if (target < this.viewStart || target > this.viewEnd) return;
+
+    this.showCurrentTimeIndicator = true;
+    this.currentTimeIndicatorDate = target;
+    this.startCurrentTimeIndicatorTimer();
+
+    const body = this.bodyScrollRef.nativeElement;
+    const maxLeft = Math.max(0, body.scrollWidth - body.clientWidth);
+    const left = Math.max(0, Math.min(this.getLeftFromDate(target) - body.clientWidth / 2, maxLeft));
+    this.isProgrammaticTimelineScroll = true;
+    body.scrollTo({ left, top: body.scrollTop, behavior: 'smooth' });
+    this.syncHeaderScroll();
+    window.setTimeout(() => {
+      this.lastBodyScrollLeft = body.scrollLeft;
+      this.isProgrammaticTimelineScroll = false;
+    }, 700);
+  }
+
+  get shouldShowCurrentTimeIndicator(): boolean {
+    return this.showCurrentTimeIndicator && this.isDateInView(this.currentTimeIndicatorDate);
+  }
+
+  get currentTimeIndicatorLeft(): number {
+    return this.getLeftFromDate(this.currentTimeIndicatorDate);
+  }
+
+  get currentTimeIndicatorLabel(): string {
+    return this.currentTimeIndicatorDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  private startCurrentTimeIndicatorTimer(): void {
+    if (this.currentTimeTimer) return;
+    this.currentTimeTimer = setInterval(() => {
+      this.zone.run(() => {
+        this.currentTimeIndicatorDate = this.createCurrentTimeIndicatorDate();
+        this.hideCurrentTimeIndicatorIfOutOfRange();
+        this.cdr.markForCheck();
+      });
+    }, 60000);
+  }
+
+  private createCurrentTimeIndicatorDate(): Date {
+    const now = new Date();
+    const currentPlannerDate = new Date('2024-04-15T00:00:00');
+    currentPlannerDate.setHours(now.getHours(), now.getMinutes(), 0, 0);
+    return currentPlannerDate;
+  }
+
+  private stopCurrentTimeIndicatorTimer(): void {
+    if (!this.currentTimeTimer) return;
+    clearInterval(this.currentTimeTimer);
+    this.currentTimeTimer = null;
+  }
+
+  private hideCurrentTimeIndicatorIfOutOfRange(): void {
+    if (!this.showCurrentTimeIndicator) return;
+    if (this.isDateInView(this.currentTimeIndicatorDate)) return;
+    this.showCurrentTimeIndicator = false;
+    this.stopCurrentTimeIndicatorTimer();
+  }
+
+  private hideCurrentTimeIndicatorOnUserHorizontalScroll(): void {
+    if (!this.bodyScrollRef) return;
+    const scrollLeft = this.bodyScrollRef.nativeElement.scrollLeft;
+    const didScrollHorizontally = scrollLeft !== this.lastBodyScrollLeft;
+    this.lastBodyScrollLeft = scrollLeft;
+    if (!didScrollHorizontally || this.isProgrammaticTimelineScroll || !this.showCurrentTimeIndicator) return;
+    this.showCurrentTimeIndicator = false;
+    this.stopCurrentTimeIndicatorTimer();
+  }
+
+  private isDateInView(date: Date): boolean {
+    return date >= this.viewStart && date <= this.viewEnd;
   }
 
   public openResourceViewList(): void {

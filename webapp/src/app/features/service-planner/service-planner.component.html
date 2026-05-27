@@ -83,9 +83,9 @@
   @if (!isFullPlanner() || isOrderPanelOpen) {
     <aside class="order-panel" aria-label="Orders panel" style="width:342px;height:100%;padding-left:32px;padding-top:0;display:inline-flex;flex-direction:column;gap:16px;overflow:hidden;box-sizing:border-box;flex:0 0 342px">
       <div class="booking-details-toggle" style="align-self:stretch;background:#fff;padding:0;display:inline-flex;flex-direction:column;align-items:flex-start;gap:8px">
-        <div style="color:var(--Text-text-secondary,#525252);font-size:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:16px;letter-spacing:.32px">Booking details</div>
+        <div style="color:var(--Text-text-secondary,#525252);font-size:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:16px;letter-spacing:.32px">Schedule Details</div>
         <div style="display:inline-flex;align-items:flex-start;gap:8px">
-          <button type="button" role="switch" [attr.aria-checked]="showBookingDetails" aria-label="Booking details" (click)="toggleBookingDetails()" [style.background]="showBookingDetails ? '#63A375' : 'var(--Icon-icon-on-color-disabled,#8D8D8D)'" [style.justify-content]="showBookingDetails ? 'flex-end' : 'flex-start'" style="width:48px;padding:2px;border:0;overflow:hidden;border-radius:12px;display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+          <button type="button" role="switch" [attr.aria-checked]="showBookingDetails" aria-label="Schedule Details" (click)="toggleBookingDetails()" [style.background]="showBookingDetails ? '#63A375' : 'var(--Icon-icon-on-color-disabled,#8D8D8D)'" [style.justify-content]="showBookingDetails ? 'flex-end' : 'flex-start'" style="width:48px;padding:2px;border:0;overflow:hidden;border-radius:12px;display:flex;align-items:flex-start;gap:8px;cursor:pointer">
             <span aria-hidden="true" style="width:18px;height:18px;border-radius:9px;background:var(--Icon-icon-on-color,white);display:block"></span>
           </button>
           <div style="padding-top:3px;padding-bottom:3px;color:var(--Text-text-primary,#161616);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px">{{ showBookingDetails ? 'Details visible' : 'Availability only' }}</div>
