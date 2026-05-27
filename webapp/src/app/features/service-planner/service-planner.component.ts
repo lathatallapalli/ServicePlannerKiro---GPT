@@ -5,7 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ComboBoxModule, DatePickerModule, InputModule, SearchModule, SelectModule, TimePickerModule, TimePickerSelectModule, ToggleModule } from 'carbon-components-angular';
 import { CustomSchedulerComponent } from '../../shared/components/scheduler/custom/custom-scheduler.component';
 import { JobTile, JobBooking, ActivityTile } from './components/jobs-panel/jobs-panel.component';
-import { SchedulerResource, SchedulerEvent, SchedulerGroup, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerDropVisualContext } from '../../shared/components/scheduler/scheduler.interface';
+import { SchedulerResource, SchedulerEvent, SchedulerGroup, SchedulerCapacityBlock, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerInvalidCapacityResource, SchedulerDropVisualContext } from '../../shared/components/scheduler/scheduler.interface';
 import { ResourceRepository } from '../../core/services/resource.repository';
 import { ScheduleRepository } from '../../core/services/schedule.repository';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
@@ -145,6 +145,7 @@ export class ServicePlannerComponent implements OnInit {
 
   resources: SchedulerResource[] = [];
   events: SchedulerEvent[] = [];
+  capacityBlocks: SchedulerCapacityBlock[] = [];
   scheduleEntries: ScheduleEntry[] = [];
   groups: SchedulerGroup[] = [];
   allOrders: any[] = [];
@@ -405,6 +406,10 @@ export class ServicePlannerComponent implements OnInit {
     return this.events;
   }
 
+  get visibleSchedulerCapacityBlocks(): SchedulerCapacityBlock[] {
+    return this.capacityBlocks;
+  }
+
   get visibleSchedulerUnavailability(): UnavailabilityBlock[] {
     return this.unavailability;
   }
@@ -416,6 +421,14 @@ export class ServicePlannerComponent implements OnInit {
     return this.manualResizeResourceId
       ? ranges.filter(range => range.resourceId === this.manualResizeResourceId)
       : ranges;
+  }
+
+  get manualCapacityInvalidResources(): SchedulerInvalidCapacityResource[] {
+    const context = this.manualDragContext;
+    if (!context) return [];
+    return this.visibleSchedulerResources
+      .filter(resource => !this.isManualCapacityResourceCompatible(context, resource))
+      .map(resource => ({ resourceId: resource.id }));
   }
 
   get manualDropVisualContext(): SchedulerDropVisualContext | null {
@@ -590,8 +603,6 @@ export class ServicePlannerComponent implements OnInit {
       this.alignViewWindowToOrder(activeOrder, this.plannerViewMode);
 
       this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
-        this.scheduleEntries = entries;
-
       const tileSourceOrders = this.plannerMode === 'order'
         ? orders.filter((order: any) => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId)
         : orders;
@@ -612,7 +623,7 @@ export class ServicePlannerComponent implements OnInit {
         meta: r,
       }));
 
-      this.events = this.mapScheduleEntriesToEvents(entries);
+      this.applyScheduleEntries(entries);
 
       this.unavailability = [
         ...MOCK_UNAVAILABILITY,
@@ -626,15 +637,27 @@ export class ServicePlannerComponent implements OnInit {
 
   onEventMoved(payload: EventMovePayload): void {
     const event = this.events.find(candidate => candidate.id === payload.eventId);
+    const capacityBlock = this.capacityBlocks.find(candidate => candidate.id === payload.eventId);
+    if (!event && capacityBlock) {
+      this.onCapacityBlockMoved(payload, capacityBlock);
+      return;
+    }
     const resource = this.resources.find(candidate => candidate.id === payload.resourceId);
     const context = event ? this.buildPlacedEventDragContext(event) : null;
     if (context && resource) {
-      const validation = this.validateManualPlacement(context, resource, payload.start, payload.end);
+      const validation = payload.dropMode === 'day-capacity'
+        ? this.validateManualCapacityPlacement(context, resource)
+        : this.validateManualPlacement(context, resource, payload.start, payload.end);
       if (!validation.valid) {
         this.showManualPlanValidationError('Move not possible', validation);
         this.clearManualInteractionState();
         return;
       }
+    }
+
+    if (event && payload.dropMode === 'day-capacity') {
+      this.onScheduledEventMovedToCapacity(payload, event);
+      return;
     }
 
     this.clearSchedulingError();
@@ -656,9 +679,105 @@ export class ServicePlannerComponent implements OnInit {
     });
   }
 
+  private onScheduledEventMovedToCapacity(payload: EventMovePayload, event: SchedulerEvent): void {
+    const entry = event.meta?.entry ?? this.scheduleEntries.find(candidate => candidate.id === payload.eventId);
+    if (!entry) return;
+    const durationMinutes = Math.max(1, Math.round(payload.durationMinutes ?? (event.end.getTime() - event.start.getTime()) / 60000));
+    const start = this.getDayCapacityStart(payload.date ?? payload.start);
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+    const updatedEntry: ScheduleEntry = {
+      ...entry,
+      resourceId: payload.resourceId,
+      start,
+      end,
+      kind: 'day-capacity',
+      workorderItemStatus: entry.workorderItemStatus ?? 'scheduled',
+    };
+
+    this.clearSchedulingError();
+    this.clearManualInteractionState();
+    this.scheduleRepo.unassign(payload.eventId).subscribe(() => {
+      this.scheduleRepo.assign(updatedEntry).subscribe(assigned => {
+        const normalized: ScheduleEntry = { ...updatedEntry, ...assigned, kind: 'day-capacity', resourceId: payload.resourceId };
+        this.scheduleEntries = [
+          ...this.scheduleEntries.filter(candidate => candidate.id !== payload.eventId),
+          normalized,
+        ];
+        this.events = this.events.filter(candidate => candidate.id !== payload.eventId);
+        this.capacityBlocks = [
+          ...this.capacityBlocks.filter(candidate => candidate.id !== payload.eventId),
+          this.mapScheduleEntryToCapacityBlock(normalized),
+        ];
+      });
+    });
+  }
+
+  private onCapacityBlockMoved(payload: EventMovePayload, block: SchedulerCapacityBlock): void {
+    const entry = block.meta?.entry ?? this.scheduleEntries.find(candidate => candidate.id === payload.eventId);
+    if (!entry) return;
+    const resource = this.resources.find(candidate => candidate.id === payload.resourceId);
+    const context = this.buildCapacityBlockDragContext(block);
+    if (context && resource) {
+      const validation = payload.dropMode === 'day-capacity'
+        ? this.validateManualCapacityPlacement(context, resource)
+        : this.validateManualPlacement(context, resource, payload.start, payload.end);
+      if (!validation.valid) {
+        this.showManualPlanValidationError('Move not possible', validation);
+        this.clearManualInteractionState();
+        return;
+      }
+    }
+    const start = payload.dropMode === 'day-capacity'
+      ? this.getDayCapacityStart(payload.date ?? payload.start)
+      : payload.start;
+    const durationMinutes = Math.max(1, Math.round(payload.durationMinutes ?? block.durationMinutes));
+    const end = payload.dropMode === 'day-capacity'
+      ? new Date(start.getTime() + durationMinutes * 60000)
+      : payload.end;
+    const nextKind = payload.dropMode === 'day-capacity' ? 'day-capacity' as const : 'scheduled' as const;
+    const updatedEntry: ScheduleEntry = {
+      ...entry,
+      resourceId: payload.resourceId,
+      start,
+      end,
+      kind: nextKind,
+      workorderItemStatus: entry.workorderItemStatus ?? 'scheduled',
+    };
+
+    this.clearSchedulingError();
+    this.clearManualInteractionState();
+    this.scheduleRepo.unassign(payload.eventId).subscribe(() => {
+      this.scheduleRepo.assign(updatedEntry).subscribe(assigned => {
+        const normalized: ScheduleEntry = { ...updatedEntry, ...assigned, kind: nextKind, resourceId: payload.resourceId };
+        this.scheduleEntries = [
+          ...this.scheduleEntries.filter(candidate => candidate.id !== payload.eventId),
+          normalized,
+        ];
+        if (nextKind === 'day-capacity') {
+          this.events = this.events.filter(candidate => candidate.id !== payload.eventId);
+          this.capacityBlocks = [
+            ...this.capacityBlocks.filter(candidate => candidate.id !== payload.eventId),
+            this.mapScheduleEntryToCapacityBlock(normalized),
+          ];
+        } else {
+          this.capacityBlocks = this.capacityBlocks.filter(candidate => candidate.id !== payload.eventId);
+          this.events = [
+            ...this.events.filter(candidate => candidate.id !== payload.eventId),
+            this.mapScheduleEntryToEvent(normalized),
+          ];
+        }
+      });
+    });
+  }
+
   onSchedulerEventDragStarted(eventId: string, pointerOffsetMinutes = 0): void {
     const event = this.events.find(candidate => candidate.id === eventId);
-    this.manualDragContext = event ? this.buildPlacedEventDragContext(event) : null;
+    const capacityBlock = this.capacityBlocks.find(candidate => candidate.id === eventId);
+    this.manualDragContext = event
+      ? this.buildPlacedEventDragContext(event)
+      : capacityBlock
+        ? this.buildCapacityBlockDragContext(capacityBlock)
+        : null;
     if (this.manualDragContext) {
       this.manualDragContext.pointerOffsetMinutes = pointerOffsetMinutes;
     }
@@ -716,7 +835,12 @@ export class ServicePlannerComponent implements OnInit {
 
   onOrderFocusRequested(payload: OrderFocusPayload): void {
     const event = this.events.find(candidate => candidate.id === payload.eventId);
-    const eventOrder = event ? this.findOrderForEvent(event) : null;
+    const capacityBlock = this.capacityBlocks.find(candidate => candidate.id === payload.eventId);
+    const eventOrder = event
+      ? this.findOrderForEvent(event)
+      : capacityBlock
+        ? this.findOrderForScheduleEntry(capacityBlock.meta?.entry as ScheduleEntry)
+        : null;
     const order = eventOrder ?? this.allOrders.find(candidate =>
       candidate.id === payload.orderId || candidate.referenceNumber === payload.orderId
     );
@@ -1008,6 +1132,7 @@ export class ServicePlannerComponent implements OnInit {
 
     this.scheduleRepo.unassign(event.id).subscribe(() => {
       this.events = this.events.filter(candidate => candidate.id !== event.id);
+      this.capacityBlocks = this.capacityBlocks.filter(block => block.id !== event.id);
       this.scheduleEntries = this.scheduleEntries.filter(entry => entry.id !== event.id);
       this.latestAutoBookingEntryIds.delete(event.id);
       this.refreshWorkOrderItemStatusForEntry(removedEntry);
@@ -1193,6 +1318,16 @@ export class ServicePlannerComponent implements OnInit {
       resourceType: resource.type,
       requiredQualifications: [],
       label: this.getResourceTypeLabel(event.resourceId),
+    };
+  }
+
+  private getScheduledRequirementFromEntry(entry: ScheduleEntry): JobResourceRequirement | null {
+    const resource = this.resources.find(candidate => candidate.id === entry.resourceId)?.meta as Resource | undefined;
+    if (!resource) return null;
+    return {
+      resourceType: resource.type,
+      requiredQualifications: [],
+      label: this.getResourceTypeLabel(entry.resourceId),
     };
   }
 
@@ -1935,7 +2070,7 @@ export class ServicePlannerComponent implements OnInit {
 
   private getPersistedBookingsFromEntries(entries: ScheduleEntry[], orders: any[]): JobBooking[] {
     return entries
-      .filter(entry => entry.kind === 'scheduled' || entry.kind === 'blocked-order')
+      .filter(entry => entry.kind === 'scheduled' || entry.kind === 'blocked-order' || entry.kind === 'day-capacity')
       .map((entry): JobBooking | null => {
         const order = entry.workOrderReference
           ? orders.find(candidate => candidate.referenceNumber === entry.workOrderReference || candidate.id === entry.workOrderReference)
@@ -1956,7 +2091,21 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   private mapScheduleEntriesToEvents(entries: ScheduleEntry[]): SchedulerEvent[] {
-    return entries.map(entry => this.mapScheduleEntryToEvent(entry));
+    return entries
+      .filter(entry => entry.kind !== 'day-capacity')
+      .map(entry => this.mapScheduleEntryToEvent(entry));
+  }
+
+  private applyScheduleEntries(entries: ScheduleEntry[]): void {
+    this.scheduleEntries = entries;
+    this.events = this.mapScheduleEntriesToEvents(entries);
+    this.capacityBlocks = this.mapScheduleEntriesToCapacityBlocks(entries);
+  }
+
+  private mapScheduleEntriesToCapacityBlocks(entries: ScheduleEntry[]): SchedulerCapacityBlock[] {
+    return entries
+      .filter(entry => entry.kind === 'day-capacity')
+      .map(entry => this.mapScheduleEntryToCapacityBlock(entry));
   }
 
   private mapScheduleEntryToEvent(entry: ScheduleEntry): SchedulerEvent {
@@ -1979,6 +2128,33 @@ export class ServicePlannerComponent implements OnInit {
           workOrderReference: entry.workOrderReference ?? order?.referenceNumber,
           workorderItemStatus: entry.workorderItemStatus ?? job?.workorderItemStatus ?? 'scheduled',
           workorderItemCategory: entry.workorderItemCategory ?? job?.workorderItemCategory ?? (isActivity ? 'activity' : 'job'),
+        },
+      } as any,
+    };
+  }
+
+  private mapScheduleEntryToCapacityBlock(entry: ScheduleEntry): SchedulerCapacityBlock {
+    const order = this.findOrderForScheduleEntry(entry);
+    const job = order?.jobs?.find((candidate: any) => candidate.id === entry.jobId);
+    const durationMinutes = Math.max(1, Math.round((entry.end.getTime() - entry.start.getTime()) / 60000));
+    const date = new Date(entry.start);
+    date.setHours(0, 0, 0, 0);
+
+    return {
+      id: entry.id,
+      resourceId: entry.resourceId,
+      date,
+      durationMinutes,
+      title: entry.title ?? job?.title ?? entry.jobId,
+      color: entry.color ?? '#4C68B1',
+      meta: {
+        job,
+        order,
+        entry: {
+          ...entry,
+          workOrderReference: entry.workOrderReference ?? order?.referenceNumber,
+          workorderItemStatus: entry.workorderItemStatus ?? job?.workorderItemStatus ?? 'scheduled',
+          workorderItemCategory: entry.workorderItemCategory ?? job?.workorderItemCategory ?? 'job',
         },
       } as any,
     };
@@ -2120,6 +2296,7 @@ export class ServicePlannerComponent implements OnInit {
     entryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
     this.scheduleEntries = this.scheduleEntries.filter(entry => !entryIds.has(entry.id));
     this.events = this.events.filter(event => !entryIds.has(event.id));
+    this.capacityBlocks = this.capacityBlocks.filter(block => !entryIds.has(block.id));
     this.refreshWorkOrderItemStatusesForEntries(entries);
     this.unavailability = this.unavailability.filter(block =>
       !entries.some(entry =>
@@ -2186,6 +2363,10 @@ export class ServicePlannerComponent implements OnInit {
   onEventDropped(payload: EventDropPayload): void {
     this.isAutoProposalVisible = false;
     const activeOrderId = payload.orderId ?? this.getOrderIdForJob(payload.jobId) ?? this.getActiveWorkOrderId() ?? undefined;
+    if (payload.dropMode === 'day-capacity') {
+      this.onDayCapacityDropped(payload, activeOrderId);
+      return;
+    }
     if (payload.dropType === 'order' && activeOrderId) {
       this.selectedPanelOrderId = activeOrderId;
       this.restoreProposalStateForOrder(activeOrderId);
@@ -2321,15 +2502,102 @@ export class ServicePlannerComponent implements OnInit {
     });
   }
 
+  private onDayCapacityDropped(payload: EventDropPayload, activeOrderId: string | undefined): void {
+    if (payload.dropType === 'order') {
+      this.setSchedulingError('Drop a specific job to block day capacity.', 'Capacity block not possible');
+      this.clearManualInteractionState();
+      return;
+    }
+
+    const droppedResource = this.resources.find(r => r.id === payload.resourceId);
+    if (!droppedResource || !this.bookingEligibleResources.some(resource => resource.id === payload.resourceId)) {
+      this.setSchedulingError('Choose a compatible resource.', 'Capacity block not possible');
+      this.clearManualInteractionState();
+      return;
+    }
+
+    const droppedResourceType = payload.droppedResourceType ?? (droppedResource?.meta as any)?.type;
+    const bookingResourceType = droppedResourceType ?? payload.resourceType ?? 'mechanic';
+    const durationMinutes = Math.max(1, Math.round(payload.durationMinutes ?? (payload.end.getTime() - payload.start.getTime()) / 60000));
+    const start = this.getDayCapacityStart(payload.date ?? payload.start);
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+    const validationContext = this.buildManualDropContextForPayload(payload, activeOrderId, start, end);
+    if (validationContext) {
+      const validation = this.validateManualCapacityPlacement(validationContext, droppedResource);
+      if (!validation.valid) {
+        this.showManualPlanValidationError('Capacity block not possible', validation);
+        this.clearManualInteractionState();
+        return;
+      }
+    }
+
+    if (this.hasExistingManualBookingForResourceType(payload.jobId, activeOrderId, bookingResourceType)) {
+      this.setSchedulingError(`${this.formatResourceType(bookingResourceType)} is already booked for this job.`, 'Capacity block not possible');
+      this.clearManualInteractionState();
+      return;
+    }
+
+    const activityTemplateId = this.getActivityTemplateId(payload.jobId);
+    const order = this.allOrders.find(candidate => candidate.id === activeOrderId);
+    const found = this.isActivityId(payload.jobId)
+      ? undefined
+      : this.allOrders.flatMap((candidate: any) => candidate.jobs).find((job: any) => job.id === payload.jobId);
+    const activity = this.getActivityTemplate(activityTemplateId);
+    const bookingSetId = this.isActivityId(payload.jobId)
+      ? undefined
+      : `${activeOrderId ?? 'order'}:${payload.jobId}:capacity:${start.getTime()}-${end.getTime()}`;
+
+    const entry: ScheduleEntry = {
+      id: `se-cap-${Date.now()}`,
+      jobId: payload.jobId,
+      resourceId: payload.resourceId,
+      start,
+      end,
+      title: activity?.title ?? found?.title,
+      color: '#4C68B1',
+      kind: 'day-capacity',
+      workOrderReference: order?.referenceNumber,
+      workorderItemStatus: 'scheduled',
+      workorderItemCategory: this.isActivityId(payload.jobId) ? 'activity' : 'job',
+      bookingSetId,
+    };
+
+    this.clearSchedulingError();
+    this.clearManualInteractionState();
+    this.scheduleRepo.assign(entry).subscribe(assigned => {
+      const normalizedEntry = {
+        ...assigned,
+        kind: 'day-capacity' as const,
+        workOrderReference: assigned.workOrderReference ?? order?.referenceNumber,
+        workorderItemStatus: assigned.workorderItemStatus ?? 'scheduled' as const,
+        workorderItemCategory: assigned.workorderItemCategory ?? (this.isActivityId(payload.jobId) ? 'activity' as const : 'job' as const),
+      };
+      this.upsertScheduleEntry(normalizedEntry);
+      this.capacityBlocks = [
+        ...this.capacityBlocks.filter(block => block.id !== normalizedEntry.id),
+        this.mapScheduleEntryToCapacityBlock(normalizedEntry),
+      ];
+    });
+  }
+
+  private getDayCapacityStart(value: Date): Date {
+    const start = new Date(value);
+    start.setHours(9, 0, 0, 0);
+    return start;
+  }
+
   onUndoBooking(booking: JobBooking): void {
     const event = this.events.find(candidate => candidate.id === booking.entryId);
-    const removedEntry = event?.meta?.entry as ScheduleEntry | undefined;
+    const capacityBlock = this.capacityBlocks.find(candidate => candidate.id === booking.entryId);
+    const removedEntry = (event?.meta?.entry ?? capacityBlock?.meta?.entry) as ScheduleEntry | undefined;
     const orderToReveal = removedEntry ? this.findOrderForScheduleEntry(removedEntry) : null;
-    if (event?.resourceId && this.plannerMode === 'order') {
-      this.pinVisibleResource(event.resourceId);
+    const resourceId = event?.resourceId ?? capacityBlock?.resourceId;
+    if (resourceId && this.plannerMode === 'order') {
+      this.pinVisibleResource(resourceId);
     }
     this.scheduleRepo.unassign(booking.entryId).subscribe(() => {
       this.events = this.events.filter(e => e.id !== booking.entryId);
+      this.capacityBlocks = this.capacityBlocks.filter(block => block.id !== booking.entryId);
       this.scheduleEntries = this.scheduleEntries.filter(entry => entry.id !== booking.entryId);
       this.latestAutoBookingEntryIds.delete(booking.entryId);
       this.refreshWorkOrderItemStatusForEntry(removedEntry);
@@ -2356,6 +2624,7 @@ export class ServicePlannerComponent implements OnInit {
       latestOrderAutoEntryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
       const entryIds = new Set(latestOrderAutoEntryIds);
       this.events = this.events.filter(event => !entryIds.has(event.id));
+      this.capacityBlocks = this.capacityBlocks.filter(block => !entryIds.has(block.id));
       this.scheduleEntries = this.scheduleEntries.filter(entry => !entryIds.has(entry.id));
       latestOrderAutoEntryIds.forEach(entryId => this.latestAutoBookingEntryIds.delete(entryId));
       this.refreshWorkOrderItemStatusesForEntries(removedEntries);
@@ -2741,8 +3010,7 @@ export class ServicePlannerComponent implements OnInit {
 
   private reloadScheduleEntries(focusEventId?: string): void {
     this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
-      this.scheduleEntries = entries;
-      this.events = this.mapScheduleEntriesToEvents(entries);
+      this.applyScheduleEntries(entries);
       if (focusEventId) {
         this.focusPlannerEvent(focusEventId);
       }
@@ -2824,8 +3092,7 @@ export class ServicePlannerComponent implements OnInit {
     this.alignViewWindowToOrder(order, this.plannerViewMode);
     this.syncOrderAppointment(order.id, selection.checkinStart, selection.handoverEnd);
     this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
-      this.scheduleEntries = entries;
-      this.events = this.mapScheduleEntriesToEvents(entries);
+      this.applyScheduleEntries(entries);
       if (this.plannerMode === 'order') {
         this.latestAutoBookingEntryIds = new Set(
           this.scheduleEntries
@@ -3025,6 +3292,44 @@ export class ServicePlannerComponent implements OnInit {
     }
 
     return null;
+  }
+
+  private buildCapacityBlockDragContext(block: SchedulerCapacityBlock): ManualDragContext | null {
+    const entry = block.meta?.entry;
+    if (!entry) return null;
+    const order = this.findOrderForScheduleEntry(entry);
+    const orderId = order?.id ?? entry.workOrderReference;
+    const durationMinutes = block.durationMinutes;
+    const isActivityEntry = this.isActivityScheduleEntry(entry);
+
+    if (!isActivityEntry) {
+      const job = block.meta?.job ?? order?.jobs?.find((candidate: any) => candidate.id === entry.jobId);
+      return {
+        kind: 'job',
+        orderId,
+        itemId: entry.jobId,
+        entryId: block.id,
+        durationMinutes,
+        requirements: job ? this.getSchedulingRequirements(job) : [this.getScheduledRequirementFromEntry(entry)].filter((requirement): requirement is JobResourceRequirement => !!requirement),
+      };
+    }
+
+    const activityTemplateId = this.getActivityTemplateId(entry.jobId);
+    const activity = this.getActivityTemplate(activityTemplateId);
+    const rawResource = this.resources.find(resource => resource.id === block.resourceId)?.meta as Resource | undefined;
+    return {
+      kind: 'activity',
+      orderId,
+      itemId: entry.jobId,
+      entryId: block.id,
+      activityTemplateId,
+      durationMinutes,
+      requirements: [{
+        resourceType: (activity?.resourceType ?? rawResource?.type ?? 'mechanic') as Resource['type'],
+        requiredQualifications: [],
+        label: activity?.resourceLabel ?? rawResource?.type,
+      }],
+    };
   }
 
   private hasExistingManualBookingForResourceType(
@@ -3277,6 +3582,34 @@ export class ServicePlannerComponent implements OnInit {
 
     const uniqueReasons = this.uniqueManualPlanReasons(reasons);
     return { valid: uniqueReasons.length === 0, reasons: uniqueReasons };
+  }
+
+  private validateManualCapacityPlacement(context: ManualDragContext, resource: SchedulerResource): ManualPlanValidationResult {
+    const reasons: ManualPlanInvalidReason[] = [];
+    const rawResource = resource.meta as Resource | undefined;
+    if (!rawResource) {
+      reasons.push({ code: 'resource-mismatch' });
+      return { valid: false, reasons };
+    }
+
+    if (!this.isManualCapacityResourceValid(context, resource)) {
+      reasons.push({ code: 'resource-mismatch', detail: this.formatResourceType(rawResource.type) });
+    }
+
+    const uniqueReasons = this.uniqueManualPlanReasons(reasons);
+    return { valid: uniqueReasons.length === 0, reasons: uniqueReasons };
+  }
+
+  private isManualCapacityResourceValid(context: ManualDragContext, resource: SchedulerResource): boolean {
+    if (!this.isManualCapacityResourceCompatible(context, resource)) return false;
+    const rawResource = resource.meta as Resource | undefined;
+    return !!rawResource && !this.isExternalJobAlreadyBookedForResourceType(context, rawResource.type);
+  }
+
+  private isManualCapacityResourceCompatible(context: ManualDragContext, resource: SchedulerResource): boolean {
+    const rawResource = resource.meta as Resource | undefined;
+    if (!rawResource) return false;
+    return context.requirements.some(requirement => requirement.resourceType === rawResource.type);
   }
 
   private getRequirementForResource(requirements: JobResourceRequirement[], resource: Resource): JobResourceRequirement | null {
@@ -3560,6 +3893,7 @@ export class ServicePlannerComponent implements OnInit {
     );
     autoEntryIds.forEach(id => this.scheduleRepo.unassign(id).subscribe());
     this.events = this.events.filter(e => !autoEntryIds.has(e.id));
+    this.capacityBlocks = this.capacityBlocks.filter(block => !autoEntryIds.has(block.id));
     this.scheduleEntries = this.scheduleEntries.filter(entry => !autoEntryIds.has(entry.id));
     this.refreshWorkOrderItemStatusesForEntries(removedEntries);
     for (const entryId of autoEntryIds) {
@@ -3723,6 +4057,7 @@ export class ServicePlannerComponent implements OnInit {
       entryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
       const entryIdSet = new Set(entryIds);
       this.events = this.events.filter(e => !entryIdSet.has(e.id));
+      this.capacityBlocks = this.capacityBlocks.filter(block => !entryIdSet.has(block.id));
       this.scheduleEntries = this.scheduleEntries.filter(entry => !entryIdSet.has(entry.id));
       entryIds.forEach(entryId => this.latestAutoBookingEntryIds.delete(entryId));
       this.refreshWorkOrderItemStatusesForEntries(removedEntries);
@@ -3835,6 +4170,8 @@ export class ServicePlannerComponent implements OnInit {
     });
   }
 }
+
+
 
 
 

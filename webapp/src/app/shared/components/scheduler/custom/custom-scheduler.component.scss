@@ -247,6 +247,26 @@ $month-bar-height: 60px;
     white-space: nowrap;
   }
 
+  &__capacity-hour-slot {
+    flex-shrink: 0;
+    display: flex;
+    height: 100%;
+    background: var(--Layer-layer-01, #F4F4F4);
+    overflow: hidden;
+  }
+
+  &__capacity-hour-label {
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--Text-text-secondary, #525252);
+    text-align: center;
+    font-size: 12px;
+    line-height: 16px;
+  }
+
 
   &__body {
     flex: 1 1 0;
@@ -429,6 +449,46 @@ $month-bar-height: 60px;
     width: 1px;
     background: #C6C6C6;
     pointer-events: none;
+  }
+
+  &__capacity-lane {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    background: var(--Layer-layer-01,#F4F4F4);
+    border-right: 1px solid #E0E0E0;
+    overflow: hidden;
+    z-index: 4;
+  }
+
+  &__capacity-lane--drop-target {
+    background: var(--Notification-notification-info-background,#EDF5FF);
+    outline: 2px solid var(--Support-support-info,#4589FF);
+    outline-offset: -2px;
+  }
+
+  &__capacity-lane--drop-invalid {
+    outline-color: var(--Support-support-error,#DA1E28);
+  }
+
+  &__capacity-block {
+    border-left: 2px solid #4C68B1;
+    background: #E9ECF5;
+    overflow: hidden;
+  }
+
+  &__capacity-block-title,
+  &__capacity-block-detail,
+  &__capacity-block-order {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    line-height: 14px;
   }
 
   &__unavailable {

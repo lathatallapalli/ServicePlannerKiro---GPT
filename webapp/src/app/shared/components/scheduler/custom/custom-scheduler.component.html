@@ -160,6 +160,12 @@
         </div>
         <div class="scheduler__hour-row" [style.height.px]="HOUR_ROW_HEIGHT">
           @for (day of daySlots; track day.getTime()) {
+            @if (showDayCapacityLane) {
+              <div class="scheduler__capacity-hour-slot" [style.width.px]="DAY_CAPACITY_LANE_WIDTH">
+                <span class="scheduler__time-slot-separator" aria-hidden="true"></span>
+                <span class="scheduler__capacity-hour-label">Day capacity</span>
+              </div>
+            }
             @for (slot of timeSlots; track slot.getTime()) {
               <div class="scheduler__time-slot" [style.width.px]="slotDurationMinutes / 60 * HOUR_WIDTH">
                 <span class="scheduler__time-slot-separator" aria-hidden="true"></span>
@@ -222,6 +228,40 @@
           </div>
           <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null">
             @for (day of daySlots; track day.getTime()) {
+              @if (showDayCapacityLane) {
+                <div
+                  class="scheduler__capacity-lane"
+                  [class.scheduler__capacity-lane--drop-target]="isCapacityDropPreviewForResourceDay(resource.id, day)"
+                  [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
+                  [style.left.px]="getCapacityLaneLeft(day)"
+                  [style.width.px]="DAY_CAPACITY_LANE_WIDTH"
+                  [attr.title]="getCapacityLaneTitle(resource.id, day)"
+                  (dragover)="onCapacityDragOver($event, resource.id, day)"
+                  (dragleave)="onDragLeave()"
+                  (drop)="onCapacityDrop($event, resource.id, day)">
+                  @for (block of getCapacityBlocksForResourceDay(resource.id, day); track block.id) {
+                    <div
+                      class="scheduler__capacity-block"
+                      draggable="true"
+                      [style.border-left-color]="block.color ?? '#4C68B1'"
+                      [attr.aria-label]="getCapacityBlockAriaLabel(block)"
+                      (dragstart)="onCapacityBlockDragStart($event, block)"
+                      (dragend)="onCapacityBlockDragEnd($event, block)">
+                      <span class="scheduler__capacity-block-header" style="display:flex;align-items:center">
+                        <span class="scheduler__capacity-block-order" style="flex:1 1 0;min-width:0">{{ getCapacityBlockOrderReference(block) }}</span>
+                        <button class="scheduler__event-order-focus scheduler__capacity-block-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="'Focus order ' + getCapacityBlockOrderReference(block) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onCapacityOrderFocusClick($event, block)" (contextmenu)="suppressEventAction($event)">
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+                            <path d="M1 3V13C1 13.5522 1.44775 14 2 14H14C14.5522 14 15 13.5522 15 13V3C15 2.44775 14.5522 2 14 2H2C1.44775 2 1 2.44775 1 3ZM11 3H14V13H11V3ZM2 3H10V13H2V8.5H7.08495L5.2949 10.2949L6 11L9 8L6 5L5.2949 5.7051L7.08495 7.5H2V3Z" fill="currentColor"/>
+                          </svg>
+                        </button>
+                      </span>
+                      <span class="scheduler__capacity-block-title">{{ getCapacityBlockTitle(block) }}</span>
+                      <span class="scheduler__capacity-block-detail">{{ getCapacityBlockDetail(block) }}</span>
+                    </div>
+                  }
+                </div>
+              }
               @for (slot of timeSlots; track slot.getTime()) {
                 @if (!isFirstHourSlot(slot)) {
                   <div
@@ -476,6 +516,40 @@
         </div>
         <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null">
           @for (day of daySlots; track day.getTime()) {
+            @if (showDayCapacityLane) {
+              <div
+                class="scheduler__capacity-lane"
+                [class.scheduler__capacity-lane--drop-target]="isCapacityDropPreviewForResourceDay(resource.id, day)"
+                [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
+                [style.left.px]="getCapacityLaneLeft(day)"
+                [style.width.px]="DAY_CAPACITY_LANE_WIDTH"
+                [attr.title]="getCapacityLaneTitle(resource.id, day)"
+                (dragover)="onCapacityDragOver($event, resource.id, day)"
+                (dragleave)="onDragLeave()"
+                (drop)="onCapacityDrop($event, resource.id, day)">
+                @for (block of getCapacityBlocksForResourceDay(resource.id, day); track block.id) {
+                  <div
+                    class="scheduler__capacity-block"
+                    draggable="true"
+                    [style.border-left-color]="block.color ?? '#4C68B1'"
+                    [attr.aria-label]="getCapacityBlockAriaLabel(block)"
+                    (dragstart)="onCapacityBlockDragStart($event, block)"
+                    (dragend)="onCapacityBlockDragEnd($event, block)">
+                    <span class="scheduler__capacity-block-header" style="display:flex;align-items:center">
+                      <span class="scheduler__capacity-block-order" style="flex:1 1 0;min-width:0">{{ getCapacityBlockOrderReference(block) }}</span>
+                      <button class="scheduler__event-order-focus scheduler__capacity-block-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="'Focus order ' + getCapacityBlockOrderReference(block) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onCapacityOrderFocusClick($event, block)" (contextmenu)="suppressEventAction($event)">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                          <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+                          <path d="M1 3V13C1 13.5522 1.44775 14 2 14H14C14.5522 14 15 13.5522 15 13V3C15 2.44775 14.5522 2 14 2H2C1.44775 2 1 2.44775 1 3ZM11 3H14V13H11V3ZM2 3H10V13H2V8.5H7.08495L5.2949 10.2949L6 11L9 8L6 5L5.2949 5.7051L7.08495 7.5H2V3Z" fill="currentColor"/>
+                        </svg>
+                      </button>
+                    </span>
+                    <span class="scheduler__capacity-block-title">{{ getCapacityBlockTitle(block) }}</span>
+                    <span class="scheduler__capacity-block-detail">{{ getCapacityBlockDetail(block) }}</span>
+                  </div>
+                }
+              </div>
+            }
             @for (slot of timeSlots; track slot.getTime()) {
               @if (!isFirstHourSlot(slot)) {
                 <div
@@ -701,6 +775,7 @@
 
     @if (dropPreview) {
       <div class="scheduler__drop-preview"
+        [class.scheduler__drop-preview--capacity]="getDropPreviewMode() === 'day-capacity'"
         [style.left.px]="getDropPreviewLeft()"
         [style.top.px]="getDropPreviewTop()"
         [style.width.px]="getDropPreviewWidth()"
@@ -787,6 +862,9 @@
 
   </div>
 </div>
+
+
+
 
 
 
