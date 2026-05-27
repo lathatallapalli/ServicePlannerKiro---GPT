@@ -8,6 +8,7 @@ import { WorkOrder } from '../../core/models/work-order.model';
 import { ResourceRepository } from '../../core/services/resource.repository';
 import { ScheduleRepository } from '../../core/services/schedule.repository';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
+import { PlannerSettingsService } from '../service-planner/services/planner-settings.service';
 import { QuickViewActivitySlot, QuickViewDay, QuickViewHandoverSlot, QuickViewSlotFilter, QuickViewWorkProposal } from './quick-view.models';
 import { QuickViewSchedulerService } from './quick-view-scheduler.service';
 import { QuickViewSelectionService } from './quick-view-selection.service';
@@ -36,6 +37,7 @@ export class QuickViewComponent implements OnInit {
   protected activeHandoverFilters = new Set<QuickViewSlotFilter>(['morning']);
   protected isLoading = true;
   protected isSaving = false;
+  private isRestoringSelection = false;
   private resources: Resource[] = [];
   private entries: ScheduleEntry[] = [];
   private visibleWeekStart = this.getWeekStart(new Date('2024-04-15T08:00:00'));
@@ -45,6 +47,7 @@ export class QuickViewComponent implements OnInit {
     private workOrderRepo: WorkOrderRepository,
     private resourceRepo: ResourceRepository,
     private scheduleRepo: ScheduleRepository,
+    private plannerSettings: PlannerSettingsService,
     private quickViewSelection: QuickViewSelectionService,
     private quickViewScheduler: QuickViewSchedulerService,
   ) {}
@@ -60,13 +63,48 @@ export class QuickViewComponent implements OnInit {
       entries: this.scheduleRepo.getEntries(from, to),
     }).subscribe(({ orders, resources, entries }) => {
       this.workOrder = orders.find(order => order.id === orderId || order.referenceNumber === orderId) ?? null;
-      this.resources = resources;
       this.entries = entries;
+      this.resources = this.getQuickViewResources(resources, entries);
       this.visibleWeekStart = this.getWeekStart(new Date(this.workOrder?.appointmentStart ?? '2024-04-15T08:00:00'));
       this.refreshDays();
       this.restoreExistingSelection();
       this.isLoading = false;
     });
+  }
+
+  private getQuickViewResources(resources: Resource[], entries: ScheduleEntry[]): Resource[] {
+    if (!this.workOrder || !this.hasExistingPlannerBookings(entries)) return resources;
+    const context = this.plannerSettings.resourceContext();
+    if (!context) return resources;
+
+    const viewResourceIds = context.resourceView?.resourceIds?.length
+      ? new Set(context.resourceView.resourceIds)
+      : null;
+    const selectedTypeGroupIds = new Set(context.selectedResourceTypeGroupIds);
+    const explicitlySelectedResourceIds = new Set(context.selectedResourceIds);
+    const filtered = resources.filter(resource => {
+      if (viewResourceIds && !viewResourceIds.has(resource.id)) return false;
+      if (explicitlySelectedResourceIds.has(resource.id)) return true;
+      if (
+        context.viewPersonalCalendarOnTop &&
+        resource.id === context.personalCalendarResourceId &&
+        !!context.personalCalendarGroupId &&
+        selectedTypeGroupIds.has(context.personalCalendarGroupId)
+      ) {
+        return true;
+      }
+      return !!resource.groupId && selectedTypeGroupIds.has(resource.groupId);
+    });
+
+    return filtered.length ? filtered : resources;
+  }
+
+  private hasExistingPlannerBookings(entries: ScheduleEntry[]): boolean {
+    return !!this.workOrder && entries.some(entry =>
+      entry.workOrderReference === this.workOrder?.referenceNumber ||
+      entry.workOrderReference === this.workOrder?.id ||
+      this.workOrder?.jobs.some(job => job.id === entry.jobId)
+    );
   }
 
   protected getTotalDurationLabel(): string {
@@ -148,12 +186,14 @@ export class QuickViewComponent implements OnInit {
       ? this.quickViewScheduler.buildHandoverDays(this.workOrder, this.resources, this.entries, proposal, this.visibleWeekStart)
       : [];
     this.selectInitialHandoverSlot();
-    this.quickViewSelection.setDraftCheckin({
-      orderId: this.workOrder.id,
-      checkinStart: slot.start,
-      checkinFilters: [...this.activeCheckinFilters],
-      handoverFilters: [...this.activeHandoverFilters],
-    });
+    if (!this.isRestoringSelection) {
+      this.quickViewSelection.setDraftCheckin({
+        orderId: this.workOrder.id,
+        checkinStart: slot.start,
+        checkinFilters: [...this.activeCheckinFilters],
+        handoverFilters: [...this.activeHandoverFilters],
+      });
+    }
   }
 
   protected selectHandover(slot: QuickViewActivitySlot, dayIndex: number): void {
@@ -178,6 +218,7 @@ export class QuickViewComponent implements OnInit {
         handoverEnd: handover.end,
         checkinFilters: [...this.activeCheckinFilters],
         handoverFilters: [this.getSlotFilter(handover)],
+        hasDraftCheckin: false,
       });
       this.isSaving = false;
     });
@@ -222,7 +263,9 @@ export class QuickViewComponent implements OnInit {
       ?? existing.checkin;
     if (!checkinSlot) return;
 
+    this.isRestoringSelection = true;
     this.selectCheckin(checkinSlot, Math.max(0, this.checkinDays.findIndex(day => this.isSameDate(day.date, checkinSlot.start))));
+    this.isRestoringSelection = false;
 
     const selectedHandoverEnd = existing.handover?.end ?? selection?.handoverEnd ?? this.workOrder.appointmentEnd;
     if (!selectedHandoverEnd) return;

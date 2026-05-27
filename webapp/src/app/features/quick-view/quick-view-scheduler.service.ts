@@ -31,12 +31,14 @@ export class QuickViewSchedulerService {
   ) {}
 
   buildCheckinDays(workOrder: WorkOrder, resources: Resource[], entries: ScheduleEntry[], weekStart: Date): QuickViewDay[] {
+    const requiredResourceIds = this.getExistingBookingResourceIds(workOrder, entries);
     return this.buildDays(weekStart, date => {
       const from = this.dayBoundary(date, DAY_START_HOUR);
       const to = this.dayBoundary(date, DAY_END_HOUR);
       return this.autoScheduler.findCheckinSlots({
         jobs: workOrder.jobs,
         resources,
+        requiredResourceIds,
         existingEntries: this.getSchedulingEntriesForOrder(workOrder, entries),
         unavailability: MOCK_UNAVAILABILITY,
         from,
@@ -50,9 +52,11 @@ export class QuickViewSchedulerService {
 
   buildWorkProposal(workOrder: WorkOrder, resources: Resource[], entries: ScheduleEntry[], checkin: QuickViewActivitySlot): QuickViewWorkProposal | null {
     const schedulableJobs = this.getSchedulableJobs(workOrder);
+    const requiredResourceIds = this.getExistingBookingResourceIds(workOrder, entries);
     const proposal = this.autoScheduler.buildWorkProposalFromCheckin({
       jobs: schedulableJobs,
       resources,
+      requiredResourceIds,
       existingEntries: this.getSchedulingEntriesForOrder(workOrder, entries),
       unavailability: MOCK_UNAVAILABILITY,
       checkin,
@@ -69,6 +73,7 @@ export class QuickViewSchedulerService {
   }
 
   buildHandoverDays(workOrder: WorkOrder, resources: Resource[], entries: ScheduleEntry[], proposal: QuickViewWorkProposal, weekStart: Date): QuickViewDay[] {
+    const requiredResourceIds = this.getExistingBookingResourceIds(workOrder, entries);
     const draftEntries = [
       this.createActivityEntry(workOrder, CHECKIN_ACTIVITY_ID, 'Check-In', proposal.checkin.resourceId, proposal.checkin.start, proposal.checkin.end),
       ...proposal.jobEntries,
@@ -80,6 +85,7 @@ export class QuickViewSchedulerService {
       if (from > to) return [];
       return this.autoScheduler.findHandoverOptions({
         resources,
+        requiredResourceIds,
         existingEntries: this.getSchedulingEntriesForOrder(workOrder, entries),
         draftEntries,
         unavailability: MOCK_UNAVAILABILITY,
@@ -204,6 +210,20 @@ export class QuickViewSchedulerService {
 
   private getSchedulableJobs(workOrder: WorkOrder) {
     return workOrder.jobs.filter(job => (job.workorderItemCategory ?? 'job') !== 'activity');
+  }
+
+  private getExistingBookingResourceIds(workOrder: WorkOrder, entries: ScheduleEntry[]): string[] {
+    const orderEntries = entries.filter(entry => this.isEntryForWorkOrder(entry, workOrder));
+    return [...new Set(orderEntries
+      .filter(entry => entry.workorderItemStatus !== 'cancelled')
+      .filter(entry =>
+        entry.workorderItemCategory === 'job' ||
+        this.getActivityTemplateId(entry.jobId) === CHECKIN_ACTIVITY_ID ||
+        this.getActivityTemplateId(entry.jobId) === HANDOVER_ACTIVITY_ID ||
+        this.getActivityTemplateId(entry.jobId) === MOBILITY_ACTIVITY_ID
+      )
+      .map(entry => entry.resourceId)
+      .filter(Boolean))];
   }
 
   private isEntryForWorkOrder(entry: ScheduleEntry, workOrder: WorkOrder): boolean {

@@ -18,10 +18,10 @@ export class ResourceCatalogComponent {
   protected openGroup(groupId: string): void {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
     const plannerReturnTo = this.route.snapshot.queryParamMap.get('plannerReturnTo');
-    const listReturnTo = this.route.snapshot.queryParamMap.get('listReturnTo');
+    const selectedViewValue = this.route.snapshot.queryParamMap.get('selectedViewValue');
     this.router.navigate(['/resource-catalog', groupId], {
       queryParams: returnTo
-        ? { returnTo, ...(plannerReturnTo ? { plannerReturnTo } : {}), ...(listReturnTo ? { listReturnTo } : {}) }
+        ? { returnTo, ...(plannerReturnTo ? { plannerReturnTo } : {}), ...(selectedViewValue ? { selectedViewValue } : {}) }
         : undefined,
       state: history.state,
     });

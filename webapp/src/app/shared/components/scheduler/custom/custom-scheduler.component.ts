@@ -80,6 +80,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public detailedEventIds: string[] = [];
   @Input() public detailedOrderIds: string[] = [];
   @Input() public selectedResourceIds: string[] = [];
+  @Input() public selectedResourceTypeGroupIds: string[] = [];
   @Input() public resourceViews: ResourceFavoriteView[] = [];
   @Input() public selectedResourceView: ResourceFavoriteView | null = null;
   @Input('rightPaneOpen') public rightPaneOpen = false;
@@ -137,13 +138,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   selectedMonth = this.viewStart.getMonth();
   resourceSearch = '';
-  selectedGroupIds: string[] = [];
   isGroupDropdownOpen = false;
   isResourceViewDropdownOpen = false;
   showSelectedOnlyByGroup = new Set<string>();
   collapsedGroupIds = new Set<string>();
   copiedContactKey: string | null = null;
-  private hasInitializedGroupSelection = false;
   private copiedContactResetId: ReturnType<typeof setTimeout> | null = null;
 
   get selectedYear(): number { return this.viewStart.getFullYear(); }
@@ -195,18 +194,6 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (changes['viewStart'] || changes['viewEnd'] || changes['slotDurationMinutes']) {
       this.selectedMonth = this.viewStart.getMonth();
       this.buildTimeSlots();
-    }
-    if (changes['groups']) {
-      const groupIds = this.groups.map(group => group.id);
-      if (!this.hasInitializedGroupSelection) {
-        this.selectedGroupIds = groupIds;
-        this.hasInitializedGroupSelection = true;
-      } else {
-        this.selectedGroupIds = [
-          ...groupIds.filter(groupId => !this.selectedGroupIds.includes(groupId)),
-          ...this.selectedGroupIds.filter(groupId => groupIds.includes(groupId)),
-        ];
-      }
     }
     if (changes['scrollToEventId'] && this.scrollToEventId) {
       queueMicrotask(() => this.scrollToEvent(this.scrollToEventId));
@@ -895,7 +882,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const query = this.resourceSearch.trim().toLowerCase();
     return this.resources.filter(resource => {
       if (resource.groupId !== groupId) return false;
-      if (!this.selectedGroupIds.includes(groupId)) return false;
+      if (!this.selectedResourceTypeGroupIds.includes(groupId)) return false;
       if (this.showSelectedOnlyByGroup.has(groupId) && !this.isResourceSelected(resource.id)) return false;
       if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
       return true;
@@ -913,7 +900,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   get visibleGroups(): SchedulerGroup[] {
     return this.groups.filter(group => {
-      if (!this.selectedGroupIds.includes(group.id)) return false;
+      if (!this.selectedResourceTypeGroupIds.includes(group.id)) return false;
       return this.hasResourcesForGroup(group.id);
     });
   }
@@ -928,8 +915,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   get selectedGroupLabel(): string {
-    const count = this.selectedGroupIds.length;
-    return count === this.groups.length ? 'All resource types' : `${count} selected`;
+    const count = this.selectedResourceTypeGroupIds.length;
+    return this.areAllResourceTypesSelected() ? 'All resource types' : `${count} selected`;
+  }
+
+  areAllResourceTypesSelected(): boolean {
+    return this.groups.every(group => this.selectedResourceTypeGroupIds.includes(group.id));
   }
 
   get selectedResourceViewLabel(): string {
@@ -986,16 +977,15 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   toggleGroupSelection(groupId: string, event: Event): void {
     event.stopPropagation();
-    this.selectedGroupIds = this.selectedGroupIds.includes(groupId)
-      ? this.selectedGroupIds.filter(id => id !== groupId)
-      : [...this.selectedGroupIds, groupId];
-    this.resourceTypeSelectionChange.emit({ groupIds: [...this.selectedGroupIds] });
+    const groupIds = this.selectedResourceTypeGroupIds.includes(groupId)
+      ? this.selectedResourceTypeGroupIds.filter(id => id !== groupId)
+      : [...this.selectedResourceTypeGroupIds, groupId];
+    this.resourceTypeSelectionChange.emit({ groupIds });
   }
 
   clearGroupSelection(event: Event): void {
     event.stopPropagation();
-    this.selectedGroupIds = this.groups.map(group => group.id);
-    this.resourceTypeSelectionChange.emit({ groupIds: [...this.selectedGroupIds] });
+    this.resourceTypeSelectionChange.emit({ groupIds: [] });
   }
 
   toggleGroupCollapsed(groupId: string): void {

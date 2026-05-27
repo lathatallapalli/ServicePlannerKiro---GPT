@@ -46,6 +46,7 @@ interface SearchHighlightPart {
 }
 
 type WorkOrderItemKind = 'job' | 'activity';
+type SchedulingRole = 'start-boundary' | 'work' | 'end-boundary' | 'span';
 type CanonicalWorkOrderItemStatus = Exclude<WorkorderItemStatus, 'started'>;
 type OrderPlanningState = 'unscheduled' | 'partiallyScheduled' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
 
@@ -212,7 +213,7 @@ export class ServicePlannerComponent implements OnInit {
 
   /** After booking, only show resources that have at least one event */
   get filteredResources(): SchedulerResource[] {
-    const resourcePool = this.resourcesForSelectedView;
+    const resourcePool = this.visibleResourcePool;
     if (this.plannerMode === 'order' && this.isAutoProposalVisible) {
       const order = this.allOrders.find(candidate => candidate.id === this.activeOrderId || candidate.referenceNumber === this.activeOrderId);
       const bookedResourceIds = new Set(
@@ -236,7 +237,7 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   get fullPlannerResources(): SchedulerResource[] {
-    return this.resourcesForSelectedView;
+    return this.visibleResourcePool;
   }
 
   get visibleSchedulerResources(): SchedulerResource[] {
@@ -392,15 +393,21 @@ export class ServicePlannerComponent implements OnInit {
     return this.resources.filter(resource => viewResourceIds.has(resource.id));
   }
 
-  private get bookingEligibleResources(): SchedulerResource[] {
+  private get visibleResourcePool(): SchedulerResource[] {
     const resourcesInView = this.resourcesForSelectedView;
-    const groupsInView = new Set(resourcesInView.map(resource => resource.groupId).filter(Boolean));
-    if (!this.selectedResourceTypeGroupIds.length || this.selectedResourceTypeGroupIds.every(groupId => groupsInView.has(groupId))) {
-      return resourcesInView;
-    }
+    if (!this.selectedResourceTypeGroupIds.length) return [];
 
     const selectedGroupIds = new Set(this.selectedResourceTypeGroupIds);
-    return resourcesInView.filter(resource => resource.groupId && selectedGroupIds.has(resource.groupId));
+    return resourcesInView.filter(resource => {
+      if (this.viewPersonalCalendarOnTop && resource.id === this.loggedInAdvisorResourceId && selectedGroupIds.has(this.personalCalendarGroup.id)) {
+        return true;
+      }
+      return !!resource.groupId && selectedGroupIds.has(resource.groupId);
+    });
+  }
+
+  private get bookingEligibleResources(): SchedulerResource[] {
+    return this.visibleResourcePool;
   }
 
   constructor(
@@ -449,11 +456,14 @@ export class ServicePlannerComponent implements OnInit {
 
       this.jobTiles = tileSourceOrders.flatMap((order: any) =>
         order.jobs
-          .filter((j: any) => j.status === 'unscheduled')
+          .filter((j: any) => j.status === 'unscheduled' && this.getSchedulingRole(j) === 'work')
           .map((job: any) => ({ workOrder: order, job }))
       );
 
       this.groups = groups.map(g => ({ id: g.id, label: g.name }));
+      if (!this.selectedResourceTypeGroupIds.length) {
+        this.selectedResourceTypeGroupIds = this.getDefaultResourceTypeGroupIds();
+      }
 
       this.resources = resources.map(r => ({
         id: r.id,
@@ -462,6 +472,7 @@ export class ServicePlannerComponent implements OnInit {
         groupLabel: groups.find(g => g.id === r.groupId)?.name,
         meta: r,
       }));
+      this.updatePlannerResourceContext();
 
       this.events = this.mapScheduleEntriesToEvents(entries);
 
@@ -652,6 +663,7 @@ export class ServicePlannerComponent implements OnInit {
       ids.delete(payload.resourceId);
     }
     this.selectedResourceIds = [...ids];
+    this.updatePlannerResourceContext();
     if (this.plannerMode === 'order') {
       this.isAutoProposalVisible = false;
     }
@@ -673,22 +685,63 @@ export class ServicePlannerComponent implements OnInit {
 
   onResourceTypeSelectionChange(payload: ResourceTypeSelectionChangePayload): void {
     this.selectedResourceTypeGroupIds = [...payload.groupIds];
+    this.retainVisibleResourceSelection();
+    this.updatePlannerResourceContext();
+    if (this.plannerMode === 'order') {
+      this.isAutoProposalVisible = false;
+    }
   }
 
   onResourceViewChange(view: ResourceFavoriteView | null): void {
     this.plannerSettings.setResourceView(view);
+    this.retainVisibleResourceSelection();
+    this.updatePlannerResourceContext();
+    if (this.plannerMode === 'order') {
+      this.isAutoProposalVisible = false;
+    }
+  }
+
+  private retainVisibleResourceSelection(): void {
+    const visibleResourceIds = new Set(this.visibleResourcePool.map(resource => resource.id));
+    this.selectedResourceIds = this.selectedResourceIds.filter(resourceId => visibleResourceIds.has(resourceId));
+  }
+
+  private updatePlannerResourceContext(): void {
+    this.plannerSettings.setResourceContext({
+      resourceView: this.selectedResourceView,
+      selectedResourceTypeGroupIds: this.selectedResourceTypeGroupIds,
+      selectedResourceIds: this.selectedResourceIds,
+      viewPersonalCalendarOnTop: this.viewPersonalCalendarOnTop,
+      personalCalendarResourceId: this.loggedInAdvisorResourceId,
+      personalCalendarGroupId: this.personalCalendarGroup.id,
+    });
+  }
+
+  private getDefaultResourceTypeGroupIds(): string[] {
+    const groupIds = this.groups.map(group => group.id);
+    return this.viewPersonalCalendarOnTop
+      ? [this.personalCalendarGroup.id, ...groupIds]
+      : groupIds;
   }
 
   openResourceViewList(_view?: ResourceFavoriteView | null): void {
     this.router.navigate(['/resource-views'], {
-      queryParams: { returnTo: this.router.url },
+      queryParams: { returnTo: this.router.url, selectedViewValue: this.selectedResourceView?.value },
     });
   }
 
   addResourceView(): void {
     const newView = this.resourceViewsService.createNewView();
+    const plannerReturnTo = this.router.url;
+    const editorReturnParams = new URLSearchParams({ returnTo: '/resource-views', plannerReturnTo });
+    if (this.selectedResourceView?.value) editorReturnParams.set('selectedViewValue', this.selectedResourceView.value);
+
     this.router.navigate(['/resource-catalog'], {
-      queryParams: { returnTo: `/resource-views/${newView.value}/edit`, plannerReturnTo: this.router.url, listReturnTo: '/resource-views' },
+      queryParams: {
+        returnTo: `/resource-views/${newView.value}/edit?${editorReturnParams.toString()}`,
+        plannerReturnTo,
+        selectedViewValue: this.selectedResourceView?.value,
+      },
       state: { resourceView: newView },
     });
   }
@@ -1273,7 +1326,15 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   getJobsForOrder(order: any): any[] {
-    return (order.jobs ?? []).filter((job: any) => (job.workorderItemCategory ?? 'job') !== 'activity');
+    return (order.jobs ?? []).filter((job: any) => this.getSchedulingRole(job) === 'work');
+  }
+
+  private getSchedulingRole(item: any): SchedulingRole {
+    const templateId = this.getActivityTemplateId(item.templateId ?? item.id ?? '');
+    if (templateId === 'act-checkin') return 'start-boundary';
+    if (templateId === 'act-handover') return 'end-boundary';
+    if (templateId === 'act-mobility') return 'span';
+    return 'work';
   }
 
   private getWorkOrderActivityItems(order: any): NormalizedWorkOrderItem[] {
@@ -2392,6 +2453,12 @@ export class ServicePlannerComponent implements OnInit {
     if (unscheduledJobs.length === 0) return;
 
     const rawResources = this.bookingEligibleResources.map(r => r.meta as Resource).filter(Boolean);
+    const requiredResourceIds = this.getRequiredResourceIdsForProposal(rawResources, options.preferredResourceIds ?? []);
+    const selectedResourceErrors = this.getSelectedResourceConstraintErrors(unscheduledJobs, rawResources, requiredResourceIds, targetOrder);
+    if (selectedResourceErrors.length) {
+      this.setSchedulingError(selectedResourceErrors.join(' '));
+      return;
+    }
     const missingRequirements = this.getMissingRequirementsForResources(unscheduledJobs, rawResources, targetOrder);
     if (missingRequirements.length) {
       this.setSchedulingError(this.buildMissingResourceMessage(missingRequirements));
@@ -2404,14 +2471,27 @@ export class ServicePlannerComponent implements OnInit {
       jobs: unscheduledJobs,
       resources: rawResources,
       preferredResourceIds: options.preferredResourceIds ?? [],
+      requiredResourceIds,
       existingEntries,
       unavailability: this.unavailability,
       searchFrom,
       dayStartHour: 9,
       dayEndHour: 21,
+      requiresMobility: this.requiresMobility(targetOrder),
     });
 
-    if (!result) return;
+    if (!result) {
+      this.setSchedulingError(requiredResourceIds.length
+        ? 'Schedule not possible with the selected resources. Change the selection or choose another availability.'
+        : 'Schedule not possible with the visible resources. Add resources to the view/type filter or choose another availability.');
+      return;
+    }
+
+    const unbookedSelectedResourceNames = this.getUnbookedRequiredResourceNames(requiredResourceIds, result, rawResources);
+    if (unbookedSelectedResourceNames.length) {
+      this.setSchedulingError(`Schedule not possible with selected resources: ${unbookedSelectedResourceNames.join(', ')} could not be booked.`);
+      return;
+    }
 
     const checkinStart = new Date(result.checkinStart);
     const checkinEnd = new Date(result.checkinEnd);
@@ -2421,12 +2501,13 @@ export class ServicePlannerComponent implements OnInit {
     const checkinAdvisor = rawResources.find((r: any) => r.id === result.checkinResourceId);
     const handoverAdvisor = rawResources.find((r: any) => r.id === result.handoverResourceId);
     const mobilityDriver = rawResources.find((r: any) => r.id === result.mobilityResourceId);
+    const needsMobility = this.requiresMobility(targetOrder);
 
-    if (!checkinAdvisor || !handoverAdvisor || !mobilityDriver) {
+    if (!checkinAdvisor || !handoverAdvisor || (needsMobility && !mobilityDriver)) {
       this.setSchedulingError(this.buildMissingResourceMessage([
         ...(!checkinAdvisor ? ['Service Advisor for Check-In'] : []),
         ...(!handoverAdvisor ? ['Service Advisor for Handover'] : []),
-        ...(!mobilityDriver ? ['Courtesy Car for Mobility Service'] : []),
+        ...(needsMobility && !mobilityDriver ? ['Courtesy Car for Mobility Service'] : []),
       ]));
       return;
     }
@@ -2502,7 +2583,7 @@ export class ServicePlannerComponent implements OnInit {
       if (this.hasOrderActivity(targetOrder, 'act-handover')) {
         this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-handover'), handoverAdvisor, handoverStart, handoverEnd, targetWorkOrderId ?? undefined);
       }
-      if (this.hasOrderActivity(targetOrder, 'act-mobility')) {
+      if (needsMobility && mobilityDriver) {
         this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-mobility'), mobilityDriver, checkinEnd, handoverEnd, targetWorkOrderId ?? undefined);
       }
     }
@@ -2622,6 +2703,78 @@ export class ServicePlannerComponent implements OnInit {
     }
 
     return [...missing];
+  }
+
+  private getRequiredResourceIdsForProposal(resources: Resource[], additionalResourceIds: string[]): string[] {
+    const visibleResourceIds = new Set(resources.map(resource => resource.id));
+    return [...new Set([...this.selectedResourceIds, ...additionalResourceIds])]
+      .filter(resourceId => visibleResourceIds.has(resourceId));
+  }
+
+  private getSelectedResourceConstraintErrors(
+    jobs: any[],
+    resources: Resource[],
+    requiredResourceIds: string[],
+    order: any | undefined,
+  ): string[] {
+    if (!requiredResourceIds.length) return [];
+
+    const requiredResources = requiredResourceIds
+      .map(resourceId => resources.find(resource => resource.id === resourceId))
+      .filter((resource): resource is Resource => !!resource);
+    const errors: string[] = [];
+    const requirements = [
+      ...jobs.flatMap(job => this.getSchedulingRequirements(job)),
+      ...this.getRequiredActivityRequirements(order, resources),
+    ];
+
+    for (const resource of requiredResources) {
+      if (!requirements.some(requirement => this.hasMatchingResource([resource], requirement))) {
+        errors.push(`${resource.name} cannot satisfy any requirement for this booking.`);
+      }
+    }
+
+    for (const requirement of requirements) {
+      const selectedMatches = requiredResources.filter(resource => this.hasMatchingResource([resource], requirement));
+      const visibleMatches = resources.filter(resource => this.hasMatchingResource([resource], requirement));
+      if (selectedMatches.length > visibleMatches.length) {
+        errors.push(`Too many selected resources for ${this.formatMissingRequirement(requirement)}.`);
+      }
+    }
+
+    return [...new Set(errors)];
+  }
+
+  private getUnbookedRequiredResourceNames(requiredResourceIds: string[], result: any, resources: Resource[]): string[] {
+    const bookedResourceIds = new Set<string>([
+      result.checkinResourceId,
+      result.handoverResourceId,
+      result.mobilityResourceId,
+      ...result.entries.map((entry: ScheduleEntry) => entry.resourceId),
+    ].filter(Boolean));
+
+    return requiredResourceIds
+      .filter(resourceId => !bookedResourceIds.has(resourceId))
+      .map(resourceId => resources.find(resource => resource.id === resourceId)?.name ?? resourceId);
+  }
+
+  private getRequiredActivityRequirements(order: any | undefined, resources: Resource[]): JobResourceRequirement[] {
+    const requirements: JobResourceRequirement[] = [];
+    if (!order) return requirements;
+    if (this.hasOrderActivity(order, 'act-checkin')) {
+      requirements.push({ resourceType: 'advisor', requiredQualifications: [], label: 'Service Advisor for Check-In' });
+    }
+    if (this.hasOrderActivity(order, 'act-handover')) {
+      requirements.push({ resourceType: 'advisor', requiredQualifications: [], label: 'Service Advisor for Handover' });
+    }
+    if (this.hasOrderActivity(order, 'act-mobility') && resources.some(resource => resource.type === 'driver')) {
+      requirements.push({ resourceType: 'driver', requiredQualifications: [], label: 'Courtesy Car for Mobility Service' });
+    }
+    return requirements;
+  }
+
+  private requiresMobility(order: any | undefined): boolean {
+    return !!order && this.hasOrderActivity(order, 'act-mobility');
   }
 
   private getSchedulingRequirements(job: any): JobResourceRequirement[] {

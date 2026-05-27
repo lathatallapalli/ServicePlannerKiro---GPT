@@ -3,6 +3,7 @@ import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GenericListColumn, GenericListComponent, GenericListRowAction, GenericListToolbarAction } from '../../shared/components/generic-list/generic-list.component';
 import { ResourceFavoriteView } from '../service-planner/services/planner-settings.service';
+import { PlannerSettingsService } from '../service-planner/services/planner-settings.service';
 import { ResourceViewsService } from '../service-planner/services/resource-views.service';
 
 interface ResourceViewRow extends Record<string, unknown>, ResourceFavoriteView {
@@ -38,29 +39,22 @@ export class ResourceViewsListComponent {
   }
 
   protected selectedRows: ResourceViewRow[] = [];
-  protected editingCell: { columnKey: string } | null = null;
+  protected editingCell: { rowId?: string; columnKey: string } | null = null;
 
   constructor(
     private router: Router,
     private route: ActivatedRoute,
     private resourceViewsService: ResourceViewsService,
+    private plannerSettings: PlannerSettingsService,
   ) {}
 
   protected get rows(): ResourceViewRow[] {
-    return this.resourceViewsService.getAll().map((view, index) => ({
-      ...view,
-      id: view.value ?? `resource-view-${index + 1}`,
-      resourceCount: view.resourceIds.length,
-    }));
+    return this.resourceViewsService.getAll().map((view, index) => this.toRow(view, index));
   }
 
   protected onAddView(): void {
-    const returnTo = this.route.snapshot.queryParamMap.get('returnTo') ?? '/service-planner';
     const newView = this.resourceViewsService.createNewView();
-    this.router.navigate(['/resource-catalog'], {
-      queryParams: { returnTo: `/resource-views/${newView.value}/edit`, plannerReturnTo: returnTo, listReturnTo: '/resource-views' },
-      state: { resourceView: newView },
-    });
+    this.selectedRows = [this.toRow(newView, this.rows.length)];
   }
 
   protected onSelectionChange(rows: ResourceViewRow[]): void {
@@ -69,8 +63,6 @@ export class ResourceViewsListComponent {
 
   protected onToolbarAction(action: GenericListToolbarAction): void {
     if (action.id === 'edit') {
-      const row = this.selectedRows[0] ?? this.rows[0];
-      if (!row) return;
       this.editingCell = { columnKey: 'label' };
       return;
     }
@@ -82,7 +74,10 @@ export class ResourceViewsListComponent {
 
   protected onEditValueChange(event: { row: ResourceViewRow; value: string }): void {
     if (!this.editingCell) return;
-    this.resourceViewsService.rename(event.row.id, event.value);
+    const renamedView = this.resourceViewsService.rename(event.row.id, event.value);
+    if (renamedView && this.plannerSettings.selectedResourceView()?.value === renamedView.value) {
+      this.plannerSettings.setResourceView(renamedView);
+    }
   }
 
   protected saveInlineEdit(): void {
@@ -93,8 +88,20 @@ export class ResourceViewsListComponent {
   protected onOpenView(event: { action: GenericListRowAction; row: ResourceViewRow }): void {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo') ?? '/service-planner';
     this.router.navigate(['/resource-views', event.row.value ?? event.row.id, 'edit'], {
-      queryParams: { returnTo: '/resource-views', plannerReturnTo: returnTo },
+      queryParams: {
+        returnTo: '/resource-views',
+        plannerReturnTo: returnTo,
+        selectedViewValue: this.route.snapshot.queryParamMap.get('selectedViewValue'),
+      },
       state: { resourceView: event.row },
     });
+  }
+
+  private toRow(view: ResourceFavoriteView, index: number): ResourceViewRow {
+    return {
+      ...view,
+      id: view.value ?? `resource-view-${index + 1}`,
+      resourceCount: view.resourceIds.length,
+    };
   }
 }

@@ -36,10 +36,10 @@
               </button>
             }
             <div style="align-self:stretch;border-top:1px solid var(--Border-border-subtle-01,#C6C6C6);display:inline-flex;align-items:flex-start">
-              <button type="button" disabled style="flex:1 1 0;height:40px;border:0;border-right:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Layer-layer-01,#F4F4F4);overflow:hidden;display:inline-flex;align-items:center;justify-content:flex-start;padding:0 48px 0 16px;position:relative;text-align:left;color:var(--Text-text-disabled,rgba(22,22,22,.25));cursor:not-allowed">
+              <button type="button" (click)="addResourceView()" style="flex:1 1 0;height:40px;border:0;border-right:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Layer-layer-01,#F4F4F4);overflow:hidden;display:inline-flex;align-items:center;justify-content:flex-start;padding:0 48px 0 16px;position:relative;text-align:left;color:var(--Text-text-secondary,#525252);cursor:pointer">
                 <span style="flex:1 1 0;min-width:0;font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Add</span>
                 <span style="position:absolute;right:16px;top:12px;width:16px;height:16px;display:inline-flex;background:white;mix-blend-mode:multiply" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 7.5V4H7.5V7.5H4V8.5H7.5V12H8.5V8.5H12V7.5H8.5Z" fill="var(--Text-text-disabled,#161616)" fill-opacity=".25"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 16 16"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 7.5V4H7.5V7.5H4V8.5H7.5V12H8.5V8.5H12V7.5H8.5Z" fill="var(--Text-text-secondary,#525252)"/></svg>
                 </span>
               </button>
               <button type="button" (click)="openResourceViewList()" style="flex:1 1 0;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);overflow:hidden;display:inline-flex;align-items:center;justify-content:flex-start;padding:0 48px 0 16px;position:relative;text-align:left;color:var(--Text-text-secondary,#525252);cursor:pointer">
@@ -84,7 +84,7 @@
       <div style="width:100%;display:flex;flex-direction:column;justify-content:center;gap:8px;text-transform:none">
         <div style="align-self:stretch;min-width:0;height:32px;background:var(--Field-field-01,#F4F4F4);position:relative;text-transform:none;display:flex;flex-direction:column;align-items:stretch">
           <button type="button" (click)="toggleGroupDropdown()" aria-label="Resource type" style="height:32px;border:0;background:transparent;padding:7px 16px;display:inline-flex;align-items:center;gap:8px;text-align:left;cursor:pointer">
-              @if (selectedGroupIds.length === groups.length) {
+              @if (areAllResourceTypesSelected()) {
                 <span style="height:18px;background:var(--Background-background-inverse,#393939);border-radius:1000px;display:inline-flex;align-items:center">
                   <span style="padding:0 8px 2px;color:var(--Icon-icon-inverse,white);font-size:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:16px;letter-spacing:.32px">All</span>
                   <span role="button" tabindex="0" aria-label="Clear selected resource types" (click)="clearGroupSelection($event)" style="padding:1px;color:white;display:inline-flex">
@@ -100,7 +100,7 @@
                 @for (group of groups; track group.id) {
                   <button type="button" (click)="toggleGroupSelection(group.id, $event)" style="width:100%;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer">
                     <span style="width:16px;height:16px;color:#161616;display:inline-flex;flex:0 0 auto">
-                      @if (selectedGroupIds.includes(group.id)) {
+                      @if (selectedResourceTypeGroupIds.includes(group.id)) {
                         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM7 10.75 4.5 8.27 5.3 7.5 7 9.17l3.7-3.67.8.79L7 10.75Z" fill="currentColor"/></svg>
                       } @else {
                         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM3 13V3h10v10H3Z" fill="currentColor"/></svg>

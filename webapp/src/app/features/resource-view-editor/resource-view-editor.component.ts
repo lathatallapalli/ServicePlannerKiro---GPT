@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GenericListColumn, GenericListComponent } from '../../shared/components/generic-list/generic-list.component';
@@ -25,7 +25,6 @@ interface ResourceRow extends Record<string, unknown> {
   subgroup: string;
   status: string;
 }
-
 
 @Component({
   selector: 'app-resource-view-editor',
@@ -55,10 +54,10 @@ export class ResourceViewEditorComponent {
     const fallbackView = this.resourceViewsService.getByValue(routeViewId);
 
     return {
-      label: navigationState?.label ?? fallbackView?.label ?? this.route.snapshot.queryParamMap.get('label') ?? (routeViewId === 'new' ? 'New View' : 'Resource View'),
-      value: navigationState?.value ?? fallbackView?.value ?? (routeViewId === 'new' ? 'new-view' : routeViewId),
-      resourceIds: navigationState?.resourceIds ?? fallbackView?.resourceIds ?? [],
-      groups: navigationState?.groups ?? fallbackView?.groups ?? [],
+      label: fallbackView?.label ?? navigationState?.label ?? this.route.snapshot.queryParamMap.get('label') ?? (routeViewId === 'new' ? 'New View' : 'Resource View'),
+      value: fallbackView?.value ?? navigationState?.value ?? (routeViewId === 'new' ? 'new-view' : routeViewId),
+      resourceIds: fallbackView?.resourceIds ?? navigationState?.resourceIds ?? [],
+      groups: fallbackView?.groups ?? navigationState?.groups ?? [],
     };
   });
 
@@ -79,13 +78,31 @@ export class ResourceViewEditorComponent {
   protected onAddResource(): void {
     const viewId = this.resourceView().value;
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
-    const editorReturnTo = viewId ? `/resource-views/${viewId}/edit` : undefined;
+    const plannerReturnTo = this.route.snapshot.queryParamMap.get('plannerReturnTo') ?? returnTo;
+    const selectedViewValue = this.route.snapshot.queryParamMap.get('selectedViewValue');
+    const editorReturnTo = viewId ? this.buildEditorReturnTo(viewId) : undefined;
     this.router.navigate(['/resource-catalog'], {
       queryParams: editorReturnTo
-        ? { returnTo: editorReturnTo, ...(returnTo ? { plannerReturnTo: returnTo } : {}) }
+        ? {
+            returnTo: editorReturnTo,
+            ...(plannerReturnTo ? { plannerReturnTo } : {}),
+            ...(selectedViewValue ? { selectedViewValue } : {}),
+          }
         : undefined,
       state: { resourceView: this.resourceView() },
     });
+  }
+
+  private buildEditorReturnTo(viewId: string): string {
+    const params = new URLSearchParams();
+    const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
+    const plannerReturnTo = this.route.snapshot.queryParamMap.get('plannerReturnTo');
+    const selectedViewValue = this.route.snapshot.queryParamMap.get('selectedViewValue');
+    if (returnTo) params.set('returnTo', returnTo);
+    if (plannerReturnTo) params.set('plannerReturnTo', plannerReturnTo);
+    if (selectedViewValue) params.set('selectedViewValue', selectedViewValue);
+    const query = params.toString();
+    return `/resource-views/${viewId}/edit${query ? `?${query}` : ''}`;
   }
 
   private getAddedResources(): ResourceRow[] {
@@ -123,9 +140,4 @@ export class ResourceViewEditorComponent {
       }];
     });
   }
-
 }
-
-
-
-

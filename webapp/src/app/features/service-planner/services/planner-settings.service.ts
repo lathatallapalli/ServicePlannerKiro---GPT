@@ -7,10 +7,20 @@ export interface ResourceFavoriteView {
   groups?: Array<{ label: string; children: string[] }>;
 }
 
+export interface PlannerResourceContext {
+  resourceView: ResourceFavoriteView | null;
+  selectedResourceTypeGroupIds: string[];
+  selectedResourceIds: string[];
+  viewPersonalCalendarOnTop: boolean;
+  personalCalendarResourceId?: string;
+  personalCalendarGroupId?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PlannerSettingsService {
   slotDurationMinutes = signal<number>(60);
   selectedResourceView = signal<ResourceFavoriteView | null>(null);
+  resourceContext = signal<PlannerResourceContext | null>(null);
   isSettingsModalOpen = signal<boolean>(false);
   viewPersonalCalendarOnTop = signal<boolean>(true);
   optimizeAdvisorActivityBookingForPersonalCalendar = signal<boolean>(false);
@@ -25,6 +35,17 @@ export class PlannerSettingsService {
 
   setResourceView(view: ResourceFavoriteView | null): void {
     this.selectedResourceView.set(view);
+  }
+
+  setResourceContext(context: PlannerResourceContext): void {
+    this.resourceContext.set({
+      ...context,
+      selectedResourceTypeGroupIds: [...context.selectedResourceTypeGroupIds],
+      selectedResourceIds: [...context.selectedResourceIds],
+      resourceView: context.resourceView
+        ? { ...context.resourceView, resourceIds: [...context.resourceView.resourceIds], groups: context.resourceView.groups?.map(group => ({ ...group, children: [...group.children] })) }
+        : null,
+    });
   }
 
   triggerUndo(): void {

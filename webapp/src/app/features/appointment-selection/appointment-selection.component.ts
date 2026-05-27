@@ -31,7 +31,7 @@ export class AppointmentSelectionComponent implements OnInit {
     this.workOrderRepo.getAll().subscribe(orders => {
       this.workOrder = orders.find(order => order.id === orderId || order.referenceNumber === orderId) ?? null;
       const selection = this.workOrder ? this.quickViewSelection.getSelection(this.workOrder.id) : null;
-      this.showQuickViewDraftWarning = !!selection?.checkinStart && !selection?.handoverEnd;
+      this.showQuickViewDraftWarning = !!selection?.hasDraftCheckin && !!selection?.checkinStart && !selection?.handoverEnd;
       if (this.workOrder && selection) {
         this.workOrder = {
           ...this.workOrder,

@@ -375,7 +375,7 @@ export class App implements OnInit {
 
   private getResourceEditorReturnTarget(): string {
     const queryParams = this.router.parseUrl(this.router.url).queryParams;
-    const returnTo = queryParams['plannerReturnTo'] ?? queryParams['returnTo'] ?? history.state?.plannerReturnTo;
+    const returnTo = queryParams['returnTo'] ?? queryParams['plannerReturnTo'] ?? history.state?.plannerReturnTo;
     return typeof returnTo === 'string' && returnTo.startsWith('/') ? returnTo : '/service-planner';
   }
 
@@ -384,17 +384,31 @@ export class App implements OnInit {
     return typeof returnTo === 'string' && returnTo.startsWith('/') ? returnTo : '/service-planner';
   }
 
+  private getResourceCatalogReturnTarget(): string {
+    const queryParams = this.router.parseUrl(this.router.url).queryParams;
+    const returnTo = queryParams['returnTo'];
+    const plannerReturnTo = queryParams['plannerReturnTo'];
+    const selectedViewValue = queryParams['selectedViewValue'];
+    const params = new URLSearchParams();
+    if (typeof returnTo === 'string') params.set('returnTo', returnTo);
+    if (typeof plannerReturnTo === 'string') params.set('plannerReturnTo', plannerReturnTo);
+    if (typeof selectedViewValue === 'string') params.set('selectedViewValue', selectedViewValue);
+    const query = params.toString();
+    return `/resource-catalog${query ? `?${query}` : ''}`;
+  }
+
   private openResourceCatalogForCurrentView(): void {
     const cleanUrl = this.router.url.split('?')[0].split('#')[0];
     const newView = cleanUrl.startsWith('/resource-views/') ? null : this.resourceViewsService.createNewView();
     const returnTo = cleanUrl.startsWith('/resource-views/') ? cleanUrl : `/resource-views/${newView!.value}/edit`;
     const queryParams = this.router.parseUrl(this.router.url).queryParams;
     const plannerReturnTo = queryParams['plannerReturnTo'] ?? queryParams['returnTo'] ?? '/service-planner';
+    const selectedViewValue = queryParams['selectedViewValue'] ?? this.plannerSettings.selectedResourceView()?.value;
     const viewId = returnTo.match(/^\/resource-views\/([^/]+)\/edit/)?.[1];
     const resourceView = this.resourceViewsService.getByValue(viewId) ?? newView ?? this.resourceViewsService.createNewView();
 
     this.router.navigate(['/resource-catalog'], {
-      queryParams: { returnTo, plannerReturnTo, listReturnTo: '/resource-views' },
+      queryParams: { returnTo, plannerReturnTo, selectedViewValue },
       state: { resourceView },
     });
   }
@@ -558,8 +572,6 @@ export class App implements OnInit {
     }
 
     if (cleanUrl.startsWith('/resource-views/')) {
-      const viewId = cleanUrl.match(/^\/resource-views\/([^/]+)\/edit/)?.[1];
-      const resourceView = viewId ? this.resourceViewsService.getByValue(decodeURIComponent(viewId)) : undefined;
       this.router.navigateByUrl(this.getResourceEditorReturnTarget());
       return;
     }
@@ -571,12 +583,14 @@ export class App implements OnInit {
 
     if (this.router.url.startsWith('/resource-catalog')) {
       this.resourceCatalogSelection.clear();
-    }
-
-    if (window.history.length > 1) {
-      window.history.back();
+      const target = cleanUrl === '/resource-catalog'
+        ? this.getResourceEditorReturnTarget()
+        : this.getResourceCatalogReturnTarget();
+      this.router.navigateByUrl(target);
       return;
     }
+
+    if (this.navigateBackOr('/')) return;
 
     this.router.navigate(['/']);
   }
@@ -608,20 +622,22 @@ export class App implements OnInit {
       const queryParams = this.router.parseUrl(this.router.url).queryParams;
       const returnTo = queryParams['returnTo'];
       const plannerReturnTo = queryParams['plannerReturnTo'];
-      const listReturnTo = queryParams['listReturnTo'];
+      const selectedViewValue = queryParams['selectedViewValue'];
       const selectedResources = this.resourceCatalogSelection.consumeSelection();
-      const updatedView = this.addResourcesToCurrentView(returnTo, selectedResources);
-      const isNewResourceView = typeof returnTo === 'string' && /^\/resource-views\/new-\d+\/edit$/.test(returnTo);
+      const updatedView = this.addResourcesToCurrentView(returnTo, selectedResources, selectedViewValue);
       const navigationState = {
         ...(selectedResources.length ? { addedResources: selectedResources } : {}),
         ...(updatedView ? { resourceView: updatedView } : {}),
         ...(typeof plannerReturnTo === 'string' ? { plannerReturnTo } : {}),
       };
 
-      const target = isNewResourceView && typeof listReturnTo === 'string' ? listReturnTo : returnTo;
-      this.router.navigateByUrl(target || '/', {
-        state: Object.keys(navigationState).length ? navigationState : undefined,
-      });
+      if (typeof returnTo === 'string') {
+        this.router.navigateByUrl(returnTo, {
+          state: Object.keys(navigationState).length ? navigationState : undefined,
+        });
+      } else {
+        this.router.navigateByUrl('/', Object.keys(navigationState).length ? { state: navigationState } : undefined);
+      }
       return;
     }
 
@@ -632,9 +648,22 @@ export class App implements OnInit {
     return value.replace(/\b\w/g, character => character.toUpperCase());
   }
 
-  private addResourcesToCurrentView(returnTo: unknown, selectedResources: Array<{ id: string; name: string; group: string; subgroup?: string }>): any | null {
+  private navigateBackOr(fallback: string, state?: object): boolean {
+    if (window.history.length > 1) {
+      window.history.back();
+      return true;
+    }
+    this.router.navigateByUrl(fallback, state ? { state } : undefined);
+    return true;
+  }
+
+  private addResourcesToCurrentView(
+    returnTo: unknown,
+    selectedResources: Array<{ id: string; name: string; group: string; subgroup?: string }>,
+    selectedViewValue: unknown,
+  ): any | null {
     if (!selectedResources.length) return null;
-    const viewId = typeof returnTo === 'string' ? returnTo.match(/^\/resource-views\/([^/]+)\/edit/)?.[1] : undefined;
+    const viewId = typeof returnTo === 'string' ? returnTo.match(/^\/resource-views\/([^/?#]+)\/edit/)?.[1] : undefined;
     const existingView = this.resourceViewsService.getByValue(viewId);
     const navigationView = history.state?.resourceView;
     const baseView = existingView ?? navigationView ?? this.resourceViewsService.createNewView();
@@ -658,6 +687,9 @@ export class App implements OnInit {
       resourceIds: [...ids],
       groups,
     });
+    if (typeof selectedViewValue === 'string' && selectedViewValue === updatedView.value) {
+      this.plannerSettings.setResourceView(updatedView);
+    }
     return updatedView;
   }
 }

@@ -9,6 +9,7 @@ export interface QuickViewSelection {
   handoverEnd?: Date;
   checkinFilters?: QuickViewSlotFilter[];
   handoverFilters?: QuickViewSlotFilter[];
+  hasDraftCheckin?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -42,6 +43,7 @@ export class QuickViewSelectionService {
       ...selection,
       handoverStart: undefined,
       handoverEnd: undefined,
+      hasDraftCheckin: true,
     });
   }
 
