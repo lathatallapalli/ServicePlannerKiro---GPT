@@ -1008,7 +1008,6 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const query = this.resourceSearch.trim().toLowerCase();
     return this.resources.some(resource => {
       if (resource.groupId !== groupId) return false;
-      if (this.showSelectedOnlyResources && !this.isResourceSelected(resource.id)) return false;
       if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
       return true;
     });
