@@ -348,6 +348,10 @@ $month-bar-height: 60px;
     pointer-events: none;
   }
 
+  &__slot-line--minor {
+    background: var(--Layer-layer-01, var(--cds-layer-01, #F4F4F4));
+  }
+
   &__day-line {
     position: absolute;
     top: 0;
@@ -615,6 +619,20 @@ $month-bar-height: 60px;
 
   &__event--resize-preview {
     opacity: 0.55;
+  }
+
+  &__resize-hint {
+    position: absolute;
+    transform: translateY(calc(-100% - 4px));
+    max-width: 240px;
+    padding: 4px 8px;
+    background: #DA1E28;
+    color: #fff;
+    font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 31;
   }
 
   &__slot-highlight--blocked {
