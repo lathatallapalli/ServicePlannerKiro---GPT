@@ -1,42 +1,23 @@
 <div class="service-planner" style="display:flex;flex-direction:column;width:100%;min-width:0;min-height:640px;height:100%;overflow:hidden;box-sizing:border-box;background:#fff" [class.service-planner--full]="isFullPlanner()" [class.service-planner--order]="!isFullPlanner()">
   @if (schedulingError) {
-    <div data-layer="Notification" data-actionable="true" data-close="true" data-status="Error" data-time-stamp="true" data-type="Inline long" class="Notification service-planner__error" role="alert" style="width:100%;min-height:48px;flex:0 0 auto;background:var(--Notification-notification-error-background,#FFF1F1);outline:1px var(--Notification-notification-error-border,rgba(218,30,40,.30)) solid;outline-offset:-1px;justify-content:flex-start;align-items:flex-start;gap:16px;display:inline-flex;color:var(--Text-text-primary,#161616)">
-      <div data-layer="Border" class="Border" style="width:48px;height:0;transform:rotate(90deg);transform-origin:top left;outline:3px var(--Support-support-error,#DA1E28) solid;outline-offset:-1.5px"></div>
-      <div data-layer="Icon margin" class="IconMargin" style="align-self:stretch;justify-content:flex-start;align-items:center;display:flex">
-        <div data-layer="Status icon" data-high-contrast="False" data-state="Error" class="StatusIcon" style="width:20px;height:20px;position:relative;background:white;background-blend-mode:multiply">
-          <div data-svg-wrapper data-layer="Fill" class="Fill" style="left:5px;top:5px;position:absolute">
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><rect width="10" height="10" fill="var(--Inverse-White---Black-White-in-light-themes,white)"/></svg>
-          </div>
-          <div data-svg-wrapper data-layer="Error--filled" class="ErrorFilled" style="left:0;top:0;position:absolute">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply"/>
-              <path d="M9.99998 1.24998C8.84892 1.24285 7.7079 1.4643 6.64308 1.9015C5.57826 2.3387 4.61083 2.98295 3.79689 3.79689C2.98295 4.61083 2.3387 5.57826 1.9015 6.64308C1.4643 7.7079 1.24285 8.84892 1.24998 9.99998C1.24285 11.151 1.4643 12.2921 1.9015 13.3569C2.3387 14.4217 2.98295 15.3891 3.79689 16.2031C4.61083 17.017 5.57826 17.6613 6.64308 18.0985C7.7079 18.5357 8.84892 18.7571 9.99998 18.75C11.151 18.7571 12.2921 18.5357 13.3569 18.0985C14.4217 17.6613 15.3891 17.017 16.2031 16.2031C17.017 15.3891 17.6613 14.4217 18.0985 13.3569C18.5357 12.2921 18.7571 11.151 18.75 9.99998C18.7571 8.84892 18.5357 7.7079 18.0985 6.64308C17.6613 5.57826 17.017 4.61083 16.2031 3.79689C15.3891 2.98295 14.4217 2.3387 13.3569 1.9015C12.2921 1.4643 11.151 1.24285 9.99998 1.24998ZM13.403 14.375L5.62498 6.5973L6.5973 5.62498L14.375 13.403L13.403 14.375Z" fill="var(--Support-support-error,#DA1E28)"/>
-            </svg>
-          </div>
-        </div>
+    <div class="service-planner__error" role="alert">
+      <div class="service-planner__error-accent" aria-hidden="true"></div>
+      <div class="service-planner__error-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect width="20" height="20" fill="white" style="mix-blend-mode:multiply"/>
+          <path d="M10 1.25A8.75 8.75 0 1 0 10 18.75A8.75 8.75 0 0 0 10 1.25ZM13.403 14.375L5.625 6.597L6.597 5.625L14.375 13.403L13.403 14.375Z" fill="currentColor"/>
+        </svg>
       </div>
-      <div data-layer="Title + Message" class="TitleMessage" style="flex:1 1 0;min-width:0;min-height:48px;padding-top:15px;padding-bottom:15px;justify-content:flex-start;align-items:center;gap:8px;display:flex">
-        <div data-layer="Text overflow" class="TextOverflow" style="height:18px;overflow:hidden;justify-content:flex-start;align-items:flex-start;display:flex;flex:0 0 auto">
-          <div data-layer="Title" class="Title" style="color:var(--Text-text-primary,#161616);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;line-height:18px;letter-spacing:.16px;word-wrap:break-word">{{ schedulingErrorTitle }}</div>
-        </div>
-        <div data-layer="Text overflow" class="TextOverflow" style="flex:1 1 0;min-width:0;overflow:hidden;justify-content:flex-start;align-items:flex-start;display:flex">
-          <div data-layer="Message" class="Message" style="color:var(--Text-text-primary,#161616);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;word-wrap:break-word;white-space:normal">{{ schedulingError }}</div>
-        </div>
+      <div class="service-planner__error-copy">
+        <strong>{{ schedulingErrorTitle }}</strong>
+        <span>{{ schedulingError }}</span>
       </div>
-      <div data-layer="Action + Close" class="ActionClose" style="align-self:stretch;justify-content:flex-start;align-items:center;display:flex">
-        <button type="button" data-layer="Button" data-icon="true" data-resizer="false" data-size="Large" data-state="Enabled" data-style="Ghost" data-type="Icon only" class="Button" aria-label="Close error" (click)="clearSchedulingError()" style="background:white;background-blend-mode:multiply;overflow:hidden;flex-direction:column;justify-content:flex-start;align-items:flex-start;display:inline-flex;border:0;cursor:pointer">
-          <div data-layer="Button content" class="ButtonContent" style="align-self:stretch;padding:16px;overflow:hidden;justify-content:flex-start;align-items:center;display:inline-flex">
-            <div data-layer="Icon" class="Icon" style="overflow:hidden;flex-direction:column;justify-content:flex-start;align-items:flex-start;display:inline-flex">
-              <div data-svg-wrapper data-layer="Close" class="Close" style="position:relative">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
-                  <path d="M12 4.7L11.3 4L8 7.3L4.7 4L4 4.7L7.3 8L4 11.3L4.7 12L8 8.7L11.3 12L12 11.3L8.7 8L12 4.7Z" fill="var(--Icon-icon-primary,#161616)"/>
-                </svg>
-              </div>
-            </div>
-          </div>
+      <button type="button" class="service-planner__error-close" aria-label="Close error" (click)="clearSchedulingError()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+          <path d="M12 4.7L11.3 4L8 7.3L4.7 4L4 4.7L7.3 8L4 11.3L4.7 12L8 8.7L11.3 12L12 11.3L8.7 8L12 4.7Z" fill="currentColor"/>
+        </svg>
       </button>
-    </div>
     </div>
   }
 
@@ -60,6 +41,7 @@
     [dropSnapMinutes]="manualDropSnapMinutes"
     [unavailability]="visibleSchedulerUnavailability"
     [invalidDropRanges]="manualDropInvalidRanges"
+    [resizeInvalidHint]="manualResizeInvalidHint"
     [dropVisualContext]="manualDropVisualContext"
     [showOrderTiles]="showSchedulerBookingDetails"
     [showAvailabilityBlocks]="!showSchedulerBookingDetails"

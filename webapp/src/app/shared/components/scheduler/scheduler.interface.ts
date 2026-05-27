@@ -33,6 +33,7 @@ export interface SchedulerInvalidDropRange {
   resourceId: string;
   start: Date;
   end: Date;
+  reason?: string;
 }
 
 export interface SchedulerDropVisualContext {

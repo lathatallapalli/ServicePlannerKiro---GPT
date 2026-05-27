@@ -617,6 +617,20 @@ $month-bar-height: 60px;
     opacity: 0.55;
   }
 
+  &__resize-hint {
+    position: absolute;
+    transform: translateY(calc(-100% - 4px));
+    max-width: 240px;
+    padding: 4px 8px;
+    background: #DA1E28;
+    color: #fff;
+    font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 31;
+  }
+
   &__slot-highlight--blocked {
     background: rgba(224, 224, 224, 0.24);
   }

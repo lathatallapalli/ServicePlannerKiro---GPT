@@ -387,6 +387,13 @@
                   </span>
                 }
               </div>
+              @if (isResizePreviewInvalid() && getResizePreviewHint()) {
+                <span class="scheduler__resize-hint"
+                  [style.left.px]="getPreviewLeft()"
+                  [style.top.px]="getPreviewTop()">
+                  {{ getResizePreviewHint() }}
+                </span>
+              }
             }
             @if (shouldShowUnavailableFeedbackForResource(resource.id)) {
               @for (range of getInvalidDropRangesForResource(resource.id); track range.start.getTime() + '-' + range.end.getTime()) {
@@ -629,6 +636,13 @@
                 </span>
               }
             </div>
+            @if (isResizePreviewInvalid() && getResizePreviewHint()) {
+              <span class="scheduler__resize-hint"
+                [style.left.px]="getPreviewLeft()"
+                [style.top.px]="getPreviewTop()">
+                {{ getResizePreviewHint() }}
+              </span>
+            }
           }
           @if (shouldShowUnavailableFeedbackForResource(resource.id)) {
             @for (range of getInvalidDropRangesForResource(resource.id); track range.start.getTime() + '-' + range.end.getTime()) {
@@ -666,7 +680,7 @@
         style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:30"></div>
     }
 
-    @if (hoverTooltip) {
+    @if (hoverTooltip && !isResizePreviewInvalid()) {
       <div
         class="scheduler__event-tooltip"
         style="position:fixed;z-index:3000;width:320px;max-width:min(320px,calc(100vw - 24px));padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--Layer-layer-02,#fff);color:var(--Text-text-primary,#161616);border:1px solid var(--Border-border-subtle-01,#C6C6C6);box-shadow:0 4px 12px rgba(0,0,0,.24);font-family:'IBM Plex Sans',sans-serif;pointer-events:auto"

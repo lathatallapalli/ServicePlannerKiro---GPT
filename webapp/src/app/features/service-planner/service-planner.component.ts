@@ -281,6 +281,18 @@ export class ServicePlannerComponent implements OnInit {
       : ranges;
   }
 
+  get manualResizeInvalidHint(): string {
+    const context = this.manualResizeContext;
+    if (!context || !this.manualResizeResourceId) return '';
+    const resource = this.resources.find(candidate => candidate.id === this.manualResizeResourceId);
+    if (!resource) return '';
+    const previewRange = this.manualDropInvalidRanges.find(range => range.resourceId === this.manualResizeResourceId);
+    if (previewRange?.reason) return previewRange.reason;
+    if (!context.anchoredStart || !context.anchoredEnd) return '';
+    const validation = this.validateManualPlacement(context, resource, context.anchoredStart, context.anchoredEnd);
+    return this.formatManualPlanValidationMessage(validation);
+  }
+
   get manualDropVisualContext(): SchedulerDropVisualContext | null {
     if (this.manualResizeContext) {
       return {
@@ -2855,18 +2867,18 @@ export class ServicePlannerComponent implements OnInit {
 
     for (const day of this.getVisibleWorkingDayRanges()) {
       if (context.kind === 'job') {
-        if (checkinEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, checkinEnd, day);
-        if (handoverStart) this.addClippedManualBlockedRange(ranges, resourceId, handoverStart, day.end, day);
+        if (checkinEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, checkinEnd, day, 'Jobs must start after Check-In is complete.');
+        if (handoverStart) this.addClippedManualBlockedRange(ranges, resourceId, handoverStart, day.end, day, 'Jobs must finish before Handover starts.');
       }
 
       if (context.activityTemplateId === 'act-checkin') {
-        if (firstJobStart) this.addClippedManualBlockedRange(ranges, resourceId, firstJobStart, day.end, day);
-        if (handoverStart) this.addClippedManualBlockedRange(ranges, resourceId, handoverStart, day.end, day);
+        if (firstJobStart) this.addClippedManualBlockedRange(ranges, resourceId, firstJobStart, day.end, day, 'Check-In must finish before scheduled jobs.');
+        if (handoverStart) this.addClippedManualBlockedRange(ranges, resourceId, handoverStart, day.end, day, 'Check-In must finish before Handover.');
       }
 
       if (context.activityTemplateId === 'act-handover') {
-        if (latestJobEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, latestJobEnd, day);
-        if (checkinEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, checkinEnd, day);
+        if (latestJobEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, latestJobEnd, day, 'Handover must start after scheduled jobs are finished.');
+        if (checkinEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, checkinEnd, day, 'Handover must start after Check-In is complete.');
       }
     }
   }
@@ -2945,12 +2957,13 @@ export class ServicePlannerComponent implements OnInit {
     start: Date,
     end: Date,
     clipRange?: { start: Date; end: Date },
+    reason?: string,
   ): void {
     const clipStart = clipRange?.start ?? this.viewStart;
     const clipEnd = clipRange?.end ?? this.viewEnd;
     const clippedStart = new Date(Math.max(start.getTime(), clipStart.getTime(), this.viewStart.getTime()));
     const clippedEnd = new Date(Math.min(end.getTime(), clipEnd.getTime(), this.viewEnd.getTime()));
-    if (clippedStart < clippedEnd) ranges.push({ resourceId, start: clippedStart, end: clippedEnd });
+    if (clippedStart < clippedEnd) ranges.push({ resourceId, start: clippedStart, end: clippedEnd, reason });
   }
 
   private getVisibleWorkingDayRanges(): Array<{ start: Date; end: Date }> {

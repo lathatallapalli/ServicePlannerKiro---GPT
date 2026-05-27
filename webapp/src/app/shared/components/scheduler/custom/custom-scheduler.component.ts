@@ -85,6 +85,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input('rightPaneOpen') public rightPaneOpen = false;
   @Input() public scrollToEventId: string | null = null;
   @Input() public invalidDropRanges: SchedulerInvalidDropRange[] = [];
+  @Input() public resizeInvalidHint = '';
   @Input() public dropVisualContext: SchedulerDropVisualContext | null = null;
 
   @Output() public eventMoved   = new EventEmitter<EventMovePayload>();
@@ -586,8 +587,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   isResizePreviewInvalid(): boolean {
+    return !!this.getResizePreviewInvalidRange();
+  }
+
+  getResizePreviewHint(): string {
+    return this.getResizePreviewInvalidRange()?.reason || this.resizeInvalidHint;
+  }
+
+  private getResizePreviewInvalidRange(): SchedulerInvalidDropRange | null {
     const preview = this.resizePreview;
-    if (!preview) return false;
+    if (!preview) return null;
 
     const dayWidthPx = 12 * this.HOUR_WIDTH;
     const dayIndex = Math.max(0, Math.min(Math.floor(preview.left / dayWidthPx), this.daySlots.length - 1));
@@ -597,10 +606,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const durationMinutes = (preview.width / this.HOUR_WIDTH) * MINUTES_PER_FRU;
     const end = new Date(start.getTime() + durationMinutes * 60000);
 
-    return this.invalidDropRanges.some(range =>
+    return this.invalidDropRanges.find(range =>
       range.resourceId === preview.event.resourceId &&
       this.rangesOverlap(start, end, range.start, range.end)
-    );
+    ) ?? null;
   }
 
   getDropPreviewLeft(): number {
@@ -747,6 +756,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   showEventTooltip(event: SchedulerEvent, mouseEvent: MouseEvent): void {
+    if (this.isResizePreviewInvalid()) return;
     this.hoverTooltip = {
       event,
       x: mouseEvent.clientX + 12,
@@ -755,6 +765,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   moveEventTooltip(event: SchedulerEvent, mouseEvent: MouseEvent): void {
+    if (this.isResizePreviewInvalid()) return;
     this.hoverTooltip = {
       event,
       x: mouseEvent.clientX + 12,

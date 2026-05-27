@@ -14,6 +14,79 @@
   }
 }
 
+.service-planner__error {
+  position: relative;
+  width: 100%;
+  min-height: 48px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 48px 14px 16px;
+  box-sizing: border-box;
+  background: var(--Notification-notification-error-background, #fff1f1);
+  color: var(--Text-text-primary, #161616);
+  border: 1px solid var(--Notification-notification-error-border, rgba(218, 30, 40, 0.3));
+  border-left: 4px solid var(--Support-support-error, #da1e28);
+  font-family: 'IBM Plex Sans', Arial, sans-serif;
+}
+
+.service-planner__error-accent {
+  display: none;
+}
+
+.service-planner__error-icon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--Support-support-error, #da1e28);
+}
+
+.service-planner__error-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--Text-text-primary, #161616);
+  font-size: 14px;
+  line-height: 18px;
+  letter-spacing: 0.16px;
+}
+
+.service-planner__error-copy strong {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.service-planner__error-copy span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.service-planner__error-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  padding: 16px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--Icon-icon-primary, #161616);
+  cursor: pointer;
+}
+
+.service-planner__error-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
 .booking-modal-overlay {
   position: fixed;
   inset: 0;
