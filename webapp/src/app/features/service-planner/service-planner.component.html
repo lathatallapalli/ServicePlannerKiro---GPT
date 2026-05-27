@@ -44,6 +44,7 @@
     [invalidDropRanges]="manualDropInvalidRanges"
     [resizeInvalidHint]="manualResizeInvalidHint"
     [dropVisualContext]="manualDropVisualContext"
+    [selectedTimeRange]="autoBookingWindow"
     [showOrderTiles]="showSchedulerBookingDetails"
     [showAvailabilityBlocks]="!showSchedulerBookingDetails"
     [preserveRowHeightOnAvailability]="isFullPlanner()"
@@ -68,6 +69,8 @@
     (resourceViewChange)="onResourceViewChange($event)"
     (resourceViewListRequested)="openResourceViewList($any($event))"
     (resourceViewAddRequested)="addResourceView()"
+    (timeRangeSelected)="onAutoBookingWindowSelected($event)"
+    (timeRangeCleared)="clearAutoBookingWindow()"
     (rightPaneToggle)="toggleOrderPanel()"
   />
   </main>

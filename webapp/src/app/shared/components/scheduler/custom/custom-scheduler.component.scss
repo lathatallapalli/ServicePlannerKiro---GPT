@@ -100,6 +100,69 @@ $month-bar-height: 60px;
     display: flex;
     border-bottom: 1px solid #C6C6C6;
     background: #fff;
+    position: relative;
+  }
+
+  &__booking-window-chip {
+    position: absolute;
+    top: 6px;
+    height: 26px;
+    min-width: 168px;
+    z-index: 4;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 4px 4px 10px;
+    color: #fff;
+    background: #4C68B1;
+    border: 1px solid #4C68B1;
+    border-radius: 6px 6px 0 0;
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: 0.32px;
+    pointer-events: auto;
+    cursor: grab;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
+  &__booking-window-chip-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__booking-window-clear {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    line-height: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__booking-window-band {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    background: rgba(76, 104, 177, 0.06);
+    border-left: 3px solid #4C68B1;
+    border-right: 1px solid rgba(76, 104, 177, 0.72);
+    pointer-events: none;
+    z-index: 1;
   }
 
   &__day-cell {

@@ -5,7 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ComboBoxModule, DatePickerModule, InputModule, SearchModule, SelectModule, TimePickerModule, TimePickerSelectModule, ToggleModule } from 'carbon-components-angular';
 import { CustomSchedulerComponent } from '../../shared/components/scheduler/custom/custom-scheduler.component';
 import { JobTile, JobBooking, ActivityTile } from './components/jobs-panel/jobs-panel.component';
-import { SchedulerResource, SchedulerEvent, SchedulerGroup, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerDropVisualContext } from '../../shared/components/scheduler/scheduler.interface';
+import { SchedulerResource, SchedulerEvent, SchedulerGroup, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerDropVisualContext, SchedulerTimeRangePayload } from '../../shared/components/scheduler/scheduler.interface';
 import { ResourceRepository } from '../../core/services/resource.repository';
 import { ScheduleRepository } from '../../core/services/schedule.repository';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
@@ -175,6 +175,7 @@ export class ServicePlannerComponent implements OnInit {
   private isAutoProposalVisible = false;
   manualDragContext: ManualDragContext | null = null;
   manualResizeContext: ManualDragContext | null = null;
+  autoBookingWindow: SchedulerTimeRangePayload | null = null;
   manualResizeResourceId: string | null = null;
   unavailability: UnavailabilityBlock[] = MOCK_UNAVAILABILITY;
 
@@ -861,6 +862,15 @@ export class ServicePlannerComponent implements OnInit {
 
   onBookingDetailsToggle(checked: boolean): void {
     this.showBookingDetails = checked;
+  }
+
+  onAutoBookingWindowSelected(range: SchedulerTimeRangePayload): void {
+    this.autoBookingWindow = { start: new Date(range.start), end: new Date(range.end) };
+    this.clearSchedulingError();
+  }
+
+  clearAutoBookingWindow(): void {
+    this.autoBookingWindow = null;
   }
 
   clearSchedulingError(): void {
@@ -2490,12 +2500,15 @@ export class ServicePlannerComponent implements OnInit {
       dayStartHour: 9,
       dayEndHour: 21,
       requiresMobility: this.requiresMobility(targetOrder),
+      bookingWindow: this.autoBookingWindow ?? undefined,
     });
 
     if (!result) {
-      this.setSchedulingError(requiredResourceIds.length
-        ? 'Schedule not possible with the selected resources. Change the selection or choose another availability.'
-        : 'Schedule not possible with the visible resources. Add resources to the view/type filter or choose another availability.');
+      this.setSchedulingError(this.autoBookingWindow
+        ? 'Schedule not possible within selected time range.'
+        : requiredResourceIds.length
+          ? 'Schedule not possible with the selected resources. Change the selection or choose another availability.'
+          : 'Schedule not possible with the visible resources. Add resources to the view/type filter or choose another availability.');
       return;
     }
 

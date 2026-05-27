@@ -10,7 +10,7 @@ import { WorkorderItemStatus } from '../../../../core/models/job.model';
 import {
   SchedulerResource, SchedulerEvent, SchedulerGroup,
   EventMovePayload, EventResizePayload, EventResizeDragPayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload,
-  ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerDropVisualContext,
+  ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerDropVisualContext, SchedulerTimeRangePayload,
   EventDragPayload
 } from '../scheduler.interface';
 import { ResourceFavoriteView } from '../../../../features/service-planner/services/planner-settings.service';
@@ -88,6 +88,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public invalidDropRanges: SchedulerInvalidDropRange[] = [];
   @Input() public resizeInvalidHint = '';
   @Input() public dropVisualContext: SchedulerDropVisualContext | null = null;
+  @Input() public selectedTimeRange: SchedulerTimeRangePayload | null = null;
 
   @Output() public eventMoved   = new EventEmitter<EventMovePayload>();
   @Output() public eventResized = new EventEmitter<EventResizePayload>();
@@ -105,6 +106,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Output() public resourceViewListRequested = new EventEmitter<ResourceFavoriteView | null>();
   @Output() public resourceViewAddRequested = new EventEmitter<void>();
   @Output() public rightPaneToggle = new EventEmitter<void>();
+  @Output() public timeRangeSelected = new EventEmitter<SchedulerTimeRangePayload>();
+  @Output() public timeRangeCleared = new EventEmitter<void>();
 
   @ViewChild('headerScroll') headerScrollRef!: ElementRef<HTMLElement>;
   @ViewChild('bodyScroll') bodyScrollRef!: ElementRef<HTMLElement>;
@@ -175,6 +178,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private lastValidDropPreview: DropPreview | null = null;
   private nativeDraggedEventId: string | null = null;
   private nativeDropHandled = false;
+  private timeRangeSelection: { anchor: Date; current: Date } | null = null;
+  private timeRangeMove: { durationMinutes: number; pointerOffsetMinutes: number } | null = null;
 
   constructor(private zone: NgZone, private cdr: ChangeDetectorRef) {}
 
@@ -893,6 +898,65 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return slot.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   }
 
+  formatTimeRange(range: SchedulerTimeRangePayload): string {
+    const sameDay = range.start.toDateString() === range.end.toDateString();
+    const dateLabel = range.start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const endDateLabel = range.end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    return sameDay
+      ? `${dateLabel}, ${this.formatSlot(range.start)}–${this.formatSlot(range.end)}`
+      : `${dateLabel} ${this.formatSlot(range.start)}–${endDateLabel} ${this.formatSlot(range.end)}`;
+  }
+
+  getActiveTimeRange(): SchedulerTimeRangePayload | null {
+    if (this.timeRangeSelection) {
+      return this.normalizeTimeRange(this.timeRangeSelection.anchor, this.timeRangeSelection.current);
+    }
+    return this.selectedTimeRange;
+  }
+
+  getTimeRangeLeft(range: SchedulerTimeRangePayload): number {
+    return this.getLeftFromDate(range.start);
+  }
+
+  getTimeRangeWidth(range: SchedulerTimeRangePayload): number {
+    return Math.max(2, this.getLeftFromDate(range.end) - this.getLeftFromDate(range.start));
+  }
+
+  onTimeRangePointerDown(event: PointerEvent): void {
+    if (event.button !== 0 || this.readonly) return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest('button, a, input, select, textarea, [data-scheduler-action]')) return;
+
+    const date = this.getDateFromTimelinePointer(event);
+    if (!date) return;
+
+    event.preventDefault();
+    const snapped = this.snapDateToSelection(date);
+    this.timeRangeSelection = { anchor: snapped, current: snapped };
+    window.addEventListener('pointermove', this.onTimeRangePointerMove);
+    window.addEventListener('pointerup', this.onTimeRangePointerUp, { once: true });
+  }
+
+  clearSelectedTimeRange(event?: MouseEvent): void {
+    event?.stopPropagation();
+    this.timeRangeSelection = null;
+    this.timeRangeCleared.emit();
+  }
+
+  onBookingWindowMovePointerDown(event: PointerEvent): void {
+    if (!this.selectedTimeRange || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const pointerDate = this.getDateFromTimelinePointer(event);
+    if (!pointerDate) return;
+    this.timeRangeMove = {
+      durationMinutes: this.getTimelineMinutesBetween(this.selectedTimeRange.start, this.selectedTimeRange.end),
+      pointerOffsetMinutes: this.getTimelineMinutesBetween(this.selectedTimeRange.start, pointerDate),
+    };
+    window.addEventListener('pointermove', this.onBookingWindowMovePointerMove);
+    window.addEventListener('pointerup', this.onBookingWindowMovePointerUp, { once: true });
+  }
+
   getResourcesForGroup(groupId: string): SchedulerResource[] {
     const query = this.resourceSearch.trim().toLowerCase();
     return this.resources.filter(resource => {
@@ -983,6 +1047,112 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const top = Math.max(0, this.getResourceTop(event.resourceId) - GROUP_ROW_HEIGHT);
     body.scrollTo({ left, top, behavior: 'smooth' });
     this.syncHeaderScroll();
+  }
+
+  private onTimeRangePointerMove = (event: PointerEvent): void => {
+    if (!this.timeRangeSelection) return;
+    const date = this.getDateFromTimelinePointer(event);
+    if (!date) return;
+    this.timeRangeSelection = {
+      ...this.timeRangeSelection,
+      current: this.snapDateToSelection(date),
+    };
+    this.cdr.detectChanges();
+  };
+
+  private onTimeRangePointerUp = (): void => {
+    window.removeEventListener('pointermove', this.onTimeRangePointerMove);
+    if (!this.timeRangeSelection) return;
+
+    const range = this.normalizeTimeRange(this.timeRangeSelection.anchor, this.timeRangeSelection.current);
+    this.timeRangeSelection = null;
+    if (range.end.getTime() - range.start.getTime() >= this.effectiveDropSnapMinutes * 60000) {
+      this.timeRangeSelected.emit(range);
+    }
+    this.cdr.detectChanges();
+  };
+
+  private onBookingWindowMovePointerMove = (event: PointerEvent): void => {
+    if (!this.timeRangeMove) return;
+    const pointerDate = this.getDateFromTimelinePointer(event);
+    if (!pointerDate) return;
+    this.timeRangeSelected.emit(this.buildMovedTimeRange(pointerDate));
+    this.cdr.detectChanges();
+  };
+
+  private onBookingWindowMovePointerUp = (): void => {
+    window.removeEventListener('pointermove', this.onBookingWindowMovePointerMove);
+    this.timeRangeMove = null;
+    this.cdr.detectChanges();
+  };
+
+  private getDateFromTimelinePointer(event: PointerEvent): Date | null {
+    const header = this.headerScrollRef?.nativeElement;
+    if (!header || !this.daySlots.length) return null;
+    const rect = header.getBoundingClientRect();
+    const rawX = event.clientX - rect.left + header.scrollLeft;
+    const x = Math.max(0, Math.min(rawX, this.totalWidth));
+    const dayWidthPx = 12 * this.HOUR_WIDTH;
+    const dayIndex = Math.max(0, Math.min(Math.floor(x / dayWidthPx), this.daySlots.length - 1));
+    const minutesWithinDay = ((x - dayIndex * dayWidthPx) / this.HOUR_WIDTH) * 60;
+    const date = new Date(this.daySlots[dayIndex]);
+    date.setHours(9, 0, 0, 0);
+    date.setMinutes(Math.max(0, Math.min(12 * 60, minutesWithinDay)), 0, 0);
+    return date;
+  }
+
+  private snapDateToSelection(date: Date): Date {
+    const snapped = new Date(date);
+    const dayStart = new Date(date);
+    dayStart.setHours(9, 0, 0, 0);
+    const minutes = Math.max(0, Math.min(12 * 60, (date.getTime() - dayStart.getTime()) / 60000));
+    const snappedMinutes = Math.round(minutes / this.effectiveDropSnapMinutes) * this.effectiveDropSnapMinutes;
+    snapped.setHours(9, 0, 0, 0);
+    snapped.setMinutes(Math.max(0, Math.min(12 * 60, snappedMinutes)), 0, 0);
+    return snapped;
+  }
+
+  private normalizeTimeRange(first: Date, second: Date): SchedulerTimeRangePayload {
+    const start = first <= second ? first : second;
+    const end = first <= second ? second : first;
+    return { start: new Date(start), end: new Date(end) };
+  }
+
+  private buildMovedTimeRange(pointerDate: Date): SchedulerTimeRangePayload {
+    const move = this.timeRangeMove!;
+    const pointerTimelineMinutes = this.getTimelineMinutes(pointerDate);
+    const rawStartTimelineMinutes = pointerTimelineMinutes - move.pointerOffsetMinutes;
+    const snap = this.effectiveDropSnapMinutes;
+    const snappedStartTimelineMinutes = Math.round(rawStartTimelineMinutes / snap) * snap;
+    const maxStartTimelineMinutes = this.daySlots.length * 12 * 60 - move.durationMinutes;
+    const startTimelineMinutes = Math.max(0, Math.min(snappedStartTimelineMinutes, maxStartTimelineMinutes));
+    const start = this.getDateFromTimelineMinutes(startTimelineMinutes);
+    const end = this.getDateFromTimelineMinutes(startTimelineMinutes + move.durationMinutes);
+    return { start, end };
+  }
+
+  private getTimelineMinutes(date: Date): number {
+    const day = new Date(date);
+    day.setHours(0, 0, 0, 0);
+    const dayIndex = Math.max(0, this.daySlots.findIndex(slot => slot.toDateString() === day.toDateString()));
+    const minutesInDay = Math.max(0, Math.min(12 * 60, (date.getHours() - 9) * 60 + date.getMinutes()));
+    return dayIndex * 12 * 60 + minutesInDay;
+  }
+
+  private getTimelineMinutesBetween(start: Date, end: Date): number {
+    return Math.max(0, this.getTimelineMinutes(end) - this.getTimelineMinutes(start));
+  }
+
+  private getDateFromTimelineMinutes(totalMinutes: number): Date {
+    const minutesPerDay = 12 * 60;
+    const maxMinutes = Math.max(0, this.daySlots.length * minutesPerDay);
+    const clampedMinutes = Math.max(0, Math.min(totalMinutes, maxMinutes));
+    const dayIndex = Math.min(Math.floor(clampedMinutes / minutesPerDay), Math.max(0, this.daySlots.length - 1));
+    const minutesInDay = Math.min(clampedMinutes - dayIndex * minutesPerDay, minutesPerDay);
+    const date = new Date(this.daySlots[dayIndex]);
+    date.setHours(9, 0, 0, 0);
+    date.setMinutes(minutesInDay, 0, 0);
+    return date;
   }
 
   toggleGroupDropdown(): void {

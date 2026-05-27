@@ -35,6 +35,7 @@ export interface AutoScheduleRequest {
   searchFrom: Date;                       // earliest possible start
   dayStartHour: number;                   // e.g. 9
   dayEndHour: number;                     // e.g. 21
+  bookingWindow?: { start: Date; end: Date };
   vehicleGroups?: string[][];             // jobs grouped by vehicle — jobs in same group cannot overlap
 }
 
@@ -184,9 +185,13 @@ export class AutoSchedulerService {
   }
 
   schedule(req: AutoScheduleRequest): AutoScheduleResult | null {
-    const { jobs, resources, preferredResourceIds, requiredResourceIds, existingEntries, unavailability, searchFrom, dayStartHour, dayEndHour } = req;
+    const { jobs, resources, preferredResourceIds, requiredResourceIds, existingEntries, unavailability, dayStartHour, dayEndHour } = req;
     const requiresMobility = req.requiresMobility ?? true;
     const SLOT_MINUTES = 15;
+    const bookingWindow = this.normalizeBookingWindow(req.bookingWindow);
+    const searchFrom = bookingWindow
+      ? new Date(Math.max(req.searchFrom.getTime(), bookingWindow.start.getTime()))
+      : req.searchFrom;
 
     const allEntries: ScheduleEntry[] = [...existingEntries];
     const result: ScheduleEntry[] = [];
@@ -209,6 +214,7 @@ export class AutoSchedulerService {
         dayStartHour,
         dayEndHour,
         slotMinutes: SLOT_MINUTES,
+        searchUntil: bookingWindow?.end,
       });
       if (!checkinSlot) return null;
       allEntries.push(this.createActivityHold('act-checkin', checkinSlot.resource.id, checkinSlot.start, checkinSlot.end));
@@ -231,6 +237,7 @@ export class AutoSchedulerService {
           dayStartHour,
           dayEndHour,
           slotMinutes: SLOT_MINUTES,
+          searchUntil: bookingWindow?.end,
         });
 
         if (!slot) {
@@ -272,8 +279,10 @@ export class AutoSchedulerService {
         dayEndHour,
         slotMinutes: SLOT_MINUTES,
         requiresMobility,
+        searchUntil: bookingWindow?.end,
       });
       if (!handoverSlot) return null;
+      if (bookingWindow && (checkinSlot.start < bookingWindow.start || handoverSlot.end > bookingWindow.end)) return null;
 
       allEntries.push(this.createActivityHold('act-handover', handoverSlot.handoverResource.id, handoverSlot.start, handoverSlot.end));
       if (handoverSlot.mobilityResource) {
@@ -338,6 +347,7 @@ export class AutoSchedulerService {
     dayStartHour: number;
     dayEndHour: number;
     slotMinutes: number;
+    searchUntil?: Date;
   }): { start: Date; end: Date; assignments: { req: JobResourceRequirement; resource: Resource }[] } | null {
 
     const { requirements, resources, preferredResourceIds, requiredResourceIds, durationMs, allEntries, unavailability,
@@ -370,8 +380,8 @@ export class AutoSchedulerService {
     if (candidatesByReq.some(c => c.candidates.length === 0)) return null;
 
     const slotMs = slotMinutes * 60000;
-    const maxSearchEnd = new Date(searchFrom);
-    maxSearchEnd.setDate(maxSearchEnd.getDate() + 365);
+    const maxSearchEnd = params.searchUntil ? new Date(params.searchUntil) : new Date(searchFrom);
+    if (!params.searchUntil) maxSearchEnd.setDate(maxSearchEnd.getDate() + 365);
     let cursor = this.snapToSlot(searchFrom, slotMinutes, dayStartHour);
 
     while (cursor <= maxSearchEnd) {
@@ -382,6 +392,7 @@ export class AutoSchedulerService {
       }
 
       const end = new Date(start.getTime() + durationMs);
+      if (params.searchUntil && end > params.searchUntil) return null;
 
       if (end.getHours() > dayEndHour || (end.getHours() === dayEndHour && end.getMinutes() > 0) || end.toDateString() !== start.toDateString()) {
         cursor = this.nextDayStart(start, dayStartHour);
@@ -436,6 +447,7 @@ export class AutoSchedulerService {
     dayStartHour: number;
     dayEndHour: number;
     slotMinutes: number;
+    searchUntil?: Date;
   }): { start: Date; end: Date; resource: Resource } | null {
     const {
       resourceType,
@@ -452,11 +464,12 @@ export class AutoSchedulerService {
     if (!candidates.length) return null;
 
     let cursor = this.snapToSlot(searchFrom, slotMinutes, dayStartHour);
-    const maxSearchEnd = new Date(searchFrom);
-    maxSearchEnd.setDate(maxSearchEnd.getDate() + 365);
+    const maxSearchEnd = params.searchUntil ? new Date(params.searchUntil) : new Date(searchFrom);
+    if (!params.searchUntil) maxSearchEnd.setDate(maxSearchEnd.getDate() + 365);
 
     while (cursor <= maxSearchEnd) {
       const end = new Date(cursor.getTime() + durationMinutes * 60000);
+      if (params.searchUntil && end > params.searchUntil) return null;
       if (
         this.isWithinDay(cursor, dayStartHour, dayEndHour) &&
         end.toDateString() === cursor.toDateString() &&
@@ -524,6 +537,7 @@ export class AutoSchedulerService {
     dayEndHour: number;
     slotMinutes: number;
     requiresMobility?: boolean;
+    searchUntil?: Date;
   }): { start: Date; end: Date; handoverResource: Resource; mobilityResource?: Resource } | null {
     const { resources, allEntries, unavailability, searchFrom, mobilityStart, dayStartHour, dayEndHour, slotMinutes } = params;
     const requiresMobility = params.requiresMobility ?? true;
@@ -532,11 +546,12 @@ export class AutoSchedulerService {
     if (!advisors.length || (requiresMobility && !mobilityResources.length)) return null;
 
     let cursor = this.snapToSlot(searchFrom, slotMinutes, dayStartHour);
-    const maxSearchEnd = new Date(searchFrom);
-    maxSearchEnd.setDate(maxSearchEnd.getDate() + 365);
+    const maxSearchEnd = params.searchUntil ? new Date(params.searchUntil) : new Date(searchFrom);
+    if (!params.searchUntil) maxSearchEnd.setDate(maxSearchEnd.getDate() + 365);
 
     while (cursor <= maxSearchEnd) {
       const end = new Date(cursor.getTime() + HANDOVER_DURATION_MINUTES * 60000);
+      if (params.searchUntil && end > params.searchUntil) return null;
       if (
         this.isWithinDay(cursor, dayStartHour, dayEndHour) &&
         end.toDateString() === cursor.toDateString() &&
@@ -569,6 +584,11 @@ export class AutoSchedulerService {
       workorderItemStatus: 'scheduled',
       workorderItemCategory: 'activity',
     };
+  }
+
+  private normalizeBookingWindow(window: AutoScheduleRequest['bookingWindow']): { start: Date; end: Date } | null {
+    if (!window || window.end <= window.start) return null;
+    return { start: new Date(window.start), end: new Date(window.end) };
   }
 
   private getActivityCandidates(resources: Resource[], resourceType: string, requiredResourceIds: string[]): Resource[] {

@@ -93,6 +93,11 @@ export interface EventDragPayload {
   pointerOffsetMinutes?: number;
 }
 
+export interface SchedulerTimeRangePayload {
+  start: Date;
+  end: Date;
+}
+
 export interface ResourceSelectionChangePayload {
   resourceId: string;
   selected: boolean;
