@@ -87,6 +87,62 @@ $month-bar-height: 60px;
     z-index: 130;
   }
 
+  &__selected-only-toggle {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+
+  &__selected-only-switch {
+    width: 48px;
+    padding: 2px;
+    border: 0;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #63A375;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 8px;
+    cursor: pointer;
+
+    &[aria-checked='false'] {
+      background: var(--Icon-icon-on-color-disabled, #8D8D8D);
+      justify-content: flex-start;
+    }
+
+    &:disabled {
+      background: var(--Icon-icon-disabled, #C6C6C6);
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--Focus-focus, #4C68B1);
+      outline-offset: 2px;
+    }
+  }
+
+  &__selected-only-switch-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: var(--Icon-icon-on-color, white);
+    display: block;
+  }
+
+  &__selected-only-label {
+    padding-top: 3px;
+    padding-bottom: 3px;
+    color: var(--Text-text-primary, #161616);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    letter-spacing: 0.16px;
+    text-transform: none;
+  }
+
   &__header-scroll {
     flex: 1;
     overflow: hidden;

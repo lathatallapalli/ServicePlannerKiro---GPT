@@ -144,7 +144,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   resourceSearch = '';
   isGroupDropdownOpen = false;
   isResourceViewDropdownOpen = false;
-  showSelectedOnlyByGroup = new Set<string>();
+  showSelectedOnlyResources = false;
   collapsedGroupIds = new Set<string>();
   copiedContactKey: string | null = null;
   private copiedContactResetId: ReturnType<typeof setTimeout> | null = null;
@@ -962,7 +962,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return this.resources.filter(resource => {
       if (resource.groupId !== groupId) return false;
       if (!this.selectedResourceTypeGroupIds.includes(groupId)) return false;
-      if (this.showSelectedOnlyByGroup.has(groupId) && !this.isResourceSelected(resource.id)) return false;
+      if (this.showSelectedOnlyResources && !this.isResourceSelected(resource.id)) return false;
       if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
       return true;
     });
@@ -974,7 +974,13 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getUngroupedResources(): SchedulerResource[] {
     const visibleGroupIds = new Set(this.visibleGroups.map(group => group.id));
-    return this.resources.filter(resource => !resource.groupId || !visibleGroupIds.has(resource.groupId));
+    const query = this.resourceSearch.trim().toLowerCase();
+    return this.resources.filter(resource => {
+      if (resource.groupId && visibleGroupIds.has(resource.groupId)) return false;
+      if (this.showSelectedOnlyResources && !this.isResourceSelected(resource.id)) return false;
+      if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
+      return true;
+    });
   }
 
   get visibleGroups(): SchedulerGroup[] {
@@ -988,6 +994,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const query = this.resourceSearch.trim().toLowerCase();
     return this.resources.some(resource => {
       if (resource.groupId !== groupId) return false;
+      if (this.showSelectedOnlyResources && !this.isResourceSelected(resource.id)) return false;
       if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
       return true;
     });
@@ -1185,17 +1192,17 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return this.collapsedGroupIds.has(groupId);
   }
 
-  toggleSelectedOnlyForGroup(groupId: string): void {
-    if (this.showSelectedOnlyByGroup.has(groupId)) {
-      this.showSelectedOnlyByGroup.delete(groupId);
+  toggleSelectedOnlyResources(): void {
+    if (this.showSelectedOnlyResources) {
+      this.showSelectedOnlyResources = false;
       return;
     }
-    if (!this.resources.some(resource => resource.groupId === groupId && this.isResourceSelected(resource.id))) return;
-    this.showSelectedOnlyByGroup.add(groupId);
+    if (!this.resources.some(resource => this.isResourceSelected(resource.id))) return;
+    this.showSelectedOnlyResources = true;
   }
 
-  isShowingSelectedOnly(groupId: string): boolean {
-    return this.showSelectedOnlyByGroup.has(groupId);
+  hasSelectedResources(): boolean {
+    return this.resources.some(resource => this.isResourceSelected(resource.id));
   }
 
   isResourceSelected(resourceId: string): boolean {
