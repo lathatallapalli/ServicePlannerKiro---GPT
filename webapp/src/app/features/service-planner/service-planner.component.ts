@@ -145,6 +145,7 @@ export class ServicePlannerComponent implements OnInit {
   bookingModalResourceId = '';
   bookingModalAdditionalResourceIds: Record<string, string> = {};
   scrollToEventId: string | null = null;
+  scrollToEventRequestId = 0;
   isOrderPanelOpen = false;
   orderPanelWidth = 342;
   private readonly minOrderPanelWidth = 342;
@@ -883,9 +884,9 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   focusPlannerEvent(eventId: string, options: { openDetails?: boolean } = {}): void {
-    this.scrollToEventId = null;
     queueMicrotask(() => {
       this.scrollToEventId = eventId;
+      this.scrollToEventRequestId++;
       if (options.openDetails) {
         this.onEventClicked({ eventId });
       }

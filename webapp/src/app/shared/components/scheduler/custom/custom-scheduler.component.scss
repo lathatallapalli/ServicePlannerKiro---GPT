@@ -163,7 +163,6 @@ $month-bar-height: 60px;
     position: absolute;
     top: 6px;
     height: 26px;
-    min-width: 168px;
     z-index: 4;
     box-sizing: border-box;
     display: inline-flex;
@@ -175,15 +174,8 @@ $month-bar-height: 60px;
     background: #4C68B1;
     border: 1px solid #4C68B1;
     border-radius: 6px 6px 0 0;
-    font-size: 12px;
-    line-height: 16px;
-    letter-spacing: 0.32px;
     pointer-events: auto;
     cursor: grab;
-
-    &:active {
-      cursor: grabbing;
-    }
   }
 
   &__booking-window-chip-label {
@@ -201,12 +193,7 @@ $month-bar-height: 60px;
     padding: 0;
     background: transparent;
     color: #fff;
-    font: inherit;
-    line-height: 16px;
     cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
   }
 
   &__booking-window-band {
@@ -214,9 +201,8 @@ $month-bar-height: 60px;
     top: 0;
     bottom: 0;
     box-sizing: border-box;
-    background: rgba(76, 104, 177, 0.06);
+    background: rgba(76,104,177,.06);
     border-left: 3px solid #4C68B1;
-    border-right: 1px solid rgba(76, 104, 177, 0.72);
     pointer-events: none;
     z-index: 1;
   }
@@ -793,6 +779,8 @@ $month-bar-height: 60px;
   }
 
 }
+
+@keyframes scheduler-pulse-highlight{0%,100%{outline-color:transparent}18%{outline-color:#4C68B1}}
 
 
 
