@@ -140,7 +140,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   get HOUR_WIDTH(): number {
     const fixedHourWidth = SLOT_WIDTH * (60 / this.slotDurationMinutes);
     if (this.daySlots.length !== 1 || !this.timelineViewportWidth) return fixedHourWidth;
-    return Math.max(fixedHourWidth, this.timelineViewportWidth / 12);
+    const timedViewportWidth = Math.max(0, this.timelineViewportWidth - this.getDayCapacityLaneWidth());
+    return Math.max(fixedHourWidth, timedViewportWidth / 12);
   }
 
   get rowHeight(): number {
