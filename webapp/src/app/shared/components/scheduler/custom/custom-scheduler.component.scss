@@ -30,7 +30,6 @@ $month-bar-height: 60px;
     position: relative;
     z-index: 140;
     background: white;
-    gap: 4px;
   }
 
   &__months {
@@ -150,7 +149,6 @@ $month-bar-height: 60px;
     position: relative;
     z-index: 1;
   }
-
 
   &__day-row {
     display: flex;
@@ -295,7 +293,6 @@ $month-bar-height: 60px;
     letter-spacing: 0.32px;
     white-space: nowrap;
   }
-
 
   &__body {
     flex: 1 1 0;
