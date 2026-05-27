@@ -154,7 +154,7 @@
   <!-- Body -->
   <div class="scheduler__body" #bodyScroll style="position:relative" (scroll)="onBodyScroll()">
 
-    @for (group of visibleGroups; track group.id) {
+    @for (group of visibleGroups; track group.id; let isFirstGroup = $first) {
       <div class="scheduler__group-row">
         <div class="scheduler__group-label" [style.width.px]="RESOURCE_COL_WIDTH" [style.height.px]="GROUP_ROW_HEIGHT">
           <span>{{ group.label }}</span>
@@ -163,9 +163,18 @@
                 <path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/>
               </svg>
             </button>
-            <button type="button" (click)="toggleSelectedOnlyForGroup(group.id)" style="margin-left:auto;border:0;background:transparent;color:var(--Link-link-primary,#4C68B1);font-size:14px;font-weight:400;line-height:18px;letter-spacing:.16px;text-transform:none;cursor:pointer">
-              {{ isShowingSelectedOnly(group.id) ? 'See all' : 'See selected' }}
-            </button>
+            @if (isFirstGroup) {
+              <div class="scheduler__selected-only-toggle">
+                <button type="button" class="scheduler__selected-only-switch" role="switch"
+                  [attr.aria-checked]="showSelectedOnlyResources"
+                  aria-label="Selected only"
+                  [disabled]="!showSelectedOnlyResources && !hasSelectedResources()"
+                  (click)="toggleSelectedOnlyResources()">
+                  <span class="scheduler__selected-only-switch-thumb" aria-hidden="true"></span>
+                </button>
+                <span class="scheduler__selected-only-label">{{ showSelectedOnlyResources ? 'Selected only' : 'All resources' }}</span>
+              </div>
+            }
         </div>
         <div class="scheduler__group-fill" [style.width.px]="totalWidth" [style.height.px]="GROUP_ROW_HEIGHT"></div>
       </div>
