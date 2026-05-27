@@ -1,116 +1,149 @@
 <section class="quick-view-page">
   <div class="quick-view-page__cards">
-    <article class="generic-card generic-card--work">
-      <header class="generic-card__header">
-        <div class="generic-card__leading">
-          <h2>Work</h2>
-          <button class="generic-card__toggle" type="button" aria-label="Collapse Work card">
-            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" />
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      <div class="generic-card__divider" aria-hidden="true"></div>
-
-      <div class="generic-card__content generic-card__content--work">
-        <div class="carbon-readonly-field">
-          <span class="carbon-readonly-field__label">Total duration</span>
-          <span class="carbon-readonly-field__value">{{ getTotalDurationLabel() }}</span>
-        </div>
+  <article class="quick-view-card quick-view-card--work">
+    <header class="quick-view-card__header">
+      <h2>Work</h2>
+      <button class="quick-view-card__toggle" type="button" aria-label="Collapse Work card">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" />
+        </svg>
+      </button>
+    </header>
+    <div class="quick-view-card__body quick-view-card__body--work">
+      <div class="quick-view-field">
+        <span class="quick-view-field__label">Total Duration</span>
+        <span class="quick-view-field__value">{{ getTotalDurationLabel() }}</span>
       </div>
-    </article>
+      <div class="quick-view-field quick-view-field--selected-choice">
+        <span class="quick-view-field__label">Selected Appointment</span>
+        <span class="quick-view-field__value">{{ getSelectedChoiceLabel() }}</span>
+      </div>
+    </div>
+  </article>
 
-    <article class="timeslots-card">
-      <header class="timeslots-card__header">
-        <div class="timeslots-card__leading">
-          <h2>Timeslots</h2>
-          <button class="timeslots-card__toggle" type="button" aria-label="Collapse Timeslots card">
-            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" />
-            </svg>
-          </button>
-        </div>
-      </header>
+  <article class="quick-view-card quick-view-card--slots">
+    <header class="quick-view-card__header">
+      <h2>Check-In</h2>
+      <button class="quick-view-card__toggle" type="button" aria-label="Collapse Check-In card">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" />
+        </svg>
+      </button>
+    </header>
+    <div class="quick-view-card__body">
+      @if (isLoading) {
+        <p class="quick-view-page__empty">Calculating check-in windows...</p>
+      } @else {
+        <ng-container *ngTemplateOutlet="slotPicker; context: {
+          label: 'Check - in slots',
+          days: checkinDays,
+          scope: 'checkin',
+          selectedDayIndex: selectedCheckinDayIndex,
+          selectedSlotKey: selectedCheckinKey,
+          selectDay: selectCheckinDay.bind(this),
+          selectSlot: selectCheckin.bind(this),
+          emptyText: 'No check-in windows found.'
+        }" />
+      }
+    </div>
+  </article>
 
-      <div class="timeslots-card__divider" aria-hidden="true"></div>
+  <article class="quick-view-card quick-view-card--slots">
+    <header class="quick-view-card__header">
+      <h2>Handover</h2>
+      <button class="quick-view-card__toggle" type="button" aria-label="Collapse Handover card">
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" />
+        </svg>
+      </button>
+    </header>
+    <div class="quick-view-card__body">
+      @if (!selectedCheckin) {
+        <div class="quick-view-card__disabled">Select Check-in</div>
+      } @else if (!workProposal) {
+        <div class="quick-view-card__disabled">No workshop schedule available for selected Check-in</div>
+      } @else {
+        <p class="quick-view-card__hint">Work estimated complete: {{ getWorkCompleteLabel() }}</p>
+        <ng-container *ngTemplateOutlet="slotPicker; context: {
+          label: 'Handover slots',
+          days: handoverDays,
+          scope: 'handover',
+          selectedDayIndex: selectedHandoverDayIndex,
+          selectedSlotKey: selectedHandoverKey,
+          selectDay: selectHandoverDay.bind(this),
+          selectSlot: selectHandover.bind(this),
+          emptyText: 'No handover windows found.'
+        }" />
+      }
+    </div>
+  </article>
 
-      <div class="timeslots-card__content">
-        <div class="timeslots-month">
-          <button class="timeslots-icon-button" type="button" aria-label="Previous month" (click)="previousMonth()">
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M5 8L10 3L10.7 3.7L6.4 8L10.7 12.3L10 13L5 8Z" />
-            </svg>
-          </button>
-          <div class="timeslots-month__label">{{ getMonthYearLabel() }}</div>
-          <button class="timeslots-icon-button" type="button" aria-label="Next month" (click)="nextMonth()">
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M10.9998 8L5.9998 13L5.2998 12.3L9.5998 8L5.2998 3.7L5.9998 3L10.9998 8Z" />
-            </svg>
-          </button>
-        </div>
+  </div>
 
-        @if (isLoading) {
-          <p class="quick-view-page__empty">Calculating probable fulfillment windows...</p>
-        } @else if (days.length) {
-          <div class="timeslots-tabs" role="tablist" aria-label="Appointment days">
-            <button class="timeslots-tabs__nav" type="button" aria-label="Previous week" (click)="previousWeek()">
-              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M5 8L10 3L10.7 3.7L6.4 8L10.7 12.3L10 13L5 8Z" />
-              </svg>
+  <ng-template
+    #slotPicker
+    let-label="label"
+    let-days="days"
+    let-scope="scope"
+    let-selectedDayIndex="selectedDayIndex"
+    let-selectedSlotKey="selectedSlotKey"
+    let-selectDay="selectDay"
+    let-selectSlot="selectSlot"
+    let-emptyText="emptyText"
+  >
+    <div class="slot-filter">
+      <span class="slot-filter__label">{{ label }}</span>
+      <button class="slot-filter__option" type="button" [class.slot-filter__option--active]="isFilterActive(scope, 'morning')" (click)="toggleFilter(scope, 'morning')">
+        <span class="slot-filter__box"></span>
+        Morning 09:00 - 12:00
+      </button>
+      <button class="slot-filter__option" type="button" [class.slot-filter__option--active]="isFilterActive(scope, 'afternoon')" (click)="toggleFilter(scope, 'afternoon')">
+        <span class="slot-filter__box"></span>
+        Afternoon 12:00 - 15:00
+      </button>
+      <button class="slot-filter__option" type="button" [class.slot-filter__option--active]="isFilterActive(scope, 'evening')" (click)="toggleFilter(scope, 'evening')">
+        <span class="slot-filter__box"></span>
+        Evening 16:00 - 18:30
+      </button>
+    </div>
+
+    <div class="slot-month">
+      <button class="slot-nav" type="button" aria-label="Previous month" (click)="previousMonth()">‹</button>
+      <strong>{{ getMonthYearLabel() }}</strong>
+      <button class="slot-nav" type="button" aria-label="Next month" (click)="nextMonth()">›</button>
+    </div>
+
+    @if (days.length) {
+      <div class="slot-week">
+        <button class="slot-nav" type="button" aria-label="Previous week" (click)="previousWeek()">‹</button>
+        <div class="slot-week__grid">
+          @for (day of days; track day.dateLabel; let dayIndex = $index) {
+            <button class="slot-day" [class.slot-day--selected]="dayIndex === selectedDayIndex" type="button" (click)="selectDay(dayIndex)">
+              <strong>{{ day.dateLabel }}</strong>
+              <span>{{ day.dayLabel }}</span>
             </button>
+          }
+        </div>
+        <button class="slot-nav" type="button" aria-label="Next week" (click)="nextWeek()">›</button>
+      </div>
 
-            <div class="timeslots-tabs__items">
-              @for (day of days; track day.dateLabel; let index = $index) {
-                <button
-                  class="timeslots-tab"
-                  [class.timeslots-tab--selected]="index === selectedDayIndex"
-                  type="button"
-                  role="tab"
-                  [attr.aria-selected]="index === selectedDayIndex"
-                  (click)="selectDay(index)"
-                >
-                  <span class="timeslots-tab__date">{{ day.dateLabel }}</span>
-                  <span class="timeslots-tab__day">{{ day.dayLabel }}</span>
+      <div class="slot-grid">
+        @for (day of days; track day.dateLabel; let dayIndex = $index) {
+          <div class="slot-column">
+            @if (getFilteredSlots(day, scope).length) {
+              @for (slot of getFilteredSlots(day, scope); track slot.key) {
+                <button class="slot-button" [class.slot-button--selected]="slot.key === selectedSlotKey" type="button" [disabled]="isSaving" (click)="selectDay(dayIndex); selectSlot(slot, dayIndex)">
+                  {{ formatSlot(slot) }}
                 </button>
               }
-            </div>
-
-            <button class="timeslots-tabs__nav" type="button" aria-label="Next week" (click)="nextWeek()">
-              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M10.9998 8L5.9998 13L5.2998 12.3L9.5998 8L5.2998 3.7L5.9998 3L10.9998 8Z" />
-              </svg>
-            </button>
-          </div>
-
-          <div class="timeslots-grid" aria-label="Available appointment timeslots">
-            @for (day of days; track day.dateLabel; let dayIndex = $index) {
-              <div class="timeslots-column" [class.timeslots-column--selected]="dayIndex === selectedDayIndex">
-                @if (day.slots.length) {
-                  @for (slot of day.slots; track slot.label) {
-                    <button
-                      class="timeslot-button"
-                      [class.timeslot-button--selected]="slot.key === selectedSlotKey"
-                      type="button"
-                      [attr.title]="slot.title"
-                      (click)="selectDay(dayIndex); selectSlot(slot)"
-                    >
-                      @for (line of getSlotLines(slot); track line) {
-                        <span>{{ line }}</span>
-                      }
-                    </button>
-                  }
-                } @else {
-                  <button class="timeslot-button timeslot-button--empty" type="button" disabled>-</button>
-                }
-              </div>
+            } @else {
+              <span class="slot-empty">-</span>
             }
           </div>
-        } @else {
-          <p class="quick-view-page__empty">No probable fulfillment windows found.</p>
         }
       </div>
-    </article>
-  </div>
+    } @else {
+      <p class="quick-view-page__empty">{{ emptyText }}</p>
+    }
+  </ng-template>
 </section>

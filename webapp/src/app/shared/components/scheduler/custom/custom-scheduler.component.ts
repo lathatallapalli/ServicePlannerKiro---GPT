@@ -408,9 +408,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       cursor.setHours(9, 0, 0, 0);
     }
 
-    const isActivity = event.meta?.entry?.workorderItemCategory === 'activity';
-    const visualGap = this.hasContiguousNextEvent(event) || isActivity ? 0 : 4;
-    return Math.max(visibleHours * this.HOUR_WIDTH - visualGap, 20);
+    return Math.max(visibleHours * this.HOUR_WIDTH, 20);
   }
 
   hasContiguousPreviousEvent(event: SchedulerEvent): boolean {

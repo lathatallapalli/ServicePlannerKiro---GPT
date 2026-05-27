@@ -406,14 +406,6 @@
                     [style.height.px]="rowHeight"
                     style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
                 }
-                @for (event of getEventsForResource(resource.id); track event.id) {
-                  <div class="scheduler__slot-highlight scheduler__slot-highlight--blocked"
-                    [style.left.px]="getEventLeft(event)"
-                    [style.width.px]="getEventWidth(event)"
-                    [style.top.px]="0"
-                    [style.height.px]="rowHeight"
-                    style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
-                }
               }
             }
           </div>
@@ -516,9 +508,9 @@
               [style.bottom]="shouldShowEventDetails(event) ? 'auto' : null"
               [style.height.px]="shouldShowEventDetails(event) ? getRenderedEventHeight(event) : null"
               [style.padding]="shouldShowEventDetails(event) ? null : '0'"
-              [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
-              [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
-              [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
+              [style.background]="shouldShowEventDetails(event) ? null : null"
+              [style.border-left]="shouldShowEventDetails(event) ? null : null"
+              [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : null"
               (mouseenter)="showEventTooltip(event, $event)"
               (mousemove)="moveEventTooltip(event, $event)"
               (mouseleave)="hideEventTooltip()"
@@ -652,14 +644,6 @@
                 <div class="scheduler__slot-highlight scheduler__slot-highlight--blocked"
                   [style.left.px]="getUnavailabilityLeft(block)"
                   [style.width.px]="getUnavailabilityWidth(block)"
-                  [style.top.px]="0"
-                  [style.height.px]="rowHeight"
-                  style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
-              }
-              @for (event of getEventsForResource(resource.id); track event.id) {
-                <div class="scheduler__slot-highlight scheduler__slot-highlight--blocked"
-                  [style.left.px]="getEventLeft(event)"
-                  [style.width.px]="getEventWidth(event)"
                   [style.top.px]="0"
                   [style.height.px]="rowHeight"
                   style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>

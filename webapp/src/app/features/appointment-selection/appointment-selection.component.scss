@@ -87,6 +87,55 @@
   padding: 32px 96px 0;
 }
 
+.appointment-warning {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1504px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 32px;
+  background: var(--Notification-notification-warning-background, #fff6e5);
+  outline: 1px solid var(--Notification-notification-warning-border, rgba(255, 163, 0, 0.3));
+  outline-offset: -1px;
+}
+
+.appointment-warning__bar {
+  align-self: stretch;
+  width: 3px;
+  background: var(--Support-support-warning, #ffa300);
+}
+
+.appointment-warning__icon {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+.appointment-warning__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 15px 16px 15px 0;
+  color: var(--Text-text-primary, #161616);
+  font-size: 14px;
+  line-height: 18px;
+  letter-spacing: 0.16px;
+}
+
+.appointment-warning__title {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.appointment-warning__message {
+  font-weight: 400;
+}
+
 .generic-card__content--work {
   display: inline-flex;
   align-items: flex-start;
@@ -229,11 +278,24 @@
   .generic-card__content {
     padding-inline: 48px;
   }
+
+  .appointment-warning {
+    width: calc(100% - 96px);
+  }
 }
 
 @media (max-width: 768px) {
   .appointment-selection-page__cards,
   .generic-card__content {
     padding-inline: 24px;
+  }
+
+  .appointment-warning {
+    width: calc(100% - 48px);
+  }
+
+  .appointment-warning__content {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

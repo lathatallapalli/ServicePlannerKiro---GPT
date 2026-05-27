@@ -15,7 +15,6 @@ import { MOCK_WORK_ORDERS } from './core/services/mock/mock-data';
 import { findTransactionById, findWorkOrderByIdOrReference } from './core/services/mock/mock-transactions';
 import { WorkOrder } from './core/models/work-order.model';
 import { WorkOrderRepository } from './core/services/work-order.repository';
-import { AppointmentSyncService } from './core/services/appointment-sync.service';
 
 @Component({
   selector: 'app-root',
@@ -181,7 +180,6 @@ export class App implements OnInit {
     private resourceCatalogSelection: ResourceCatalogSelectionService,
     private quickViewSelection: QuickViewSelectionService,
     private workOrderRepo: WorkOrderRepository,
-    private appointmentSync: AppointmentSyncService,
   ) {}
 
   ngOnInit(): void {
@@ -545,7 +543,7 @@ export class App implements OnInit {
     }
 
     if (/^\/orders\/[^/]+\/quick-view$/.test(cleanUrl)) {
-      this.saveQuickViewSelectionAndReturn();
+      this.router.navigate(['/orders', this.currentOrderReference(), 'appointment-selection']);
       return;
     }
 
@@ -661,24 +659,5 @@ export class App implements OnInit {
       groups,
     });
     return updatedView;
-  }
-
-  private saveQuickViewSelectionAndReturn(): void {
-    const order = this.activeOrder();
-    const selection = order ? this.quickViewSelection.consumeSelection(order.id) : null;
-    const target = ['/orders', this.currentOrderReference(), 'appointment-selection'];
-
-    if (!order || !selection) {
-      this.router.navigate(target);
-      return;
-    }
-
-    this.appointmentSync.updateAppointment(order.id, selection.checkinStart, selection.handoverEnd).subscribe(savedOrder => {
-      if (savedOrder) {
-        this.activeOrder.set(savedOrder);
-        this.topPanelTiles = this.buildTopPanelTiles(savedOrder);
-      }
-      this.router.navigate(target);
-    });
   }
 }

@@ -8,6 +8,22 @@ const MINUTES_PER_FRU = 60;
 const CHECKIN_DURATION_MINUTES = 30;
 const HANDOVER_DURATION_MINUTES = 30;
 
+export interface AutoActivitySlot {
+  start: Date;
+  end: Date;
+  resourceId: string;
+}
+
+export interface AutoWorkProposal {
+  checkin: AutoActivitySlot;
+  entries: ScheduleEntry[];
+  workCompleteAt: Date;
+}
+
+export interface AutoHandoverOption extends AutoActivitySlot {
+  mobilityResourceId?: string;
+}
+
 export interface AutoScheduleRequest {
   jobs: Job[];
   resources: Resource[];
@@ -33,6 +49,134 @@ export interface AutoScheduleResult {
 
 @Injectable({ providedIn: 'root' })
 export class AutoSchedulerService {
+
+  findCheckinSlots(req: Omit<AutoScheduleRequest, 'searchFrom'> & { from: Date; to: Date; slotMinutes?: number }): AutoActivitySlot[] {
+    return this.findActivitySlots({
+      resourceType: 'advisor',
+      resources: req.resources,
+      allEntries: [...req.existingEntries],
+      unavailability: req.unavailability,
+      from: req.from,
+      to: req.to,
+      durationMinutes: CHECKIN_DURATION_MINUTES,
+      dayStartHour: req.dayStartHour,
+      dayEndHour: req.dayEndHour,
+      slotMinutes: req.slotMinutes ?? 30,
+    }).map(slot => ({ start: slot.start, end: slot.end, resourceId: slot.resource.id }));
+  }
+
+  buildWorkProposalFromCheckin(req: Omit<AutoScheduleRequest, 'searchFrom'> & { checkin: AutoActivitySlot; slotMinutes?: number }): AutoWorkProposal | null {
+    const allEntries: ScheduleEntry[] = [
+      ...req.existingEntries,
+      this.createActivityHold('act-checkin', req.checkin.resourceId, req.checkin.start, req.checkin.end),
+    ];
+    const result: ScheduleEntry[] = [];
+    let workOrderCursor = new Date(req.checkin.end);
+    let latestJobEnd: Date | null = null;
+
+    const jobsByWorkOrder = this.groupJobsByWorkOrder(this.getSchedulableJobs(req.jobs));
+    const workOrderJobs = jobsByWorkOrder[0] ?? [];
+
+    for (const job of workOrderJobs) {
+      const slot = this.findEarliestSlot({
+        requirements: this.getRequirements(job),
+        resources: req.resources,
+        preferredResourceIds: req.preferredResourceIds ?? [],
+        durationMs: this.getJobDurationMinutes(job) * 60000,
+        allEntries,
+        unavailability: req.unavailability,
+        searchFrom: workOrderCursor,
+        dayStartHour: req.dayStartHour,
+        dayEndHour: req.dayEndHour,
+        slotMinutes: req.slotMinutes ?? 15,
+      });
+      if (!slot) return null;
+
+      const bookingSetId = `${job.workOrderId}:${job.id}:${slot.start.getTime()}-${slot.end.getTime()}`;
+      for (const { resource } of slot.assignments) {
+        const entry: ScheduleEntry = {
+          id: `auto-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          jobId: job.id,
+          resourceId: resource.id,
+          start: new Date(slot.start),
+          end: new Date(slot.end),
+          workorderItemStatus: 'scheduled',
+          workorderItemCategory: 'job',
+          bookingSetId,
+        };
+        allEntries.push(entry);
+        result.push(entry);
+      }
+
+      workOrderCursor = new Date(slot.end);
+      if (!latestJobEnd || slot.end > latestJobEnd) latestJobEnd = new Date(slot.end);
+    }
+
+    if (!latestJobEnd) return null;
+    return {
+      checkin: {
+        start: new Date(req.checkin.start),
+        end: new Date(req.checkin.end),
+        resourceId: req.checkin.resourceId,
+      },
+      entries: result,
+      workCompleteAt: latestJobEnd,
+    };
+  }
+
+  findHandoverOptions(req: {
+    resources: Resource[];
+    existingEntries: ScheduleEntry[];
+    draftEntries: ScheduleEntry[];
+    unavailability: UnavailabilityBlock[];
+    mobilityStart: Date;
+    from: Date;
+    to: Date;
+    dayStartHour: number;
+    dayEndHour: number;
+    slotMinutes?: number;
+    requiresMobility?: boolean;
+  }): AutoHandoverOption[] {
+    const allEntries = [...req.existingEntries, ...req.draftEntries];
+    const requiresMobility = req.requiresMobility ?? true;
+    const advisors = req.resources.filter(resource => resource.type === 'advisor');
+    const mobilityResources = req.resources.filter(resource => resource.type === 'driver');
+    if (!advisors.length || (requiresMobility && !mobilityResources.length)) return [];
+
+    const options: AutoHandoverOption[] = [];
+    let cursor = this.snapToSlot(req.from, req.slotMinutes ?? 30, req.dayStartHour);
+    const maxSearchEnd = new Date(req.to);
+
+    while (cursor <= maxSearchEnd) {
+      const end = new Date(cursor.getTime() + HANDOVER_DURATION_MINUTES * 60000);
+      if (
+        this.isWithinDay(cursor, req.dayStartHour, req.dayEndHour) &&
+        end.toDateString() === cursor.toDateString() &&
+        this.isWithinDay(end, req.dayStartHour, req.dayEndHour)
+      ) {
+        const handoverResource = advisors.find(resource =>
+          this.isResourceFree(resource.id, cursor, end, allEntries, req.unavailability)
+        );
+        const mobilityResource = requiresMobility
+          ? mobilityResources.find(resource =>
+              this.isResourceFree(resource.id, req.mobilityStart, end, allEntries, req.unavailability)
+            )
+          : undefined;
+        if (handoverResource && (!requiresMobility || mobilityResource)) {
+          options.push({
+            start: new Date(cursor),
+            end,
+            resourceId: handoverResource.id,
+            mobilityResourceId: mobilityResource?.id,
+          });
+        }
+      }
+
+      cursor = new Date(cursor.getTime() + (req.slotMinutes ?? 30) * 60000);
+    }
+
+    return options;
+  }
 
   schedule(req: AutoScheduleRequest): AutoScheduleResult | null {
     const { jobs, resources, preferredResourceIds, existingEntries, unavailability, searchFrom, dayStartHour, dayEndHour } = req;
@@ -166,6 +310,10 @@ export class AutoSchedulerService {
     );
   }
 
+  private getSchedulableJobs(jobs: Job[]): Job[] {
+    return jobs.filter(job => (job.workorderItemCategory ?? 'job') !== 'activity');
+  }
+
   private findEarliestSlot(params: {
     requirements: JobResourceRequirement[];
     resources: Resource[];
@@ -289,6 +437,44 @@ export class AutoSchedulerService {
     }
 
     return null;
+  }
+
+  private findActivitySlots(params: {
+    resourceType: string;
+    resources: Resource[];
+    allEntries: ScheduleEntry[];
+    unavailability: UnavailabilityBlock[];
+    from: Date;
+    to: Date;
+    durationMinutes: number;
+    dayStartHour: number;
+    dayEndHour: number;
+    slotMinutes: number;
+  }): { start: Date; end: Date; resource: Resource }[] {
+    const candidates = params.resources.filter(resource => resource.type === params.resourceType);
+    if (!candidates.length) return [];
+
+    const slots: { start: Date; end: Date; resource: Resource }[] = [];
+    let cursor = this.snapToSlot(params.from, params.slotMinutes, params.dayStartHour);
+    const maxSearchEnd = new Date(params.to);
+
+    while (cursor <= maxSearchEnd) {
+      const end = new Date(cursor.getTime() + params.durationMinutes * 60000);
+      if (
+        this.isWithinDay(cursor, params.dayStartHour, params.dayEndHour) &&
+        end.toDateString() === cursor.toDateString() &&
+        this.isWithinDay(end, params.dayStartHour, params.dayEndHour)
+      ) {
+        const resource = candidates.find(candidate =>
+          this.isResourceFree(candidate.id, cursor, end, params.allEntries, params.unavailability)
+        );
+        if (resource) slots.push({ start: new Date(cursor), end, resource });
+      }
+
+      cursor = new Date(cursor.getTime() + params.slotMinutes * 60000);
+    }
+
+    return slots;
   }
 
   private findHandoverSlotWithMobility(params: {

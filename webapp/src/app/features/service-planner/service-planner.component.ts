@@ -159,6 +159,7 @@ export class ServicePlannerComponent implements OnInit {
   searchRevealedOrderIds = new Set<string>();
   collapsedOrderGroups = new Set<'planned' | 'pending'>();
   selectedPanelOrderId = '';
+  focusedPlanningOrderId = '';
   public schedulingError: string | null = null;
   public schedulingErrorTitle = 'Unable to book first availability';
   showBookingDetails = true;
@@ -300,8 +301,10 @@ export class ServicePlannerComponent implements OnInit {
 
   get plannedBookingEventIds(): string[] {
     if (!this.showBookingDetails) {
+      const focusedOrder = this.getFocusedPlanningOrder();
+      if (!focusedOrder) return [];
       return this.events
-        .filter(event => this.isEventForActiveWorkOrder(event))
+        .filter(event => this.isEventForOrder(event, focusedOrder))
         .map(event => event.id);
     }
     return this.bookings.map(booking => booking.entryId);
@@ -309,8 +312,7 @@ export class ServicePlannerComponent implements OnInit {
 
   get detailedOrderIds(): string[] {
     if (!this.showBookingDetails) {
-      const activeOrderId = this.getActiveWorkOrderId();
-      const order = this.allOrders.find(candidate => candidate.id === activeOrderId || candidate.referenceNumber === activeOrderId);
+      const order = this.getFocusedPlanningOrder();
       return [order?.id, order?.referenceNumber].filter((id): id is string => !!id);
     }
     const ids = new Set<string>();
@@ -572,6 +574,7 @@ export class ServicePlannerComponent implements OnInit {
     if (!order) return;
 
     this.revealOrderInPanel(order);
+    this.setFocusedPlanningOrder(order);
   }
 
   isPanelOrderFocused(order: any): boolean {
@@ -603,6 +606,26 @@ export class ServicePlannerComponent implements OnInit {
     const eventId = this.eventContextMenu?.eventId;
     this.closeEventContextMenu();
     if (eventId) this.splitJobBookingSet(eventId);
+  }
+
+  getContextEventCustomerEmail(): string {
+    return this.getContextEventOrder()?.customer?.email ?? '';
+  }
+
+  getContextEventCustomerPhone(): string {
+    return this.getContextEventOrder()?.customer?.phone ?? '';
+  }
+
+  copyContextCustomerEmail(): void {
+    const email = this.getContextEventCustomerEmail();
+    this.closeEventContextMenu();
+    if (email) this.copyTextToClipboard(email);
+  }
+
+  copyContextCustomerPhone(): void {
+    const phone = this.getContextEventCustomerPhone();
+    this.closeEventContextMenu();
+    if (phone) this.copyTextToClipboard(phone);
   }
 
   openContextEventDetails(): void {
@@ -1381,6 +1404,7 @@ export class ServicePlannerComponent implements OnInit {
 
   onBookFirstAvailabilityForOrder(order: any): void {
     this.selectedPanelOrderId = order.id;
+    this.setFocusedPlanningOrder(order);
     this.restoreProposalStateForOrder(order.id);
     const searchFrom = this.getBookableSearchStart(this.viewStart);
     this.applyProposal(searchFrom, true);
@@ -1392,6 +1416,7 @@ export class ServicePlannerComponent implements OnInit {
 
   onBookPreviousForOrder(order: any): void {
     this.selectedPanelOrderId = order.id;
+    this.setFocusedPlanningOrder(order);
     this.restoreProposalStateForOrder(order.id);
     this.onBookPrevious();
   }
@@ -1402,6 +1427,7 @@ export class ServicePlannerComponent implements OnInit {
 
   onBookNextForOrder(order: any): void {
     this.selectedPanelOrderId = order.id;
+    this.setFocusedPlanningOrder(order);
     this.restoreProposalStateForOrder(order.id);
     if (this.currentProposalIndex < 0) {
       const scheduledEntries = this.getExistingScheduleEntriesForOrder(order);
@@ -1607,11 +1633,13 @@ export class ServicePlannerComponent implements OnInit {
 
   scrollToBookingInAvailabilityView(order: any, booking: JobBooking): void {
     this.selectedPanelOrderId = order.id;
+    this.setFocusedPlanningOrder(order);
     this.focusPlannerEvent(booking.entryId);
   }
 
   openBookingFromSearch(order: any, booking: JobBooking): void {
     this.selectedPanelOrderId = order.id;
+    this.setFocusedPlanningOrder(order);
     this.focusPlannerEvent(booking.entryId, { openDetails: true });
   }
 
@@ -2488,6 +2516,24 @@ export class ServicePlannerComponent implements OnInit {
     return this.selectedPanelOrderId || this.activeOrderId || this.jobTiles[0]?.workOrder.id || null;
   }
 
+  private setFocusedPlanningOrder(order: any | null | undefined): void {
+    this.focusedPlanningOrderId = order?.id ?? '';
+  }
+
+  private getFocusedPlanningOrder(): any | null {
+    const focusedOrderId = this.plannerMode === 'order'
+      ? this.activeOrderId
+      : this.focusedPlanningOrderId;
+    if (!focusedOrderId) return null;
+    return this.allOrders.find(candidate => candidate.id === focusedOrderId || candidate.referenceNumber === focusedOrderId) ?? null;
+  }
+
+  private isEventForOrder(event: SchedulerEvent, order: any): boolean {
+    return event.meta?.entry?.workOrderReference === order.referenceNumber
+      || (event.meta as any)?.order?.id === order.id
+      || (event.meta as any)?.order?.referenceNumber === order.referenceNumber;
+  }
+
   private alignViewWindowToOrder(order: any | undefined): void {
     const selection = order ? this.quickViewSelection.getSelection(order.id) : null;
     const anchor = selection?.checkinStart ?? order?.appointmentStart;
@@ -2510,7 +2556,7 @@ export class ServicePlannerComponent implements OnInit {
     const order = this.allOrders.find(candidate => candidate.id === activeOrderId || candidate.referenceNumber === activeOrderId);
     if (!order) return;
     const selection = this.quickViewSelection.getSelection(order.id);
-    if (!selection) return;
+    if (!selection?.checkinStart || !selection.handoverEnd) return;
     this.alignViewWindowToOrder(order);
     this.syncOrderAppointment(order.id, selection.checkinStart, selection.handoverEnd);
     this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
@@ -3207,6 +3253,30 @@ export class ServicePlannerComponent implements OnInit {
     return this.allOrders.find(order => order.jobs?.some((job: any) => job.id === jobId)) ?? null;
   }
 
+  private getContextEventOrder(): any | null {
+    const event = this.eventContextMenu
+      ? this.events.find(candidate => candidate.id === this.eventContextMenu?.eventId)
+      : undefined;
+    return event ? this.findOrderForEvent(event) : null;
+  }
+
+  private copyTextToClipboard(text: string): void {
+    if (navigator?.clipboard?.writeText) {
+      void navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+  }
+
   private getOrderIdForJob(jobId: string): string | undefined {
     return this.allOrders.find(order => order.jobs?.some((job: any) => job.id === jobId))?.id;
   }
@@ -3517,12 +3587,28 @@ export class ServicePlannerComponent implements OnInit {
     this.quickViewSelection.setSelection({
       orderId,
       checkinStart: new Date(checkinStart),
+      handoverStart: this.getDefaultHandoverStart(handoverEnd),
       handoverEnd: new Date(handoverEnd),
+      checkinFilters: [this.getQuickViewSlotFilter(checkinStart)],
+      handoverFilters: [this.getQuickViewSlotFilter(this.getDefaultHandoverStart(handoverEnd))],
     });
     this.appointmentSync.updateAppointment(orderId, checkinStart, handoverEnd).subscribe(savedOrder => {
       if (!savedOrder) return;
       this.allOrders = this.allOrders.map(order => order.id === savedOrder.id ? savedOrder : order);
     });
+  }
+
+  private getDefaultHandoverStart(handoverEnd: Date): Date {
+    const start = new Date(handoverEnd);
+    start.setMinutes(start.getMinutes() - 30);
+    return start;
+  }
+
+  private getQuickViewSlotFilter(date: Date): 'morning' | 'afternoon' | 'evening' {
+    const hour = date.getHours();
+    if (hour >= 12 && hour < 16) return 'afternoon';
+    if (hour >= 16) return 'evening';
+    return 'morning';
   }
 }
 

@@ -340,7 +340,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
     ['wo-bg-1008', '014826507', 'Adler Transport', 'M-BG 507', 'Noise From Rear Axle', 'Road Test', 'mech-greg-jackson'],
     ['wo-bg-1009', '014826508', 'Stein & Partner', 'M-BG 508', 'Navigation System Update', 'Connectivity Check', 'mech-jeff-goldberg'],
     ['wo-bg-1010', '014826509', 'Wolf Leasing', 'M-BG 509', 'Seat Heating Diagnosis', 'Interior Trim Repair', 'mech-kelly-hanson'],
-  ].map(([id, referenceNumber, customerName, licensePlate, firstJob, secondJob, resourceId]) => ({
+  ].map(([id, referenceNumber, customerName, licensePlate, firstJob, secondJob]) => ({
     id,
     referenceNumber,
     status: 'preparation' as const,
@@ -370,8 +370,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         requiredResourceType: 'mechanic' as const,
         requiredQualifications: [QUALIFICATIONS.generalService],
         resourceRequirements: backgroundJobRequirementsByOrder[referenceNumber][0],
-        status: 'scheduled' as const,
-        assignedResourceId: resourceId,
+        status: 'unscheduled' as const,
       },
       {
         id: `job-${id}-2`,
@@ -383,33 +382,15 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         requiredResourceType: 'mechanic' as const,
         requiredQualifications: [QUALIFICATIONS.generalService],
         resourceRequirements: backgroundJobRequirementsByOrder[referenceNumber][1],
-        status: 'scheduled' as const,
-        assignedResourceId: resourceId,
+        status: 'unscheduled' as const,
       },
     ],
     createdAt: baseDate,
     updatedAt: baseDate,
-  })).map(order => order.referenceNumber === '014826500'
-    ? {
-        ...order,
-        jobs: order.jobs.map(job => {
-          const { assignedResourceId, ...unscheduledJob } = job;
-          return {
-            ...unscheduledJob,
-            status: 'unscheduled' as const,
-          };
-        }),
-      }
-    : order),
+  })),
 ];
 
 export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
-  { id: 'sch-bg-1001-frank-checkin', jobId: 'wo-bg-1001:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T09:00:00'), end: new Date('2024-04-15T09:30:00'), title: 'Check-In 014826500', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-mark-1', jobId: 'job-wo-bg-1001-1', resourceId: 'mech-mark-owen', start: new Date('2024-04-15T09:30:00'), end: new Date('2024-04-15T10:15:00'), title: 'Oil Leak Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-bay-1', jobId: 'job-wo-bg-1001-1', resourceId: 'bay-pc-1', start: new Date('2024-04-15T09:30:00'), end: new Date('2024-04-15T10:15:00'), title: 'Oil Leak Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-mark-2', jobId: 'job-wo-bg-1001-2', resourceId: 'mech-mark-owen', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T10:45:00'), title: 'Engine Bay Inspection', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-bay-2', jobId: 'job-wo-bg-1001-2', resourceId: 'bay-pc-1', start: new Date('2024-04-15T10:15:00'), end: new Date('2024-04-15T10:45:00'), title: 'Engine Bay Inspection', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
-  { id: 'sch-bg-1001-frank-handover', jobId: 'wo-bg-1001:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T10:45:00'), end: new Date('2024-04-15T11:15:00'), title: 'Handover 014826500', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826500' },
   { id: 'sch-bg-1002-phil-1', jobId: 'job-wo-bg-1002-1', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T11:15:00'), end: new Date('2024-04-15T11:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
   { id: 'sch-bg-1002-bay-1', jobId: 'job-wo-bg-1002-1', resourceId: 'bay-pc-2', start: new Date('2024-04-15T11:15:00'), end: new Date('2024-04-15T11:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
   { id: 'sch-bg-1002-phil-2', jobId: 'job-wo-bg-1002-2', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T11:45:00'), end: new Date('2024-04-15T12:00:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
@@ -532,10 +513,18 @@ MOCK_WORK_ORDERS.forEach(order => {
 const workOrderByReference = new Map(MOCK_WORK_ORDERS.map(order => [order.referenceNumber, order]));
 const workOrderByJobId = new Map(MOCK_WORK_ORDERS.flatMap(order => order.jobs.map(job => [job.id, order])));
 const jobStatusById = new Map<string, 'unscheduled' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled'>();
+const jobResourceById = new Map<string, string>();
+const resourceById = new Map(MOCK_RESOURCES.map(resource => [resource.id, resource]));
 
 MOCK_SCHEDULE_ENTRIES
   .filter(entry => !entry.jobId.includes(':act-'))
   .forEach(entry => {
+    const order = workOrderByJobId.get(entry.jobId);
+    const job = order?.jobs.find(candidate => candidate.id === entry.jobId);
+    const resource = resourceById.get(entry.resourceId);
+    if (job && resource?.type === job.requiredResourceType) {
+      jobResourceById.set(entry.jobId, entry.resourceId);
+    }
     const currentStatus = jobStatusById.get(entry.jobId);
     const timedStatus = getTimedExecutionStatus(entry.start, entry.end);
     if (currentStatus === 'in-progress' || timedStatus === 'in-progress') {
@@ -552,6 +541,7 @@ MOCK_WORK_ORDERS.forEach(order => {
     const status = jobStatusById.get(job.id) ?? job.status;
     job.status = status;
     job.workorderItemStatus = status;
+    job.assignedResourceId = jobResourceById.get(job.id) ?? job.assignedResourceId;
   });
 
   const statuses = order.jobs.map(job => job.workorderItemStatus ?? job.status);

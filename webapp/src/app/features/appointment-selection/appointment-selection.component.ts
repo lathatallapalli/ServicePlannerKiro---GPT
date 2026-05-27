@@ -15,6 +15,8 @@ import { QuickViewSelectionService } from '../quick-view/quick-view-selection.se
 })
 export class AppointmentSelectionComponent implements OnInit {
   protected workOrder: WorkOrder | null = null;
+  protected handoverStart: Date | undefined;
+  protected showQuickViewDraftWarning = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -29,12 +31,18 @@ export class AppointmentSelectionComponent implements OnInit {
     this.workOrderRepo.getAll().subscribe(orders => {
       this.workOrder = orders.find(order => order.id === orderId || order.referenceNumber === orderId) ?? null;
       const selection = this.workOrder ? this.quickViewSelection.getSelection(this.workOrder.id) : null;
+      this.showQuickViewDraftWarning = !!selection?.checkinStart && !selection?.handoverEnd;
       if (this.workOrder && selection) {
         this.workOrder = {
           ...this.workOrder,
-          appointmentStart: new Date(selection.checkinStart),
-          appointmentEnd: new Date(selection.handoverEnd),
+          appointmentStart: selection.checkinStart ? new Date(selection.checkinStart) : this.workOrder.appointmentStart,
+          appointmentEnd: selection.handoverEnd ? new Date(selection.handoverEnd) : this.workOrder.appointmentEnd,
         };
+        this.handoverStart = selection.handoverStart
+          ? new Date(selection.handoverStart)
+          : this.getHandoverStart(this.workOrder.appointmentEnd);
+      } else {
+        this.handoverStart = this.getHandoverStart(this.workOrder?.appointmentEnd);
       }
     });
   }
@@ -72,5 +80,12 @@ export class AppointmentSelectionComponent implements OnInit {
 
   private getJobHours(job: WorkOrder['jobs'][number]): number {
     return Number(job.fru ?? (job as any).durationFru ?? Math.max(0.25, job.estimatedDurationMinutes / 60));
+  }
+
+  private getHandoverStart(handoverEnd?: Date): Date | undefined {
+    if (!handoverEnd) return undefined;
+    const start = new Date(handoverEnd);
+    start.setMinutes(start.getMinutes() - 30);
+    return start;
   }
 }
