@@ -615,11 +615,29 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, OnDestroy, A
     if (!this.bodyScrollRef) return;
 
     const target = this.createCurrentTimeIndicatorDate();
-    if (target < this.viewStart || target > this.viewEnd) return;
+    this.resetViewToTodayRange(target);
 
     this.showCurrentTimeIndicator = true;
     this.currentTimeIndicatorDate = target;
     this.startCurrentTimeIndicatorTimer();
+
+    queueMicrotask(() => this.scrollTimelineToDate(target));
+  }
+
+  private resetViewToTodayRange(target: Date): void {
+    const start = new Date(target);
+    start.setHours(9, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 4);
+    end.setHours(21, 0, 0, 0);
+    this.viewStart = start;
+    this.viewEnd = end;
+    this.selectedMonth = start.getMonth();
+    this.buildTimeSlots();
+  }
+
+  private scrollTimelineToDate(target: Date): void {
+    if (!this.bodyScrollRef) return;
 
     const body = this.bodyScrollRef.nativeElement;
     const maxLeft = Math.max(0, body.scrollWidth - body.clientWidth);
