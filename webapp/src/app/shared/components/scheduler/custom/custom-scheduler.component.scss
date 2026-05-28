@@ -201,6 +201,7 @@ $month-bar-height: 60px;
     box-sizing: border-box;
     background: rgba(76,104,177,.06);
     border-left: 3px solid #4C68B1;
+    border-right: 3px solid #4C68B1;
     pointer-events: none;
     z-index: 1;
   }
@@ -494,8 +495,8 @@ $month-bar-height: 60px;
   }
 
   &__event--compact {
-    background: #E9ECF5;
-    border-left: 0;
+    background: rgba(76,104,177,.08);
+    border: 1px solid rgba(76,104,177,.16);
     box-shadow: none;
   }
 

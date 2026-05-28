@@ -71,6 +71,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public unavailability: UnavailabilityBlock[] = [];
   @Input() public viewStart: Date = new Date();
   @Input() public viewEnd: Date = new Date();
+  @Input() public currentTime: Date | null = null;
   @Input() public slotDurationMinutes = 60;
   @Input() public dropSnapMinutes = 30;
   @Input() public readonly = false;
@@ -181,6 +182,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private nativeDropHandled = false;
   private timeRangeSelection: { anchor: Date; current: Date } | null = null;
   private timeRangeMove: { durationMinutes: number; pointerOffsetMinutes: number } | null = null;
+  private timeRangeResize: { edge: 'left' | 'right'; fixedTimelineMinutes: number } | null = null;
   private activePulseEventId: string | null = null;
   private pendingPulseEventId: string | null = null;
   private pulseTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -936,6 +938,26 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return Math.max(2, this.getLeftFromDate(range.end) - this.getLeftFromDate(range.start));
   }
 
+  shouldShowCurrentTimeMarker(): boolean {
+    return !!this.currentTime && this.currentTime >= this.viewStart && this.currentTime <= this.viewEnd;
+  }
+
+  getCurrentTimeLeft(): number {
+    return this.currentTime ? this.getLeftFromDate(this.currentTime) : 0;
+  }
+
+  getCurrentTimeLabel(): string {
+    return this.currentTime ? this.formatSlot(this.currentTime) : '';
+  }
+
+  scrollToCurrentTime(): void {
+    if (!this.currentTime || !this.bodyScrollRef) return;
+    const body = this.bodyScrollRef.nativeElement;
+    const left = Math.max(0, this.getCurrentTimeLeft() - body.clientWidth / 2);
+    body.scrollTo({ left, top: body.scrollTop, behavior: 'smooth' });
+    this.syncHeaderScroll();
+  }
+
   onTimeRangePointerDown(event: PointerEvent): void {
     if (event.button !== 0 || this.readonly) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
@@ -969,6 +991,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     };
     window.addEventListener('pointermove', this.onBookingWindowMovePointerMove);
     window.addEventListener('pointerup', this.onBookingWindowMovePointerUp, { once: true });
+  }
+
+  onBookingWindowResizePointerDown(event: PointerEvent, edge: 'left' | 'right'): void {
+    if (!this.selectedTimeRange || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const fixedDate = edge === 'left' ? this.selectedTimeRange.end : this.selectedTimeRange.start;
+    this.timeRangeResize = { edge, fixedTimelineMinutes: this.getTimelineMinutes(fixedDate) };
+    window.addEventListener('pointermove', this.onBookingWindowResizePointerMove);
+    window.addEventListener('pointerup', this.onBookingWindowResizePointerUp, { once: true });
   }
 
   getResourcesForGroup(groupId: string): SchedulerResource[] {
@@ -1181,6 +1213,32 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private onBookingWindowMovePointerUp = (): void => {
     window.removeEventListener('pointermove', this.onBookingWindowMovePointerMove);
     this.timeRangeMove = null;
+    this.cdr.detectChanges();
+  };
+
+  private onBookingWindowResizePointerMove = (event: PointerEvent): void => {
+    if (!this.timeRangeResize) return;
+    const pointerDate = this.getDateFromTimelinePointer(event);
+    if (!pointerDate) return;
+    const snap = this.effectiveDropSnapMinutes;
+    const pointerTimelineMinutes = Math.round(this.getTimelineMinutes(pointerDate) / snap) * snap;
+    const minMinutes = snap;
+    const startTimelineMinutes = this.timeRangeResize.edge === 'left'
+      ? Math.min(pointerTimelineMinutes, this.timeRangeResize.fixedTimelineMinutes - minMinutes)
+      : this.timeRangeResize.fixedTimelineMinutes;
+    const endTimelineMinutes = this.timeRangeResize.edge === 'right'
+      ? Math.max(pointerTimelineMinutes, this.timeRangeResize.fixedTimelineMinutes + minMinutes)
+      : this.timeRangeResize.fixedTimelineMinutes;
+    this.timeRangeSelected.emit({
+      start: this.getDateFromTimelineMinutes(startTimelineMinutes),
+      end: this.getDateFromTimelineMinutes(endTimelineMinutes),
+    });
+    this.cdr.detectChanges();
+  };
+
+  private onBookingWindowResizePointerUp = (): void => {
+    window.removeEventListener('pointermove', this.onBookingWindowResizePointerMove);
+    this.timeRangeResize = null;
     this.cdr.detectChanges();
   };
 

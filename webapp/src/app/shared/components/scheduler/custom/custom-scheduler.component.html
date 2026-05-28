@@ -4,7 +4,7 @@
   <div class="scheduler__month-bar">
     <div class="scheduler__corner" [style.width.px]="RESOURCE_COL_WIDTH">
       <div style="align-self:stretch;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;text-transform:none">
-        <span style="align-self:stretch;color:var(--Text-text-secondary,#525252);font-size:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:16px;letter-spacing:.32px;padding-bottom: 4px;">Resource views</span>
+        <span style="align-self:stretch;color:var(--Text-text-secondary,#525252);font-size:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:16px;letter-spacing:.32px;padding-bottom: 4px;">Resource groups</span>
         <div [style.outline]="isResourceViewDropdownOpen ? '2px solid var(--Focus-focus,#4C68B1)' : 'none'" style="align-self:stretch;min-width:0;height:34px;background:var(--Field-field-01,#F4F4F4);position:relative;text-transform:none;display:flex;flex-direction:column;align-items:stretch">
         <button type="button" (click)="toggleResourceViewDropdown()" aria-label="Resource Views" style="height:34px;border:0;background:transparent;padding:8px 16px;display:inline-flex;align-items:center;gap:8px;text-align:left;cursor:pointer">
           <span style="flex:1 1 0;min-width:0;height:18px;color:var(--Text-text-primary,#161616);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ selectedResourceViewLabel }}</span>
@@ -64,17 +64,17 @@
       }
     </div>
     <button class="scheduler__right-pane-btn" [class.scheduler__right-pane-btn--open]="rightPaneOpen" type="button" aria-label="Toggle right pane" (click)="rightPaneToggle.emit()">
-      @if (rightPaneOpen) {
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
-          <path d="M14 2H2C1.73478 2 1.48043 2.10536 1.29289 2.29289C1.10536 2.48043 1 2.73478 1 3V13C1 13.2652 1.10536 13.5196 1.29289 13.7071C1.48043 13.8946 1.73478 14 2 14H14C14.2652 14 14.5196 13.8946 14.7071 13.7071C14.8946 13.5196 15 13.2652 15 13V3C15 2.73478 14.8946 2.48043 14.7071 2.29289C14.5196 2.10536 14.2652 2 14 2ZM2 3H10V13H2V3Z" fill="var(--Icon-icon-interactive,#4C68B1)"/>
-        </svg>
-      } @else {
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
-          <path d="M14 2H2C1.73478 2 1.48043 2.10536 1.29289 2.29289C1.10536 2.48043 1 2.73478 1 3V13C1 13.2652 1.10536 13.5196 1.29289 13.7071C1.48043 13.8946 1.73478 14 2 14H14C14.2652 14 14.5196 13.8946 14.7071 13.7071C14.8946 13.5196 15 13.2652 15 13V3C15 2.73478 14.8946 2.48043 14.7071 2.29289C14.5196 2.10536 14.2652 2 14 2ZM2 3H10V13H2V3ZM14 13H11V3H14V13Z" fill="var(--Icon-icon-primary,#161616)"/>
-        </svg>
-      }
+        @if (rightPaneOpen) {
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+            <path d="M14 2H2C1.73478 2 1.48043 2.10536 1.29289 2.29289C1.10536 2.48043 1 2.73478 1 3V13C1 13.2652 1.10536 13.5196 1.29289 13.7071C1.48043 13.8946 1.73478 14 2 14H14C14.2652 14 14.5196 13.8946 14.7071 13.7071C14.8946 13.5196 15 13.2652 15 13V3C15 2.73478 14.8946 2.48043 14.7071 2.29289C14.5196 2.10536 14.2652 2 14 2ZM2 3H10V13H2V3Z" fill="var(--Icon-icon-interactive,#4C68B1)"/>
+          </svg>
+        } @else {
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+            <path d="M14 2H2C1.73478 2 1.48043 2.10536 1.29289 2.29289C1.10536 2.48043 1 2.73478 1 3V13C1 13.2652 1.10536 13.5196 1.29289 13.7071C1.48043 13.8946 1.73478 14 2 14H14C14.2652 14 14.5196 13.8946 14.7071 13.7071C14.8946 13.5196 15 13.2652 15 13V3C15 2.73478 14.8946 2.48043 14.7071 2.29289C14.5196 2.10536 14.2652 2 14 2ZM2 3H10V13H2V3ZM14 13H11V3H14V13Z" fill="var(--Icon-icon-primary,#161616)"/>
+          </svg>
+        }
     </button>
   </div>
 
@@ -123,20 +123,27 @@
         </div>
       </div>
     </div>
-    <div class="scheduler__header-scroll" #headerScroll (pointerdown)="onTimeRangePointerDown($event)">
+    <div class="scheduler__header-scroll" #headerScroll (pointerdown)="onTimeRangePointerDown($event)" style="margin-right:32px">
       <div [style.width.px]="totalWidth">
         <div class="scheduler__day-row" [style.height.px]="DATE_ROW_HEIGHT">
+          @if (shouldShowCurrentTimeMarker()) {
+            <div [style.left.px]="getCurrentTimeLeft()" style="position:absolute;top:4px;z-index:5;transform:translateX(-50%);padding:3px 8px;color:#4C68B1;background:#fff;border:1px solid #4C68B1;border-radius:999px;font-size:12px;line-height:16px;pointer-events:none">
+              <span>{{ getCurrentTimeLabel() }}</span>
+            </div>
+          }
           @if (getActiveTimeRange(); as range) {
             <div class="scheduler__booking-window-chip"
               [style.left.px]="getTimeRangeLeft(range)"
               [style.width.px]="getTimeRangeWidth(range)"
               (pointerdown)="onBookingWindowMovePointerDown($event)">
+              <span (pointerdown)="onBookingWindowResizePointerDown($event, 'left')" style="position:absolute;left:0;top:0;bottom:0;width:8px;cursor:ew-resize"></span>
               <span class="scheduler__booking-window-chip-label">Booking window: {{ formatTimeRange(range) }}</span>
               @if (selectedTimeRange) {
                 <button type="button" class="scheduler__booking-window-clear" aria-label="Clear booking window" (pointerdown)="$event.stopPropagation()" (click)="clearSelectedTimeRange($event)">
                   <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M12 4.7 11.3 4 8 7.3 4.7 4 4 4.7 7.3 8 4 11.3l.7.7L8 8.7l3.3 3.3.7-.7L8.7 8 12 4.7Z" fill="currentColor"/></svg>
                 </button>
               }
+              <span (pointerdown)="onBookingWindowResizePointerDown($event, 'right')" style="position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize"></span>
             </div>
           }
           @for (day of daySlots; track day.getTime()) {
@@ -162,6 +169,9 @@
         </div>
       </div>
     </div>
+    <button type="button" aria-label="Scroll to current time" (click)="scrollToCurrentTime()" [disabled]="!shouldShowCurrentTimeMarker()" style="position:absolute;right:0;top:0;width:32px;height:32px;border:0;background:#fff;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1A7 7 0 1 0 8 15 7 7 0 0 0 8 1Zm0 12.4A5.4 5.4 0 1 1 8 2.6a5.4 5.4 0 0 1 0 10.8ZM9 4H7.3v4.65l3.3 2 .8-1.38L9 7.82V4Z" fill="currentColor"/></svg>
+    </button>
   </div>
 
   <!-- Body -->
@@ -297,8 +307,8 @@
                 [style.bottom]="shouldShowEventDetails(event) ? 'auto' : null"
                 [style.height.px]="shouldShowEventDetails(event) ? getRenderedEventHeight(event) : null"
                 [style.padding]="shouldShowEventDetails(event) ? null : '0'"
-                [style.background]="shouldShowEventDetails(event) ? null : '#E9ECF5'"
-                [style.border-left]="shouldShowEventDetails(event) ? null : '0'"
+                [style.background]="shouldShowEventDetails(event) ? null : 'rgba(76,104,177,.08)'"
+                [style.border-left]="null"
                 [style.box-shadow]="shouldShowEventDetails(event) && !shouldReserveOrderRunSpace(event) ? null : 'none'"
                 (mouseenter)="showEventTooltip(event, $event)"
                 (mousemove)="moveEventTooltip(event, $event)"
@@ -397,9 +407,9 @@
                 [style.height.px]="getPreviewHeight()"
                 [style.bottom]="'auto'"
                 [style.padding]="shouldShowEventDetails(previewEvent) ? null : '0'"
-                [style.background]="isResizePreviewInvalid() ? 'rgba(218,30,40,.14)' : shouldShowEventDetails(previewEvent) ? null : '#E9ECF5'"
-                [style.border]="isResizePreviewInvalid() ? '2px solid #DA1E28' : null"
-                [style.border-left]="isResizePreviewInvalid() ? '2px solid #DA1E28' : shouldShowEventDetails(previewEvent) ? null : '0'"
+                [style.background]="isResizePreviewInvalid() ? 'rgba(218,30,40,.14)' : shouldShowEventDetails(previewEvent) ? null : 'rgba(76,104,177,.08)'"
+                [style.border]="isResizePreviewInvalid() ? '2px solid #4C68B1' : null"
+                [style.border-left]="isResizePreviewInvalid() ? '2px solid #4C68B1' : shouldShowEventDetails(previewEvent) ? null : '0'"
                 [style.box-shadow]="isResizePreviewInvalid() ? '0 0 0 1px white inset, 0 0 0 2px rgba(218,30,40,.16)' : shouldShowEventDetails(previewEvent) ? null : 'none'"
                 [style.pointer-events]="'none'"
                 [style.z-index]="20">
@@ -656,9 +666,9 @@
               [style.height.px]="getPreviewHeight()"
               [style.bottom]="'auto'"
               [style.padding]="shouldShowEventDetails(previewEvent) ? null : '0'"
-              [style.background]="isResizePreviewInvalid() ? 'rgba(218,30,40,.14)' : shouldShowEventDetails(previewEvent) ? null : '#E9ECF5'"
-              [style.border]="isResizePreviewInvalid() ? '2px solid #DA1E28' : null"
-              [style.border-left]="isResizePreviewInvalid() ? '2px solid #DA1E28' : shouldShowEventDetails(previewEvent) ? null : '0'"
+              [style.background]="isResizePreviewInvalid() ? 'rgba(218,30,40,.14)' : shouldShowEventDetails(previewEvent) ? null : 'rgba(76,104,177,.08)'"
+              [style.border]="isResizePreviewInvalid() ? '2px solid #4C68B1' : null"
+              [style.border-left]="isResizePreviewInvalid() ? '2px solid #4C68B1' : shouldShowEventDetails(previewEvent) ? null : '0'"
               [style.box-shadow]="isResizePreviewInvalid() ? '0 0 0 1px white inset, 0 0 0 2px rgba(218,30,40,.16)' : shouldShowEventDetails(previewEvent) ? null : 'none'"
               [style.pointer-events]="'none'"
               [style.z-index]="20">
@@ -716,10 +726,14 @@
         [style.top.px]="getDropPreviewTop()"
         [style.width.px]="getDropPreviewWidth()"
         [style.height.px]="rowHeight"
-        [style.border]="isDropPreviewInvalid() ? '3px solid #DA1E28' : '3px solid #4C68B1'"
+        [style.border]="isDropPreviewInvalid() ? '3px solid #4C68B1' : '3px solid #4C68B1'"
         [style.background]="isDropPreviewInvalid() ? 'rgba(218,30,40,.18)' : 'rgba(76,104,177,.26)'"
         [style.box-shadow]="isDropPreviewInvalid() ? '0 0 0 1px white inset, 0 0 0 2px rgba(218,30,40,.18)' : '0 0 0 1px white inset'"
         style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:30"></div>
+    }
+
+    @if (shouldShowCurrentTimeMarker()) {
+      <div [style.left.px]="RESOURCE_COL_WIDTH + getCurrentTimeLeft()" style="position:absolute;top:0;bottom:0;width:3px;background:#4C68B1;pointer-events:none;z-index:28"></div>
     }
 
     @if (hoverTooltip && !isResizePreviewInvalid()) {

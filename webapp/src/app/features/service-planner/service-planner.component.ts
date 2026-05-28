@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit, computed, effect } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -118,7 +118,7 @@ interface ManualPlanValidationResult {
   templateUrl: './service-planner.component.html',
   styleUrl: './service-planner.component.scss',
 })
-export class ServicePlannerComponent implements OnInit {
+export class ServicePlannerComponent implements OnInit, OnDestroy {
   private readonly loggedInAdvisorResourceId = 'advisor-ted-phillips';
   private readonly personalCalendarGroup: SchedulerGroup = { id: 'group-personal-calendar', label: 'Calendar' };
 
@@ -162,6 +162,7 @@ export class ServicePlannerComponent implements OnInit {
   collapsedOrderGroups = new Set<'planned' | 'pending'>();
   selectedPanelOrderId = '';
   focusedPlanningOrderId = '';
+  fullPlannerOrderOnlyId = '';
   public schedulingError: string | null = null;
   public schedulingErrorTitle = 'Unable to book first availability';
   showBookingDetails = true;
@@ -180,9 +181,14 @@ export class ServicePlannerComponent implements OnInit {
   manualResizeResourceId: string | null = null;
   unavailability: UnavailabilityBlock[] = MOCK_UNAVAILABILITY;
 
-  private readonly mockCurrentTime = new Date('2024-04-15T09:00:00');
+  private currentPlannerTime = new Date('2024-04-15T09:15:00');
+  private currentPlannerTimeTimer: ReturnType<typeof setInterval> | null = null;
   viewStart = new Date('2024-04-15T09:00:00');
   viewEnd   = new Date('2024-04-19T21:00:00');
+
+  get plannerCurrentTime(): Date {
+    return this.currentPlannerTime;
+  }
 
   get slotDurationMinutes(): number {
     return this.plannerSettings.slotDurationMinutes();
@@ -242,8 +248,26 @@ export class ServicePlannerComponent implements OnInit {
     return this.visibleResourcePool;
   }
 
+  private getFullPlannerVisibleResources(): SchedulerResource[] {
+    const order = this.getFullPlannerOrderOnly();
+    if (!order) return this.fullPlannerResources;
+    const resourceIds = new Set(
+      this.events
+        .filter(event => this.isEventForOrder(event, order))
+        .map(event => event.resourceId)
+    );
+    return resourceIds.size
+      ? this.fullPlannerResources.filter(resource => resourceIds.has(resource.id))
+      : this.fullPlannerResources;
+  }
+
+  private getFullPlannerOrderOnly(): any | null {
+    if (this.plannerMode !== 'full' || !this.fullPlannerOrderOnlyId) return null;
+    return this.allOrders.find(order => order.id === this.fullPlannerOrderOnlyId || order.referenceNumber === this.fullPlannerOrderOnlyId) ?? null;
+  }
+
   get visibleSchedulerResources(): SchedulerResource[] {
-    const resources = this.plannerMode === 'full' ? this.fullPlannerResources : this.filteredResources;
+    const resources = this.plannerMode === 'full' ? this.getFullPlannerVisibleResources() : this.filteredResources;
     if (!this.viewPersonalCalendarOnTop) return resources;
 
     return resources.map(resource =>
@@ -268,7 +292,8 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   get visibleSchedulerEvents(): SchedulerEvent[] {
-    return this.events;
+    const order = this.getFullPlannerOrderOnly();
+    return order ? this.events.filter(event => this.isEventForOrder(event, order)) : this.events;
   }
 
   get visibleSchedulerUnavailability(): UnavailabilityBlock[] {
@@ -445,6 +470,7 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.startPlannerClock();
     this.plannerMode = this.route.snapshot.paramMap.has('orderId') ? 'order' : 'full';
     this.activeOrderId = this.route.snapshot.paramMap.get('orderId') ?? null;
     this.showBookingDetails = this.plannerMode === 'full';
@@ -731,6 +757,18 @@ export class ServicePlannerComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    if (this.currentPlannerTimeTimer) clearInterval(this.currentPlannerTimeTimer);
+  }
+
+  private startPlannerClock(): void {
+    this.currentPlannerTime = new Date('2024-04-15T09:15:00');
+    if (this.currentPlannerTimeTimer) clearInterval(this.currentPlannerTimeTimer);
+    this.currentPlannerTimeTimer = setInterval(() => {
+      this.currentPlannerTime = new Date(this.currentPlannerTime.getTime() + 60000);
+    }, 60000);
+  }
+
   private getDefaultResourceTypeGroupIds(): string[] {
     const groupIds = this.groups.map(group => group.id);
     return this.viewPersonalCalendarOnTop
@@ -859,6 +897,17 @@ export class ServicePlannerComponent implements OnInit {
 
   toggleBookingDetails(): void {
     this.showBookingDetails = !this.showBookingDetails;
+  }
+
+  viewOnlyOrderOnPlanner(order: any, event?: Event): void {
+    event?.stopPropagation();
+    this.fullPlannerOrderOnlyId = this.fullPlannerOrderOnlyId === order.id ? '' : order.id;
+    this.selectedPanelOrderId = order.id;
+    this.setFocusedPlanningOrder(order);
+  }
+
+  isFullPlannerOrderOnly(order: any): boolean {
+    return this.fullPlannerOrderOnlyId === order.id;
   }
 
   onBookingDetailsToggle(checked: boolean): void {
@@ -2564,8 +2613,6 @@ export class ServicePlannerComponent implements OnInit {
     this.isAutoProposalVisible = true;
 
     // Apply job entries
-    const shouldScrollToFirstEntry = options.scrollToFirstEntry ?? true;
-    const scrollTargetEntryId = shouldScrollToFirstEntry ? result.entries[0]?.id : undefined;
     result.entries.forEach(entry => {
       const persistedEntry = {
         ...entry,
@@ -2596,9 +2643,6 @@ export class ServicePlannerComponent implements OnInit {
         }];
         this.upsertScheduleEntry(assigned);
         this.latestAutoBookingEntryIds.add(assigned.id);
-        if (assigned.id === scrollTargetEntryId) {
-          this.focusPlannerEvent(assigned.id);
-        }
       });
     });
 
@@ -2693,7 +2737,7 @@ export class ServicePlannerComponent implements OnInit {
   }
 
   private getBookableSearchStart(candidate: Date): Date {
-    return candidate < this.mockCurrentTime ? new Date(this.mockCurrentTime) : new Date(candidate);
+    return candidate < this.currentPlannerTime ? new Date(this.currentPlannerTime) : new Date(candidate);
   }
 
   private isEventForActiveWorkOrder(event: SchedulerEvent): boolean {
