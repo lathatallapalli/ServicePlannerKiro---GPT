@@ -81,7 +81,7 @@
   <!-- Sticky header -->
   <div class="scheduler__header-row">
     <div class="scheduler__resource-header" [style.width.px]="RESOURCE_COL_WIDTH">
-      <div style="width:100%;display:flex;flex-direction:column;justify-content:center;gap:8px;text-transform:none">
+      <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-start;gap:8px;text-transform:none">
         <div style="align-self:stretch;min-width:0;height:32px;background:var(--Field-field-01,#F4F4F4);position:relative;text-transform:none;display:flex;flex-direction:column;align-items:stretch">
           <button type="button" (click)="toggleGroupDropdown()" aria-label="Resource type" style="height:32px;border:0;background:transparent;padding:7px 16px;display:inline-flex;align-items:center;gap:8px;text-align:left;cursor:pointer">
               @if (selectedGroupIds.length === groups.length) {

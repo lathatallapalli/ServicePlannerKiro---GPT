@@ -99,13 +99,13 @@ $month-bar-height: 60px;
     position: sticky;
     left: 0;
     z-index: 4;
-    min-height: 48px;
-    padding: 0 16px;
+    min-height: 56px;
+    padding: 6px 18px;
     border-bottom: 1px solid var(--Border-border-subtle-01, #C6C6C6);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 12px;
     background: #fff;
     color: var(--Text-text-primary, #161616);
     font-family: 'IBM Plex Sans', Arial, sans-serif;
@@ -114,15 +114,16 @@ $month-bar-height: 60px;
   }
 
   &__navigation-button {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border: 0;
-    padding: 6px;
+    padding: 8px;
     display: grid;
     place-items: center;
     background: transparent;
     color: var(--Icon-icon-primary, #161616);
     cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
 
     &:hover {
       background: var(--Layer-layer-hover-01, #E8E8E8);
@@ -138,21 +139,26 @@ $month-bar-height: 60px;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    gap: 1px;
+    padding: 2px 8px;
+    text-align: center;
   }
 
   &__navigation-meta {
     color: var(--Text-text-secondary, #525252);
-    font-size: 12px;
+    font-size: 11px;
     line-height: 16px;
-    letter-spacing: .32px;
+    letter-spacing: .48px;
+    text-transform: uppercase;
   }
 
   &__navigation-title {
     color: var(--Text-text-primary, #161616);
-    font-size: 14px;
-    line-height: 18px;
-    letter-spacing: .16px;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 20px;
+    letter-spacing: 0;
   }
 
   &__day-row {
@@ -184,7 +190,7 @@ $month-bar-height: 60px;
     left: 16px;
     z-index: 2;
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
     gap: 6px;
     background: #fff;
   }
@@ -196,11 +202,13 @@ $month-bar-height: 60px;
   &__day-num {
     font-size: 16px;
     font-weight: 600;
+    line-height: 20px;
     color: #161616;
   }
 
   &__day-name {
     font-size: 14px;
+    line-height: 18px;
   }
 
 
