@@ -8,6 +8,8 @@ import { GenericListColumn, GenericListComponent, GenericListRowAction, GenericL
 interface OfferTransactionRow extends Record<string, unknown> {
   id: string;
   workOrderId: string;
+  orderNumber: string;
+  customerName: string;
   transactionType: string;
   stage: string;
   status: string;
@@ -36,12 +38,18 @@ export class TransactionsOfferComponent {
   }
 
   protected get pageTitle(): string {
-    return this.isActiveList ? 'Active Transactions List' : 'Transactions - Offer';
+    return this.isActiveList ? 'Active Transactions' : 'Transactions - Offer';
+  }
+
+  protected get initialSearchTerm(): string {
+    return this.isActiveList ? (this.route.snapshot.queryParamMap.get('q') ?? '') : '';
   }
 
   protected selectedRows: OfferTransactionRow[] = [];
 
   protected readonly columns: GenericListColumn<OfferTransactionRow>[] = [
+    { key: 'orderNumber', label: 'Order Number', minWidth: '144px', sortable: true },
+    { key: 'customerName', label: 'Customer', minWidth: '172px', sortable: true },
     { key: 'transactionType', label: 'Transaction Type', minWidth: '176px', sortable: true },
     { key: 'stage', label: 'Stage', minWidth: '96px', sortable: true },
     { key: 'status', label: 'Status', minWidth: '112px', sortable: true },
@@ -79,6 +87,8 @@ export class TransactionsOfferComponent {
         return {
           id: transaction.id,
           workOrderId: transaction.workOrderId,
+          orderNumber: order.referenceNumber,
+          customerName: order.customer.name,
           transactionType: transaction.transactionType,
           stage: transaction.stage,
           status: transaction.status,
@@ -99,6 +109,11 @@ export class TransactionsOfferComponent {
       this.router.navigate(['/service-planner'], {
         state: { selectedOrderIds: this.selectedRows.map(row => row.workOrderId) },
       });
+      return;
+    }
+
+    if (action.id === 'clear-filter') {
+      this.router.navigate([], { relativeTo: this.route, queryParams: {} });
       return;
     }
 
@@ -134,3 +149,5 @@ export class TransactionsOfferComponent {
       : 'Not scheduled';
   }
 }
+
+

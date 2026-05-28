@@ -733,7 +733,7 @@
     }
 
     @if (shouldShowCurrentTimeMarker()) {
-      <div [style.left.px]="RESOURCE_COL_WIDTH + getCurrentTimeLeft()" style="position:absolute;top:0;bottom:0;width:3px;background:#4C68B1;pointer-events:none;z-index:28"></div>
+      <div [style.left.px]="RESOURCE_COL_WIDTH + getCurrentTimeLeft()" [style.height.px]="totalBodyHeight" style="position:absolute;top:0;width:2px;background:#4C68B1;pointer-events:none;z-index:28"></div>
     }
 
     @if (hoverTooltip && !isResizePreviewInvalid()) {
@@ -812,6 +812,8 @@
 
   </div>
 </div>
+
+
 
 
 

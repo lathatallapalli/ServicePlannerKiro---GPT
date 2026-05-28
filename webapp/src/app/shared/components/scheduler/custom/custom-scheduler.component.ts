@@ -141,6 +141,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return this.daySlots.length * 12 * this.HOUR_WIDTH;
   }
 
+  get totalBodyHeight(): number {
+    return this.visibleGroups.reduce((height, group) => height + this.GROUP_ROW_HEIGHT + this.getExpandedResourcesForGroup(group.id).length * this.rowHeight, 0);
+  }
+
   months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   selectedMonth = this.viewStart.getMonth();
   resourceSearch = '';
@@ -463,9 +467,49 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   getRenderedEventWidth(event: SchedulerEvent): number {
     const eventId = this.getSourceEventId(event);
     if (this.resizePreview?.event.id === eventId) return this.resizePreview.width;
+    if (!this.shouldShowEventDetails(event)) return this.getCompactAvailabilityBlockWidth(event);
     return this.getEventWidth(event);
   }
 
+  private getCompactAvailabilityBlockWidth(event: SchedulerEvent): number {
+    return this.getEventWidth({ ...event, end: this.getCompactAvailabilityBlockEnd(event) });
+  }
+
+  private getCompactAvailabilityBlockEnd(event: SchedulerEvent): Date {
+    let end = event.end;
+    let next = this.getNextCompactContiguousEvent(event);
+    while (next) {
+      end = next.end;
+      next = this.getNextCompactContiguousEvent(next);
+    }
+    return end;
+  }
+
+  private hasCompactContiguousPreviousEvent(event: SchedulerEvent): boolean {
+    return !!this.getPreviousCompactContiguousEvent(event);
+  }
+
+  private getPreviousCompactContiguousEvent(event: SchedulerEvent): SchedulerEvent | undefined {
+    const orderKey = this.getEventOrderKey(event);
+    if (!orderKey || this.shouldShowEventDetails(event)) return undefined;
+    return this.getRenderedEventsForResource(event.resourceId).find(candidate =>
+      this.getSourceEventId(candidate) !== this.getSourceEventId(event) &&
+      !this.shouldShowEventDetails(candidate) &&
+      this.getEventOrderKey(candidate) === orderKey &&
+      candidate.end.getTime() === event.start.getTime()
+    );
+  }
+
+  private getNextCompactContiguousEvent(event: SchedulerEvent): SchedulerEvent | undefined {
+    const orderKey = this.getEventOrderKey(event);
+    if (!orderKey || this.shouldShowEventDetails(event)) return undefined;
+    return this.getRenderedEventsForResource(event.resourceId).find(candidate =>
+      this.getSourceEventId(candidate) !== this.getSourceEventId(event) &&
+      !this.shouldShowEventDetails(candidate) &&
+      this.getEventOrderKey(candidate) === orderKey &&
+      candidate.start.getTime() === event.end.getTime()
+    );
+  }
   getRenderedEventTop(event: SchedulerEvent): number {
     return this.shouldReserveOrderRunSpace(event) ? ORDER_TILE_HEIGHT : 0;
   }
@@ -542,9 +586,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (this.resizePreview?.event.id === eventId) return false;
     if (this.isDragFeedbackActive() && this.nativeDraggedEventId !== eventId) return false;
     if (this.resizePreview?.event.resourceId === resourceId) return false;
+    if (this.hasCompactContiguousPreviousEvent(event)) return false;
     return event.resourceId === resourceId;
   }
-
   shouldShowEventDetails(event: SchedulerEvent): boolean {
     return this.showOrderTiles || this.detailedEventIds.includes(this.getSourceEventId(event));
   }
@@ -1730,6 +1774,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return Math.max(0, Math.min((offsetPx / this.HOUR_WIDTH) * 60, Math.max(0, (event.end.getTime() - event.start.getTime()) / 60000)));
   }
 }
+
+
+
+
 
 
 

@@ -45,6 +45,7 @@ export class GenericListComponent<T extends Record<string, unknown> = Record<str
   @Input() columns: GenericListColumn<T>[] = [];
   @Input() rows: T[] = [];
   @Input() rowIdKey: keyof T & string = 'id';
+  @Input() searchTerm = '';
   @Input() searchPlaceholder = 'Search input text';
   @Input() searchButtonLabel = 'Search';
   @Input() addButtonLabel = 'Add new';
@@ -69,7 +70,6 @@ export class GenericListComponent<T extends Record<string, unknown> = Record<str
   @Output() sortChange = new EventEmitter<GenericListSort<T>>();
   @Output() editableCellValueChange = new EventEmitter<{ row: T; value: string }>();
 
-  searchTerm = '';
   selectedRowIds = new Set<string>();
   sortState: GenericListSort<T> | null = null;
 
@@ -192,3 +192,5 @@ export class GenericListComponent<T extends Record<string, unknown> = Record<str
     return this.columns.find(column => column.key === key);
   }
 }
+
+

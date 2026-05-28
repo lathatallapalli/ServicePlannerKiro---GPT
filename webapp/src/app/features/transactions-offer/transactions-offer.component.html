@@ -1,11 +1,12 @@
-﻿<section class="transactions-offer">
+<section class="transactions-offer">
   <h1>{{ pageTitle }}</h1>
 
   <app-generic-list
     [columns]="columns"
     [rows]="rows"
     rowIdKey="id"
-    searchPlaceholder="Search"
+    [searchTerm]="initialSearchTerm"
+    searchPlaceholder="Search order, customer, LP"
     searchButtonLabel="Search"
     [showAddButton]="false"
     [selectable]="isActiveList"
@@ -16,3 +17,5 @@
     (rowAction)="onRowAction($event)"
   />
 </section>
+
+
