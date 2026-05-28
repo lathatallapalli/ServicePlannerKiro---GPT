@@ -36,7 +36,7 @@ export interface AutoScheduleRequest {
   dayStartHour: number;                   // e.g. 9
   dayEndHour: number;                     // e.g. 21
   bookingWindow?: { start: Date; end: Date };
-  vehicleGroups?: string[][];             // jobs grouped by vehicle — jobs in same group cannot overlap
+  vehicleGroups?: string[][];             // jobs grouped by vehicle â€” jobs in same group cannot overlap
 }
 
 export interface AutoScheduleResult {
@@ -306,7 +306,7 @@ export class AutoSchedulerService {
     return null;
   }
 
-  // ── Private helpers ──────────────────────────────────────────────────────
+  // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private getRequirements(job: Job): JobResourceRequirement[] {
     if (job.resourceRequirements?.length) return job.resourceRequirements;
@@ -386,6 +386,10 @@ export class AutoSchedulerService {
 
     while (cursor <= maxSearchEnd) {
       const start = new Date(cursor);
+      if (!this.isWorkday(start)) {
+        cursor = this.nextDayStart(start, dayStartHour);
+        continue;
+      }
       if (!this.isWithinDay(start, dayStartHour, dayEndHour)) {
         cursor = this.nextDayStart(start, dayStartHour);
         continue;
@@ -470,6 +474,10 @@ export class AutoSchedulerService {
     while (cursor <= maxSearchEnd) {
       const end = new Date(cursor.getTime() + durationMinutes * 60000);
       if (params.searchUntil && end > params.searchUntil) return null;
+      if (!this.isWorkday(cursor)) {
+        cursor = this.nextDayStart(cursor, dayStartHour);
+        continue;
+      }
       if (
         this.isWithinDay(cursor, dayStartHour, dayEndHour) &&
         end.toDateString() === cursor.toDateString() &&
@@ -552,6 +560,10 @@ export class AutoSchedulerService {
     while (cursor <= maxSearchEnd) {
       const end = new Date(cursor.getTime() + HANDOVER_DURATION_MINUTES * 60000);
       if (params.searchUntil && end > params.searchUntil) return null;
+      if (!this.isWorkday(cursor)) {
+        cursor = this.nextDayStart(cursor, dayStartHour);
+        continue;
+      }
       if (
         this.isWithinDay(cursor, dayStartHour, dayEndHour) &&
         end.toDateString() === cursor.toDateString() &&
@@ -622,6 +634,11 @@ export class AutoSchedulerService {
     const h = date.getHours();
     const m = date.getMinutes();
     return h >= dayStartHour && (h < dayEndHour || (h === dayEndHour && m === 0));
+  }
+
+  private isWorkday(date: Date): boolean {
+    const day = date.getDay();
+    return day >= 1 && day <= 5;
   }
 
   private snapToSlot(date: Date, slotMinutes: number, dayStartHour: number): Date {

@@ -92,6 +92,7 @@ export class ActionRibbon {
 
   toggleDropdown(index: number, event: Event): void {
     event.stopPropagation();
+    if (this.items[index]?.disabled) return;
     if (this.openDropdownIndex === index) {
       this.openDropdownIndex = null;
       this.previewResourceViewValue = null;

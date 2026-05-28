@@ -24,6 +24,16 @@ export interface SchedulerEvent {
   meta?: { job?: Job; order?: unknown; entry?: ScheduleEntry };
 }
 
+export interface SchedulerCapacityBlock {
+  id: string;
+  resourceId: string;
+  date: Date;
+  durationMinutes: number;
+  title: string;
+  color?: string;
+  meta?: { job?: Job; order?: unknown; entry?: ScheduleEntry };
+}
+
 export interface SchedulerGroup {
   id: string;
   label: string;
@@ -34,6 +44,10 @@ export interface SchedulerInvalidDropRange {
   start: Date;
   end: Date;
   reason?: string;
+}
+
+export interface SchedulerInvalidCapacityResource {
+  resourceId: string;
 }
 
 export interface SchedulerDropVisualContext {
@@ -50,6 +64,9 @@ export interface EventMovePayload {
   resourceId: string;
   start: Date;
   end: Date;
+  dropMode?: 'timed' | 'day-capacity';
+  date?: Date;
+  durationMinutes?: number;
 }
 
 export interface EventResizePayload {
@@ -65,12 +82,15 @@ export interface EventResizeDragPayload {
 export interface EventDropPayload {
   jobId: string;
   orderId?: string;
-  dropType?: 'job' | 'order';
+  dropType?: 'job' | 'order' | 'activity';
+  dropMode?: 'timed' | 'day-capacity';
   resourceId: string;
   resourceType?: string;
   droppedResourceType?: string;
   start: Date;
   end: Date;
+  date?: Date;
+  durationMinutes?: number;
 }
 
 export interface EventClickPayload {
@@ -90,6 +110,7 @@ export interface EventContextMenuPayload {
 
 export interface EventDragPayload {
   eventId: string;
+  dropMode?: 'timed' | 'day-capacity';
   pointerOffsetMinutes?: number;
 }
 

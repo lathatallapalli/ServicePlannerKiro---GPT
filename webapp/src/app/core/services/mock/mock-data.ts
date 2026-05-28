@@ -644,6 +644,26 @@ MOCK_WORK_ORDERS.forEach(order => {
 });
 
 export const MOCK_UNAVAILABILITY: UnavailabilityBlock[] = [
+  ...['2024-04-22', '2024-04-23', '2024-04-24', '2024-04-25', '2024-04-26', '2024-04-27', '2024-04-28'].flatMap(date =>
+    MOCK_RESOURCES.map(resource => ({
+      resourceId: resource.id,
+      start: new Date(`${date}T09:00:00`),
+      end: new Date(`${date}T21:00:00`),
+      reason: 'Demo capacity block',
+      title: 'Demo capacity block',
+      color: '#E0E0E0',
+    }))
+  ),
+  ...MOCK_RESOURCES
+    .filter(resource => resource.type === 'mechanic' || resource.type === 'bay' || resource.type === 'device')
+    .map(resource => ({
+      resourceId: resource.id,
+      start: new Date('2024-04-30T10:00:00'),
+      end: new Date('2024-04-30T21:00:00'),
+      reason: 'Demo partial capacity block',
+      title: 'Demo partial capacity block',
+      color: '#E0E0E0',
+    })),
   { resourceId: 'advisor-frank-miller', start: new Date('2024-04-15T08:30:00'), end: new Date('2024-04-15T09:00:00'), reason: 'Team Meeting', title: 'Team Meeting', color: '#A6C8FF' },
   { resourceId: 'device-bea-950', start: new Date('2024-04-15T15:00:00'), end: new Date('2024-04-15T16:00:00'), reason: 'Calibration', title: 'Calibration', color: '#A6C8FF' },
   { resourceId: 'bay-pc-3', start: new Date('2024-04-16T08:00:00'), end: new Date('2024-04-16T08:30:00'), reason: 'Cleaning', title: 'Cleaning', color: '#A6C8FF' },

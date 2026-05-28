@@ -1,5 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
+export type PlannerViewMode = 'day' | 'week' | 'month';
+
 export interface ResourceFavoriteView {
   label: string;
   resourceIds: string[];
@@ -19,6 +21,7 @@ export interface PlannerResourceContext {
 @Injectable({ providedIn: 'root' })
 export class PlannerSettingsService {
   slotDurationMinutes = signal<number>(60);
+  viewMode = signal<PlannerViewMode>('day');
   selectedResourceView = signal<ResourceFavoriteView | null>(null);
   resourceContext = signal<PlannerResourceContext | null>(null);
   isSettingsModalOpen = signal<boolean>(false);
@@ -31,6 +34,10 @@ export class PlannerSettingsService {
 
   setSlotDuration(minutes: number): void {
     this.slotDurationMinutes.set(minutes);
+  }
+
+  setViewMode(mode: PlannerViewMode): void {
+    this.viewMode.set(mode);
   }
 
   setResourceView(view: ResourceFavoriteView | null): void {

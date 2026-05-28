@@ -150,6 +150,72 @@ $month-bar-height: 60px;
     z-index: 1;
   }
 
+  &__navigation-row {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    min-height: 56px;
+    padding: 6px 18px;
+    border-bottom: 1px solid var(--Border-border-subtle-01, #C6C6C6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: #fff;
+    color: var(--Text-text-primary, #161616);
+    font-family: 'IBM Plex Sans', Arial, sans-serif;
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
+  &__navigation-button {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    padding: 8px;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    color: var(--Icon-icon-primary, #161616);
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+
+    &:hover {
+      background: var(--Layer-layer-hover-01, #E8E8E8);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--Focus-focus, #4C68B1);
+      outline-offset: -2px;
+    }
+  }
+
+  &__navigation-label {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 2px 8px;
+    text-align: center;
+  }
+
+  &__navigation-meta {
+    color: var(--Text-text-secondary, #525252);
+    font-size: 11px;
+    line-height: 16px;
+    letter-spacing: .48px;
+    text-transform: uppercase;
+  }
+
+  &__navigation-title {
+    color: var(--Text-text-primary, #161616);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 20px;
+    letter-spacing: 0;
+  }
+
   &__day-row {
     display: flex;
     border-bottom: 1px solid #C6C6C6;
@@ -206,6 +272,13 @@ $month-bar-height: 60px;
     z-index: 1;
   }
 
+  &__day-row--single {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    flex-shrink: 0;
+  }
+
   &__day-cell {
     position: relative;
     display: flex;
@@ -222,19 +295,25 @@ $month-bar-height: 60px;
     left: 16px;
     z-index: 2;
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
     gap: 6px;
     background: #fff;
+  }
+
+  &__day-cell--single &__day-label {
+    position: sticky;
   }
 
   &__day-num {
     font-size: 16px;
     font-weight: 600;
+    line-height: 20px;
     color: #161616;
   }
 
   &__day-name {
     font-size: 14px;
+    line-height: 18px;
   }
 
 
@@ -280,6 +359,27 @@ $month-bar-height: 60px;
     letter-spacing: 0.32px;
     white-space: nowrap;
   }
+
+  &__capacity-hour-slot {
+    flex-shrink: 0;
+    display: flex;
+    height: 100%;
+    background: var(--Layer-layer-01, #F4F4F4);
+    overflow: hidden;
+  }
+
+  &__capacity-hour-label {
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--Text-text-secondary, #525252);
+    text-align: center;
+    font-size: 12px;
+    line-height: 16px;
+  }
+
 
   &__body {
     flex: 1 1 0;
@@ -462,6 +562,47 @@ $month-bar-height: 60px;
     width: 1px;
     background: #C6C6C6;
     pointer-events: none;
+  }
+
+  &__capacity-lane {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    background: rgba(244,244,244,.5);
+    background: color-mix(in srgb, var(--Layer-layer-01,#F4F4F4) 50%, transparent);
+    border-right: 1px solid #E0E0E0;
+    overflow: hidden;
+    z-index: 4;
+  }
+
+  &__capacity-lane--drop-target {
+    background: var(--Notification-notification-info-background,#EDF5FF);
+    outline: 2px solid var(--Support-support-info,#4589FF);
+    outline-offset: -2px;
+  }
+
+  &__capacity-lane--drop-invalid {
+    outline-color: var(--Support-support-error,#DA1E28);
+  }
+
+  &__capacity-block {
+    border-left: 2px solid #4C68B1;
+    background: #E9ECF5;
+    overflow: hidden;
+  }
+
+  &__capacity-block-title,
+  &__capacity-block-detail,
+  &__capacity-block-order {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    line-height: 14px;
   }
 
   &__unavailable {
