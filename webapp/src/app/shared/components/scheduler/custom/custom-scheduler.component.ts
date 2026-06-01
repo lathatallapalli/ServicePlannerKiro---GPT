@@ -527,7 +527,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getCapacityOverflowLabel(resourceId: string, day: Date, hiddenCount: number): string {
-    return `+${hiddenCount} more · ${this.getHiddenCapacityBlockedDurationShortLabel(resourceId, day)}`;
+    return `+${hiddenCount} more \u00b7 ${this.getHiddenCapacityBlockedDurationShortLabel(resourceId, day)}`;
   }
 
   getCapacityBlockTitle(block: SchedulerCapacityBlock): string {
@@ -539,7 +539,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getCapacityBlockSummary(block: SchedulerCapacityBlock): string {
-    return `${this.getCapacityBlockDetail(block)} · ${block.title}`;
+    return `${this.getCapacityBlockDetail(block)} \u00b7 ${block.title}`;
   }
 
   getCapacityBlockOrderReference(block: SchedulerCapacityBlock): string {
