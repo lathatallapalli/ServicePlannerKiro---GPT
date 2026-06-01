@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { Resource } from '../../core/models/resource.model';
@@ -23,6 +23,8 @@ type SlotFilterScope = 'checkin' | 'handover';
   styleUrl: './quick-view.component.scss',
 })
 export class QuickViewComponent implements OnInit {
+  @ViewChild('handoverSection') private handoverSection?: ElementRef<HTMLElement>;
+
   protected workOrder: WorkOrder | null = null;
   protected checkinDays: QuickViewDay[] = [];
   protected handoverDays: QuickViewDay[] = [];
@@ -193,6 +195,7 @@ export class QuickViewComponent implements OnInit {
         checkinFilters: [...this.activeCheckinFilters],
         handoverFilters: [...this.activeHandoverFilters],
       });
+      this.scrollToHandoverSection();
     }
   }
 
@@ -232,12 +235,12 @@ export class QuickViewComponent implements OnInit {
     return this.workProposal ? this.quickViewScheduler.formatDateTime(this.workProposal.workCompleteAt) : '';
   }
 
-  protected getSelectedChoiceLabel(): string {
-    if (!this.selectedCheckin && !this.selectedHandover) return 'No appointment selected';
-    const parts = [];
-    if (this.selectedCheckin) parts.push(`Check-In: ${this.quickViewScheduler.formatDateTime(this.selectedCheckin.start)}`);
-    if (this.selectedHandover) parts.push(`Handover: ${this.quickViewScheduler.formatDateTime(this.selectedHandover.start)}`);
-    return parts.join(' · ');
+  protected getSelectedCheckinLabel(): string {
+    return this.selectedCheckin ? this.quickViewScheduler.formatDateTime(this.selectedCheckin.start) : '';
+  }
+
+  protected getSelectedHandoverLabel(): string {
+    return this.selectedHandover ? this.quickViewScheduler.formatDateTime(this.selectedHandover.start) : '';
   }
 
   private refreshDays(): void {
@@ -319,6 +322,12 @@ export class QuickViewComponent implements OnInit {
   private applyPersistedFilters(checkinFilters?: QuickViewSlotFilter[], handoverFilters?: QuickViewSlotFilter[]): void {
     if (checkinFilters?.length) this.activeCheckinFilters = new Set(checkinFilters);
     if (handoverFilters?.length) this.activeHandoverFilters = new Set(handoverFilters);
+  }
+
+  private scrollToHandoverSection(): void {
+    requestAnimationFrame(() => {
+      this.handoverSection?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   private getSlotFilter(slot: QuickViewActivitySlot | Date): QuickViewSlotFilter {
