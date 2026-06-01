@@ -12,7 +12,7 @@ import {
   SchedulerCapacityBlock,
   EventMovePayload, EventResizePayload, EventResizeDragPayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload,
   ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerInvalidCapacityResource, SchedulerDropVisualContext, SchedulerTimeRangePayload,
-  EventDragPayload
+  EventDragPayload, SchedulerDropPreviewPayload
 } from '../scheduler.interface';
 import { ResourceFavoriteView } from '../../../../features/service-planner/services/planner-settings.service';
 
@@ -73,6 +73,15 @@ interface DropPreview {
   mode?: 'timed' | 'day-capacity';
   date?: Date;
   durationMinutes?: number;
+  segments?: DropPreviewSegment[];
+}
+
+interface DropPreviewSegment {
+  active: boolean;
+  start: Date;
+  end: Date;
+  left: number;
+  width: number;
 }
 
 @Component({
@@ -130,6 +139,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Output() public orderFocusRequested = new EventEmitter<OrderFocusPayload>();
   @Output() public eventDragStarted = new EventEmitter<EventDragPayload>();
   @Output() public eventDragEnded = new EventEmitter<EventDragPayload>();
+  @Output() public dropPreviewChanged = new EventEmitter<SchedulerDropPreviewPayload | null>();
   @Output() public resourceSelectionChange = new EventEmitter<ResourceSelectionChangePayload>();
   @Output() public resourceTypeSelectionChange = new EventEmitter<ResourceTypeSelectionChangePayload>();
   @Output() public resourceViewChange = new EventEmitter<ResourceFavoriteView | null>();
@@ -961,7 +971,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getDropPreviewLeft(): number {
-    return (this.dropPreview?.left ?? 0) + RESOURCE_COL_WIDTH;
+    return this.getEffectiveDropPreviewLeft() + RESOURCE_COL_WIDTH;
   }
 
   getDropPreviewTop(): number {
@@ -969,7 +979,21 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getDropPreviewWidth(): number {
+    const range = this.getEffectiveDropPreviewRange();
+    if (range) return Math.max((range.end.getTime() - range.start.getTime()) / 3600000 * this.HOUR_WIDTH, 20);
     return this.dropPreview?.width ?? 0;
+  }
+
+  getDropPreviewSegments(): DropPreviewSegment[] {
+    const preview = this.dropPreview;
+    if (!preview) return [];
+    const range = this.getEffectiveDropPreviewRange() ?? { start: preview.start, end: preview.end };
+    const width = Math.max((range.end.getTime() - range.start.getTime()) / 3600000 * this.HOUR_WIDTH, 20);
+    return this.buildDropPreviewSegments(preview.resourceId, range.start, range.end, width) ?? [];
+  }
+
+  hasDropPreviewSegments(): boolean {
+    return this.getDropPreviewSegments().length > 0;
   }
 
   getDropPreviewMode(): 'timed' | 'day-capacity' {
@@ -981,12 +1005,42 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       return this.dropPreview.resourceId === resourceId &&
         this.isCapacityDropPreviewInvalidForResource(resourceId);
     }
+    if (this.dropPreview?.resourceId === resourceId && this.dropVisualContext?.invalid) return true;
     return !!this.dropPreview &&
       this.dropPreview.resourceId === resourceId &&
       this.invalidDropRanges.some(range =>
         range.resourceId === resourceId &&
-        this.rangesOverlap(this.dropPreview!.start, this.dropPreview!.end, range.start, range.end)
+        this.dropPreviewRangeOverlapsInvalidRange(this.dropPreview!, range)
       );
+  }
+
+  private dropPreviewRangeOverlapsInvalidRange(preview: DropPreview, range: SchedulerInvalidDropRange): boolean {
+    const previewRange = this.getEffectiveDropPreviewRange() ?? { start: preview.start, end: preview.end };
+    const previewWidth = Math.max((previewRange.end.getTime() - previewRange.start.getTime()) / 3600000 * this.HOUR_WIDTH, 20);
+    const segments = this.buildDropPreviewSegments(preview.resourceId, previewRange.start, previewRange.end, previewWidth) ?? preview.segments ?? [];
+    const activeSegments = segments.filter(segment => segment.active);
+    if (!activeSegments.length && segments.length) return false;
+    if (!activeSegments.length) return this.rangesOverlap(previewRange.start, previewRange.end, range.start, range.end);
+    return activeSegments.some(segment => this.rangesOverlap(segment.start, segment.end, range.start, range.end));
+  }
+
+  private getEffectiveDropPreviewRange(): { start: Date; end: Date } | null {
+    const preview = this.dropPreview;
+    const segments = this.dropVisualContext?.segments;
+    if (!preview || !segments?.length) return null;
+    const absoluteSegments = segments.map(segment => this.normalizeDropVisualSegment(segment, preview.start));
+    const starts = absoluteSegments.map(segment => segment.start.getTime());
+    const ends = absoluteSegments.map(segment => segment.end.getTime());
+    if (!starts.length || !ends.length) return null;
+    return {
+      start: new Date(Math.min(...starts)),
+      end: new Date(Math.max(...ends)),
+    };
+  }
+
+  private getEffectiveDropPreviewLeft(): number {
+    const range = this.getEffectiveDropPreviewRange();
+    return range ? this.getLeftFromDate(range.start) : (this.dropPreview?.left ?? 0);
   }
 
   isDropPreviewInvalid(): boolean {
@@ -2067,6 +2121,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.dropPreview = this.buildDropPreview(e, resourceId, true);
     this.dropTargetResourceId = this.isResourceGenerallyAvailableForDrop(resourceId) ? resourceId : null;
     if (this.dropPreview) this.lastValidDropPreview = this.dropPreview;
+    this.emitDropPreviewChanged(e, this.dropPreview);
     if (e.dataTransfer) {
       e.dataTransfer.dropEffect = 'move';
     }
@@ -2086,6 +2141,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   onDragLeave(): void {
     this.dropPreview = null;
     this.dropTargetResourceId = null;
+    this.dropPreviewChanged.emit(null);
   }
 
   onDrop(e: DragEvent, resourceId: string): void {
@@ -2094,6 +2150,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.dropPreview = null;
     this.dropTargetResourceId = null;
     this.lastValidDropPreview = null;
+    this.dropPreviewChanged.emit(null);
 
     const dropType = this.getDragData(e, 'dropType') || undefined;
     const eventId = dropType === 'event' || this.nativeDraggedEventId
@@ -2273,14 +2330,114 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const width = Math.max((end.getTime() - start.getTime()) / 3600000 * this.HOUR_WIDTH, 20);
     const previewLeft = Math.max(0, Math.min(left, this.totalWidth - width));
 
+    const previewStart = new Date(start);
+    const previewEnd = new Date(end);
+
     return {
       resourceId,
-      start,
-      end,
+      start: previewStart,
+      end: previewEnd,
       left: previewLeft,
       top: this.getResourceTop(resourceId),
       width,
       mode: 'timed',
+      segments: this.buildDropPreviewSegments(resourceId, previewStart, previewEnd, width),
+    };
+  }
+
+  private emitDropPreviewChanged(e: DragEvent, preview: DropPreview | null): void {
+    if (!preview) {
+      this.dropPreviewChanged.emit(null);
+      return;
+    }
+    const orderId = e.dataTransfer?.getData('orderId') || undefined;
+    const jobId = e.dataTransfer?.getData('jobId') || undefined;
+    const dropType = (this.getDragData(e, 'dropType') || (orderId ? 'order' : jobId ? 'job' : undefined)) as SchedulerDropPreviewPayload['dropType'];
+    this.dropPreviewChanged.emit({
+      resourceId: preview.resourceId,
+      start: preview.start,
+      end: preview.end,
+      dropType,
+      jobId,
+      orderId,
+    });
+  }
+
+  private buildDropPreviewSegments(resourceId: string, previewStart: Date, previewEnd: Date, previewWidth: number): DropPreviewSegment[] | undefined {
+    if (!this.dropVisualContext?.segments?.length) return undefined;
+    const resourceType = (this.resources.find(resource => resource.id === resourceId)?.meta as any)?.type;
+
+    const contextSegments = this.dropVisualContext.segments
+      .filter(segment => segment.resourceId === resourceId || (!!resourceType && segment.resourceType === resourceType))
+      .map(segment => this.normalizeDropVisualSegment(segment, previewStart))
+      .filter(segment => this.rangesOverlap(segment.start, segment.end, previewStart, previewEnd));
+    if (!contextSegments.length) return [{ active: false, start: previewStart, end: previewEnd, left: 0, width: previewWidth }];
+
+    const durationMs = previewEnd.getTime() - previewStart.getTime();
+    if (durationMs <= 0) return undefined;
+
+    const clippedActiveSegments = contextSegments
+      .filter(segment => segment.active !== false)
+      .map(segment => ({
+        start: new Date(Math.max(segment.start.getTime(), previewStart.getTime())),
+        end: new Date(Math.min(segment.end.getTime(), previewEnd.getTime())),
+      }))
+      .filter(segment => segment.start < segment.end)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    if (!clippedActiveSegments.length) {
+      return [this.createDropPreviewSegment(false, previewStart, previewEnd, previewStart, durationMs, previewWidth)];
+    }
+
+    const mergedActiveSegments: Array<{ start: Date; end: Date }> = [];
+    for (const segment of clippedActiveSegments) {
+      const previous = mergedActiveSegments[mergedActiveSegments.length - 1];
+      if (previous && segment.start.getTime() <= previous.end.getTime()) {
+        previous.end = new Date(Math.max(previous.end.getTime(), segment.end.getTime()));
+      } else {
+        mergedActiveSegments.push({ start: segment.start, end: segment.end });
+      }
+    }
+
+    const segments: DropPreviewSegment[] = [];
+    let cursor = new Date(previewStart);
+    for (const activeSegment of mergedActiveSegments) {
+      if (cursor < activeSegment.start) {
+        segments.push(this.createDropPreviewSegment(false, cursor, activeSegment.start, previewStart, durationMs, previewWidth));
+      }
+      segments.push(this.createDropPreviewSegment(true, activeSegment.start, activeSegment.end, previewStart, durationMs, previewWidth));
+      cursor = new Date(activeSegment.end);
+    }
+    if (cursor < previewEnd) {
+      segments.push(this.createDropPreviewSegment(false, cursor, previewEnd, previewStart, durationMs, previewWidth));
+    }
+
+    return segments.filter(segment => segment.width > 0);
+  }
+
+  private normalizeDropVisualSegment(segment: { start: Date; end: Date; active?: boolean }, previewStart: Date): { start: Date; end: Date; active?: boolean } {
+    if ((segment as any).absolute) {
+      return { start: segment.start, end: segment.end, active: segment.active };
+    }
+    if (segment.start.getTime() >= this.viewStart.getTime() && segment.end.getTime() <= this.viewEnd.getTime()) {
+      return { start: segment.start, end: segment.end, active: segment.active };
+    }
+    return {
+      start: new Date(previewStart.getTime() + segment.start.getTime()),
+      end: new Date(previewStart.getTime() + segment.end.getTime()),
+      active: segment.active,
+    };
+  }
+
+  private createDropPreviewSegment(active: boolean, start: Date, end: Date, previewStart: Date, durationMs: number, previewWidth: number): DropPreviewSegment {
+    const left = ((start.getTime() - previewStart.getTime()) / durationMs) * previewWidth;
+    const width = ((end.getTime() - start.getTime()) / durationMs) * previewWidth;
+    return {
+      active,
+      start,
+      end,
+      left: Math.max(0, left),
+      width: Math.max(1, width),
     };
   }
 

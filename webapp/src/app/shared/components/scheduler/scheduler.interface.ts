@@ -56,6 +56,19 @@ export interface SchedulerDropVisualContext {
   anchoredStart?: Date;
   anchoredEnd?: Date;
   pointerOffsetMinutes?: number;
+  segments?: SchedulerDropVisualSegment[];
+  invalid?: boolean;
+}
+
+export interface SchedulerDropVisualSegment {
+  resourceId?: string;
+  resourceType?: string;
+  entryId?: string;
+  jobId?: string;
+  start: Date;
+  end: Date;
+  active?: boolean;
+  absolute?: boolean;
 }
 
 // ── What the scheduler emits ─────────────────────────────────────────────────
@@ -113,6 +126,15 @@ export interface EventDragPayload {
   eventId: string;
   dropMode?: 'timed' | 'day-capacity';
   pointerOffsetMinutes?: number;
+}
+
+export interface SchedulerDropPreviewPayload {
+  resourceId: string;
+  start: Date;
+  end: Date;
+  dropType?: 'job' | 'order' | 'activity' | 'event';
+  jobId?: string;
+  orderId?: string;
 }
 
 export interface SchedulerTimeRangePayload {

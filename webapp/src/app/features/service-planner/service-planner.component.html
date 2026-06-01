@@ -250,6 +250,7 @@
       (eventMoved)="onEventMoved($event)"
       (eventDragStarted)="onSchedulerEventDragStarted($event.eventId, $event.pointerOffsetMinutes)"
       (eventDragEnded)="onSchedulerEventDragEnded($event.eventId)"
+      (dropPreviewChanged)="onSchedulerDropPreviewChanged($event)"
       (eventResizeStarted)="onSchedulerEventResizeStarted($event.eventId)"
       (eventResizeEnded)="onSchedulerEventResizeEnded($event.eventId)"
       (eventResized)="onEventResized($event)"
@@ -321,7 +322,7 @@
       <section class="order-panel__accordion" style="align-self:stretch;display:flex;flex-direction:column;gap:4px;min-height:0;overflow:hidden">
         <div class="order-panel__list" style="align-self:stretch;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:16px;padding-top:12px;padding-bottom:24px">
           <ng-template #orderCard let-order>
-            <article class="order-panel__order-card" [attr.id]="'order-panel-card-' + order.id" draggable="true" (dragstart)="onOrderDragStart($event, order)" [style.outline]="isPanelOrderFocused(order) ? '2px solid #4C68B1' : null" style="align-self:stretch;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab;outline-offset:-2px">
+            <article class="order-panel__order-card" [attr.id]="'order-panel-card-' + order.id" [attr.draggable]="canDragOrder(order) ? true : null" (dragstart)="canDragOrder(order) && onOrderDragStart($event, order)" [style.outline]="isPanelOrderFocused(order) ? '2px solid #4C68B1' : null" [style.cursor]="canDragOrder(order) ? 'grab' : 'default'" style="align-self:stretch;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);outline-offset:-2px">
               <div style="align-self:stretch;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
                 <div style="align-self:stretch;display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
                   <strong style="min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">

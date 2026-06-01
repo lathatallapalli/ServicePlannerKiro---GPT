@@ -6,7 +6,7 @@ import { forkJoin } from 'rxjs';
 import { ComboBoxModule, DatePickerModule, InputModule, SearchModule, SelectModule, TimePickerModule, TimePickerSelectModule, ToggleModule } from 'carbon-components-angular';
 import { CustomSchedulerComponent } from '../../shared/components/scheduler/custom/custom-scheduler.component';
 import { JobTile, JobBooking, ActivityTile } from './components/jobs-panel/jobs-panel.component';
-import { SchedulerResource, SchedulerEvent, SchedulerGroup, SchedulerCapacityBlock, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerInvalidCapacityResource, SchedulerDropVisualContext, SchedulerTimeRangePayload } from '../../shared/components/scheduler/scheduler.interface';
+import { SchedulerResource, SchedulerEvent, SchedulerGroup, SchedulerCapacityBlock, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerInvalidCapacityResource, SchedulerDropVisualContext, SchedulerDropVisualSegment, SchedulerDropPreviewPayload, SchedulerTimeRangePayload } from '../../shared/components/scheduler/scheduler.interface';
 import { ResourceRepository } from '../../core/services/resource.repository';
 import { ScheduleRepository } from '../../core/services/schedule.repository';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
@@ -111,6 +111,24 @@ interface ManualDragContext {
   anchoredStart?: Date;
   anchoredEnd?: Date;
   pointerOffsetMinutes?: number;
+  previewSegments?: SchedulerDropVisualSegment[];
+}
+
+interface OrderDropPreviewPlan {
+  durationMinutes: number;
+  segments: SchedulerDropVisualSegment[];
+  invalid?: boolean;
+  invalidReason?: string;
+}
+
+interface ApplyProposalOptions {
+  orderId?: string;
+  preferredResourceIds?: string[];
+  scrollToFirstEntry?: boolean;
+  revealOrder?: boolean;
+  replaceExistingOrderBookings?: boolean;
+  includeExistingOrderEntriesAsBlockers?: boolean;
+  onlyUnscheduledActivities?: boolean;
 }
 
 type ManualPlanInvalidReasonCode =
@@ -231,6 +249,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private isReplacingFocusedOrderBookings = false;
   manualDragContext: ManualDragContext | null = null;
   manualResizeContext: ManualDragContext | null = null;
+  private orderDropPreviewContext: SchedulerDropVisualContext | null = null;
+  private orderDropPreviewCacheKey = '';
+  private orderDropPreviewCachePlan: OrderDropPreviewPlan | null = null;
   autoBookingWindow: SchedulerTimeRangePayload | null = null;
   manualResizeResourceId: string | null = null;
   unavailability: UnavailabilityBlock[] = MOCK_UNAVAILABILITY;
@@ -664,11 +685,13 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       };
     }
     if (!this.manualDragContext) return null;
+    if (this.manualDragContext.kind === 'order' && this.orderDropPreviewContext) return this.orderDropPreviewContext;
     return {
       durationMinutes: this.manualDragContext.durationMinutes,
       anchoredStart: this.manualDragContext.anchoredStart,
       anchoredEnd: this.manualDragContext.anchoredEnd,
       pointerOffsetMinutes: this.manualDragContext.pointerOffsetMinutes,
+      segments: this.manualDragContext.previewSegments,
     };
   }
 
@@ -1100,6 +1123,39 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   onSchedulerEventDragEnded(_eventId: string): void {
     this.clearManualInteractionState();
+  }
+
+  onSchedulerDropPreviewChanged(payload: SchedulerDropPreviewPayload | null): void {
+    if (!this.manualDragContext || this.manualDragContext.kind !== 'order') return;
+    if (!payload) {
+      this.orderDropPreviewContext = null;
+      return;
+    }
+    if (payload.dropType && payload.dropType !== 'order') return;
+
+    const orderId = payload.orderId ?? this.manualDragContext.orderId;
+    const order = this.allOrders.find(candidate => candidate.id === orderId || candidate.referenceNumber === orderId);
+    if (!order) return;
+
+    const previewPlan = this.getCachedOrderDropPreviewPlan(order, payload.start);
+    if (!previewPlan) {
+      this.orderDropPreviewContext = {
+        durationMinutes: this.manualDragContext.durationMinutes,
+        pointerOffsetMinutes: this.manualDragContext.pointerOffsetMinutes,
+        segments: this.manualDragContext.previewSegments,
+        invalid: true,
+      };
+      return;
+    }
+
+    this.manualDragContext.durationMinutes = previewPlan.durationMinutes;
+    this.manualDragContext.previewSegments = previewPlan.segments;
+    this.orderDropPreviewContext = {
+      durationMinutes: previewPlan.durationMinutes,
+      pointerOffsetMinutes: this.manualDragContext.pointerOffsetMinutes,
+      segments: previewPlan.segments,
+      invalid: !!previewPlan.invalid,
+    };
   }
 
   onSchedulerEventResizeStarted(eventId: string): void {
@@ -2814,7 +2870,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
 
-  private getOccupyingEntriesForProposal(targetOrder: any | undefined): ScheduleEntry[] {
+  private getOccupyingEntriesForProposal(targetOrder: any | undefined, includeTargetOrderEntries = false): ScheduleEntry[] {
     const targetReference = targetOrder?.referenceNumber;
     const liveEntries: ScheduleEntry[] = this.events.map(event => ({
       id: event.id,
@@ -2832,7 +2888,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
     const entriesById = new Map<string, ScheduleEntry>();
     [...this.scheduleEntries, ...liveEntries]
-      .filter(entry => !targetReference || entry.workOrderReference !== targetReference)
+      .filter(entry => includeTargetOrderEntries || !targetReference || entry.workOrderReference !== targetReference)
       .forEach(entry => entriesById.set(entry.id, entry));
 
     return [...entriesById.values()];
@@ -2935,10 +2991,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.clearManualInteractionState();
       this.selectedPanelOrderId = activeOrderId;
       this.restoreProposalStateForOrder(activeOrderId);
+      const droppedOrder = this.allOrders.find(order => order.id === activeOrderId || order.referenceNumber === activeOrderId);
+      const isPartialOrderDrop = !!droppedOrder && this.getOrderPlanningState(droppedOrder) === 'partiallyScheduled';
       this.applyProposal(payload.start, true, false, {
         orderId: activeOrderId,
         preferredResourceIds: [payload.resourceId],
         scrollToFirstEntry: false,
+        replaceExistingOrderBookings: !isPartialOrderDrop,
+        includeExistingOrderEntriesAsBlockers: isPartialOrderDrop,
+        onlyUnscheduledActivities: isPartialOrderDrop,
       });
       return;
     }
@@ -3347,16 +3408,19 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     searchFrom: Date,
     resetHistory: boolean,
     isReplay = false,
-    options: { orderId?: string; preferredResourceIds?: string[]; scrollToFirstEntry?: boolean; revealOrder?: boolean } = {},
+    options: ApplyProposalOptions = {},
   ): void {
     searchFrom = this.getBookableSearchStart(searchFrom);
     const targetWorkOrderId = options.orderId ?? this.getActiveWorkOrderId();
-    const unscheduledTiles = this.jobTiles.filter(t => t.workOrder.id === targetWorkOrderId);
     const targetOrder = this.allOrders.find(order => order.id === targetWorkOrderId);
-    const unscheduledJobs = unscheduledTiles.length
-      ? unscheduledTiles.map(t => t.job)
-      : targetOrder ? this.getJobsForOrder(targetOrder) : [];
+    const unscheduledJobs = targetOrder
+      ? this.getJobsForOrderDropProposal(targetOrder)
+      : this.jobTiles
+        .filter(t => t.workOrder.id === targetWorkOrderId)
+        .map(t => t.job);
     if (unscheduledJobs.length === 0) return;
+    const replaceExistingOrderBookings = options.replaceExistingOrderBookings ?? true;
+    const activityCandidates = targetOrder ? this.getProposalActivitiesForOrder(targetOrder, !!options.onlyUnscheduledActivities) : [];
 
     const rawResources = this.bookingEligibleResources.map(r => r.meta as Resource).filter(Boolean);
     const selectedResourceConstraint = this.getSelectedResourceConstraintContext(
@@ -3371,13 +3435,13 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.setSchedulingError(selectedResourceErrors.join(' '));
       return;
     }
-    const missingRequirements = this.getMissingRequirementsForResources(unscheduledJobs, rawResources, targetOrder);
+    const missingRequirements = this.getMissingRequirementsForResources(unscheduledJobs, rawResources, targetOrder, activityCandidates);
     if (missingRequirements.length) {
       this.setSchedulingError(this.buildMissingResourceMessage(missingRequirements));
       return;
     }
 
-    const existingEntries = this.getOccupyingEntriesForProposal(targetOrder);
+    const existingEntries = this.getOccupyingEntriesForProposal(targetOrder, !!options.includeExistingOrderEntriesAsBlockers);
 
     const result = this.autoScheduler.schedule({
       jobs: unscheduledJobs,
@@ -3389,7 +3453,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       searchFrom,
       dayStartHour: 9,
       dayEndHour: 21,
-      requiresMobility: this.requiresMobility(targetOrder),
+      requiresMobility: this.requiresMobility(targetOrder) && this.hasProposalActivity(activityCandidates, 'act-mobility'),
       bookingWindow: this.autoBookingWindow ?? undefined,
     });
 
@@ -3408,17 +3472,35 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const checkinStart = new Date(result.checkinStart);
-    const checkinEnd = new Date(result.checkinEnd);
-    const handoverStart = new Date(result.handoverStart);
-    const handoverEnd = new Date(result.handoverEnd);
+    const partialDropPlan = targetOrder && !replaceExistingOrderBookings
+      ? this.buildOrderDropPreviewPlan(targetOrder, searchFrom)
+      : null;
+    if (partialDropPlan?.invalid) {
+      this.setSchedulingError(partialDropPlan.invalidReason ?? 'Schedule not possible for this drop position.');
+      return;
+    }
+    const shiftedDropSegments = partialDropPlan?.segments
+      ? this.toAbsoluteDropPreviewSegments(partialDropPlan.segments, searchFrom)
+      : [];
+    const partialJobAnchors = targetOrder && !replaceExistingOrderBookings
+      ? this.getExistingJobAnchorsForOrder(targetOrder)
+      : new Map<string, { start: Date; end: Date; bookingSetId?: string }>();
+    const shiftedJobSegments = shiftedDropSegments.filter(segment => segment.active !== false && !!segment.jobId && !this.isActivityId(segment.jobId));
+    const shiftedCheckinSegment = this.getShiftedActivitySegment(shiftedDropSegments, 'act-checkin');
+    const shiftedHandoverSegment = this.getShiftedActivitySegment(shiftedDropSegments, 'act-handover');
+    const resourceTypeById = new Map(rawResources.map(resource => [resource.id, resource.type]));
+
+    const checkinStart = shiftedCheckinSegment?.start ?? new Date(result.checkinStart);
+    const checkinEnd = shiftedCheckinSegment?.end ?? new Date(result.checkinEnd);
+    const handoverStart = shiftedHandoverSegment?.start ?? new Date(result.handoverStart);
+    const handoverEnd = shiftedHandoverSegment?.end ?? new Date(result.handoverEnd);
     const currentViewMode = this.plannerViewMode;
     const visibleRangeAtProposal = { start: new Date(this.viewStart), end: new Date(this.viewEnd) };
 
     const checkinAdvisor = rawResources.find((r: any) => r.id === result.checkinResourceId);
     const handoverAdvisor = rawResources.find((r: any) => r.id === result.handoverResourceId);
     const mobilityDriver = rawResources.find((r: any) => r.id === result.mobilityResourceId);
-    const needsMobility = this.requiresMobility(targetOrder);
+    const needsMobility = this.requiresMobility(targetOrder) && this.hasProposalActivity(activityCandidates, 'act-mobility');
 
     if (!checkinAdvisor || !handoverAdvisor || (needsMobility && !mobilityDriver)) {
       this.setSchedulingError(this.buildMissingResourceMessage([
@@ -3433,8 +3515,10 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
     const isReplacingFocusedOrder = !!targetOrder && this.fullPlannerOrderOnlyId === targetOrder.id;
     this.isReplacingFocusedOrderBookings = isReplacingFocusedOrder;
-    if (targetOrder) this.clearExistingScheduleEntriesForOrder(targetOrder);
-    this.clearCurrentBookings(targetWorkOrderId ?? undefined);
+    if (replaceExistingOrderBookings) {
+      if (targetOrder) this.clearExistingScheduleEntriesForOrder(targetOrder);
+      this.clearCurrentBookings(targetWorkOrderId ?? undefined);
+    }
     this.isReplacingFocusedOrderBookings = false;
 
     // Track history
@@ -3463,8 +3547,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.autoBookingRangeNotice = this.buildAutoBookingRangeNotice(result, visibleRangeAtProposal, currentViewMode, scrollTargetEntryId);
     const proposalFocusIds: string[] = [];
     const expectedProposalFocusCount = result.entries.length
-      + (targetOrder && this.hasOrderActivity(targetOrder, 'act-checkin') ? 1 : 0)
-      + (targetOrder && this.hasOrderActivity(targetOrder, 'act-handover') ? 1 : 0)
+      + (targetOrder && this.hasProposalActivity(activityCandidates, 'act-checkin') ? 1 : 0)
+      + (targetOrder && this.hasProposalActivity(activityCandidates, 'act-handover') ? 1 : 0)
       + (targetOrder && needsMobility && mobilityDriver ? 1 : 0);
     const focusInRangeProposal = (): void => {
       if (!shouldScrollToFirstEntry || this.autoBookingRangeNotice) return;
@@ -3472,8 +3556,16 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.focusPlannerEvents(proposalFocusIds);
     };
     result.entries.forEach(entry => {
+      const shiftedEntry = shiftedJobSegments.find(segment =>
+        segment.jobId === entry.jobId &&
+        (!segment.resourceId || segment.resourceId === entry.resourceId) &&
+        (!segment.resourceType || segment.resourceType === resourceTypeById.get(entry.resourceId))
+      );
       const persistedEntry = {
         ...entry,
+        start: partialJobAnchors.get(entry.jobId)?.start ?? shiftedEntry?.start ?? entry.start,
+        end: partialJobAnchors.get(entry.jobId)?.end ?? shiftedEntry?.end ?? entry.end,
+        bookingSetId: partialJobAnchors.get(entry.jobId)?.bookingSetId ?? entry.bookingSetId,
         title: unscheduledJobs.find((j: any) => j.id === entry.jobId)?.title ?? entry.jobId,
         kind: 'scheduled' as const,
         workOrderReference: targetOrder?.referenceNumber,
@@ -3507,13 +3599,13 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     });
 
     if (targetOrder) {
-      if (this.hasOrderActivity(targetOrder, 'act-checkin')) {
+      if (this.hasProposalActivity(activityCandidates, 'act-checkin')) {
         this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-checkin'), checkinAdvisor, checkinStart, checkinEnd, targetWorkOrderId ?? undefined, assigned => {
           proposalFocusIds.push(assigned.id);
           focusInRangeProposal();
         });
       }
-      if (this.hasOrderActivity(targetOrder, 'act-handover')) {
+      if (this.hasProposalActivity(activityCandidates, 'act-handover')) {
         this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-handover'), handoverAdvisor, handoverStart, handoverEnd, targetWorkOrderId ?? undefined, assigned => {
           proposalFocusIds.push(assigned.id);
           focusInRangeProposal();
@@ -3534,6 +3626,65 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private getActiveWorkOrderId(): string | null {
     return this.selectedPanelOrderId || this.activeOrderId || this.jobTiles[0]?.workOrder.id || null;
+  }
+
+  private getPreservedOrderProposalValidationError(orderId: string | undefined, result: AutoScheduleResult, activityCandidates: ActivityTile[]): string {
+    const checkinEnd = this.getCheckinEndForOrder(orderId);
+    if (checkinEnd && result.entries.some(entry => entry.start < checkinEnd)) {
+      return 'Remaining jobs must start after Check-In is complete.';
+    }
+
+    const handoverStart = orderId ? this.getHandoverStartForOrder(orderId) : null;
+    if (this.hasProposalActivity(activityCandidates, 'act-checkin') && handoverStart && result.checkinEnd > handoverStart) {
+      return 'Check-In must finish before Handover.';
+    }
+
+    const firstJobStart = orderId ? this.getFirstJobStartForOrder(orderId) : null;
+    if (this.hasProposalActivity(activityCandidates, 'act-checkin') && firstJobStart && result.checkinEnd > firstJobStart) {
+      return 'Check-In must finish before scheduled jobs.';
+    }
+
+    const latestJobEnd = this.getLatestJobEndForOrder(orderId);
+    if (this.hasProposalActivity(activityCandidates, 'act-handover') && latestJobEnd && result.handoverStart < latestJobEnd) {
+      return 'Handover must start after scheduled jobs are finished.';
+    }
+
+    if (this.hasProposalActivity(activityCandidates, 'act-handover') && checkinEnd && result.handoverStart < checkinEnd) {
+      return 'Handover must start after Check-In is complete.';
+    }
+
+    if (handoverStart && result.entries.some(entry => entry.end > handoverStart)) {
+      return 'Remaining jobs must finish before Handover starts.';
+    }
+
+    return '';
+  }
+
+  private toAbsoluteDropPreviewSegments(segments: SchedulerDropVisualSegment[], searchFrom: Date): SchedulerDropVisualSegment[] {
+    const baseTime = this.getBookableSearchStart(new Date(searchFrom)).getTime();
+    return segments.map(segment => ({
+      ...segment,
+      start: segment.absolute ? new Date(segment.start) : new Date(baseTime + segment.start.getTime()),
+      end: segment.absolute ? new Date(segment.end) : new Date(baseTime + segment.end.getTime()),
+    }));
+  }
+
+  private getShiftedActivitySegment(segments: SchedulerDropVisualSegment[], activityTemplateId: 'act-checkin' | 'act-handover'): SchedulerDropVisualSegment | undefined {
+    const matchingActivitySegments = segments
+      .filter(segment => segment.active !== false && segment.jobId && this.getActivityTemplateId(segment.jobId) === activityTemplateId)
+      .sort((first, second) => first.start.getTime() - second.start.getTime());
+    if (matchingActivitySegments.length) {
+      return activityTemplateId === 'act-checkin'
+        ? matchingActivitySegments[0]
+        : matchingActivitySegments[matchingActivitySegments.length - 1];
+    }
+
+    const advisorSegments = segments
+      .filter(segment => segment.active !== false && segment.resourceType === 'advisor')
+      .sort((first, second) => first.start.getTime() - second.start.getTime());
+    return activityTemplateId === 'act-checkin'
+      ? advisorSegments[0]
+      : advisorSegments[advisorSegments.length - 1];
   }
 
   private setFocusedPlanningOrder(order: any | null | undefined): void {
@@ -3826,7 +3977,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return order?.id ?? null;
   }
 
-  private getMissingRequirementsForResources(jobs: any[], resources: Resource[], order: any | undefined): string[] {
+  private getMissingRequirementsForResources(jobs: any[], resources: Resource[], order: any | undefined, activities: ActivityTile[] = order ? this.getActivitiesForOrder(order) : []): string[] {
     const missing = new Set<string>();
 
     for (const job of jobs) {
@@ -3837,7 +3988,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       }
     }
 
-    for (const activity of order ? this.getActivitiesForOrder(order) : []) {
+    for (const activity of activities) {
       if (!resources.some(resource => resource.type === activity.resourceType)) {
         missing.add(activity.resourceLabel);
       }
@@ -3947,15 +4098,589 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private buildOrderDragContext(order: any): ManualDragContext | null {
     const firstJob = order?.jobs?.[0];
+    const previewPlan = this.buildOrderDropPreviewPlan(order);
     const durationFru = this.getOrderPlanningState(order) === 'partiallyScheduled'
       ? this.getRemainingOrderFru(order)
       : this.getOrderFru(order);
     return {
       kind: 'order',
       orderId: order.id,
-      durationMinutes: Math.max(1, durationFru * MINUTES_PER_FRU),
+      durationMinutes: previewPlan?.durationMinutes ?? Math.max(1, durationFru * MINUTES_PER_FRU),
       requirements: firstJob ? this.getSchedulingRequirements(firstJob) : [],
+      previewSegments: previewPlan?.segments,
     };
+  }
+
+  private buildOrderDropPreviewPlan(order: any, searchFrom?: Date): OrderDropPreviewPlan | null {
+    const jobs = this.getJobsForOrderDropProposal(order);
+    const isPartiallyScheduled = this.getOrderPlanningState(order) === 'partiallyScheduled';
+    const activityCandidates = this.getProposalActivitiesForOrder(order, isPartiallyScheduled);
+    if (!jobs.length) {
+      return isPartiallyScheduled && searchFrom
+        ? this.buildActivityOnlyOrderDropPreviewPlan(order, activityCandidates, searchFrom)
+        : null;
+    }
+
+    const needsMobility = this.requiresMobility(order) && this.hasProposalActivity(activityCandidates, 'act-mobility');
+    const resources = this.bookingEligibleResources.map(resource => resource.meta as Resource).filter(Boolean);
+    const result = this.autoScheduler.schedule({
+      jobs,
+      resources,
+      existingEntries: this.getOccupyingEntriesForProposal(order, isPartiallyScheduled),
+      unavailability: this.unavailability,
+      searchFrom: this.getBookableSearchStart(searchFrom ? new Date(searchFrom) : new Date(2000, 0, 3, 9, 30, 0, 0)),
+      dayStartHour: 9,
+      dayEndHour: 21,
+      requiresMobility: needsMobility,
+    });
+
+    if (!result) {
+      return null;
+    }
+    const resourceTypeById = new Map(resources.map(resource => [resource.id, resource.type]));
+    const activeSegments: SchedulerDropVisualSegment[] = [
+      ...(this.hasProposalActivity(activityCandidates, 'act-checkin')
+        ? [{ jobId: this.getOrderActivityId(order.id, 'act-checkin'), resourceId: result.checkinResourceId, resourceType: resourceTypeById.get(result.checkinResourceId), start: new Date(result.checkinStart), end: new Date(result.checkinEnd), active: true }]
+        : []),
+      ...result.entries.map(entry => ({ jobId: entry.jobId, resourceId: entry.resourceId, resourceType: resourceTypeById.get(entry.resourceId), start: new Date(entry.start), end: new Date(entry.end), active: true })),
+      ...(this.hasProposalActivity(activityCandidates, 'act-handover')
+        ? [{ jobId: this.getOrderActivityId(order.id, 'act-handover'), resourceId: result.handoverResourceId, resourceType: resourceTypeById.get(result.handoverResourceId), start: new Date(result.handoverStart), end: new Date(result.handoverEnd), active: true }]
+        : []),
+      ...(needsMobility && result.mobilityResourceId
+        ? [{ jobId: this.getOrderActivityId(order.id, 'act-mobility'), resourceId: result.mobilityResourceId, resourceType: resourceTypeById.get(result.mobilityResourceId), start: new Date(result.checkinEnd), end: new Date(result.handoverEnd), active: true }]
+        : []),
+    ];
+    const preservedSegments = isPartiallyScheduled && searchFrom
+      ? this.getPreservedOrderPreviewSegments(order, resourceTypeById)
+      : [];
+    const alignedActiveSegments = isPartiallyScheduled && preservedSegments.length
+      ? this.alignPartialJobSegmentsToExistingAnchors(order, activeSegments, resources)
+      : { segments: activeSegments };
+    const workflowPlan = isPartiallyScheduled && searchFrom && preservedSegments.length
+      ? this.buildWorkflowPartialOrderPreviewPlan(order, alignedActiveSegments.segments, preservedSegments, searchFrom, activityCandidates, alignedActiveSegments.invalidReason)
+      : null;
+    const absoluteSegments = workflowPlan?.segments ?? [...activeSegments, ...preservedSegments];
+    const previewStart = this.getEarliestSegmentStart(absoluteSegments) ?? new Date(result.checkinStart);
+    const previewEnd = this.getLatestSegmentEnd(absoluteSegments) ?? new Date(result.handoverEnd);
+    const offsetTime = (value: Date): Date => new Date(value.getTime() - this.getBookableSearchStart(searchFrom ? new Date(searchFrom) : previewStart).getTime());
+    const segments = absoluteSegments.map(segment => ({
+      ...segment,
+      start: offsetTime(segment.start),
+      end: offsetTime(segment.end),
+    }));
+
+    return {
+      durationMinutes: Math.max(1, Math.round((previewEnd.getTime() - previewStart.getTime()) / 60000)),
+      segments,
+      invalid: !!workflowPlan?.invalid,
+      invalidReason: workflowPlan?.invalidReason,
+    };
+  }
+
+  private buildActivityOnlyOrderDropPreviewPlan(order: any, activityCandidates: ActivityTile[], searchFrom: Date): OrderDropPreviewPlan | null {
+    const resources = this.bookingEligibleResources.map(resource => resource.meta as Resource).filter(Boolean);
+    const resourceTypeById = new Map(resources.map(resource => [resource.id, resource.type]));
+    const preservedSegments = this.getPreservedOrderPreviewSegments(order, resourceTypeById);
+    if (!preservedSegments.length) {
+      return null;
+    }
+
+    const existingEntries = this.getOccupyingEntriesForProposal(order, true);
+    const normalizedSearchFrom = this.getBookableSearchStart(new Date(searchFrom));
+    const activeSegments: SchedulerDropVisualSegment[] = [];
+    const checkinEnd = this.getCheckinEndForOrder(order.id);
+    const firstJobStart = this.getFirstJobStartForOrder(order.id) ?? this.getEarliestSegmentStart(preservedSegments);
+    const latestJobEnd = this.getLatestJobEndForOrder(order.id) ?? this.getLatestSegmentEnd(preservedSegments);
+    const handoverStart = this.getHandoverStartForOrder(order.id);
+    const needsMobility = this.requiresMobility(order) && this.hasProposalActivity(activityCandidates, 'act-mobility');
+
+    let proposalCheckinEnd = checkinEnd;
+    let proposalHandoverStart = handoverStart;
+    let proposalHandoverEnd: Date | null = handoverStart ? new Date(handoverStart.getTime() + 30 * 60000) : null;
+
+    if (this.hasProposalActivity(activityCandidates, 'act-checkin')) {
+      const checkinSlot = this.autoScheduler.findCheckinSlots({
+        jobs: [],
+        resources,
+        existingEntries,
+        unavailability: this.unavailability,
+        from: normalizedSearchFrom,
+        to: firstJobStart ?? new Date(normalizedSearchFrom.getTime() + 365 * 24 * 60 * 60000),
+        dayStartHour: 9,
+        dayEndHour: 21,
+        requiresMobility: needsMobility,
+        slotMinutes: 15,
+      }).find(slot => !firstJobStart || slot.end <= firstJobStart);
+      if (!checkinSlot) {
+        return null;
+      }
+      activeSegments.push({
+        resourceId: checkinSlot.resourceId,
+        resourceType: resourceTypeById.get(checkinSlot.resourceId),
+        start: new Date(checkinSlot.start),
+        end: new Date(checkinSlot.end),
+        active: true,
+      });
+      proposalCheckinEnd = new Date(checkinSlot.end);
+    }
+
+    if (this.hasProposalActivity(activityCandidates, 'act-handover')) {
+      if (!latestJobEnd) {
+        return null;
+      }
+      const handoverOption = this.autoScheduler.findHandoverOptions({
+        resources,
+        existingEntries,
+        draftEntries: [],
+        unavailability: this.unavailability,
+        mobilityStart: proposalCheckinEnd ?? normalizedSearchFrom,
+        from: new Date(Math.max(normalizedSearchFrom.getTime(), latestJobEnd.getTime())),
+        to: new Date(Math.max(normalizedSearchFrom.getTime(), latestJobEnd.getTime()) + 365 * 24 * 60 * 60000),
+        dayStartHour: 9,
+        dayEndHour: 21,
+        slotMinutes: 15,
+        requiresMobility: needsMobility,
+      })[0];
+      if (!handoverOption) {
+        return null;
+      }
+      activeSegments.push({
+        resourceId: handoverOption.resourceId,
+        resourceType: resourceTypeById.get(handoverOption.resourceId),
+        start: new Date(handoverOption.start),
+        end: new Date(handoverOption.end),
+        active: true,
+      });
+      proposalHandoverStart = new Date(handoverOption.start);
+      proposalHandoverEnd = new Date(handoverOption.end);
+
+      if (needsMobility && handoverOption.mobilityResourceId && proposalCheckinEnd) {
+        activeSegments.push({
+          resourceId: handoverOption.mobilityResourceId,
+          resourceType: resourceTypeById.get(handoverOption.mobilityResourceId),
+          start: new Date(proposalCheckinEnd),
+          end: new Date(handoverOption.end),
+          active: true,
+        });
+      }
+    }
+
+    if (proposalCheckinEnd && firstJobStart && proposalCheckinEnd > firstJobStart) {
+      return null;
+    }
+    if (proposalHandoverStart && latestJobEnd && proposalHandoverStart < latestJobEnd) {
+      return null;
+    }
+    if (proposalCheckinEnd && proposalHandoverStart && proposalHandoverStart < proposalCheckinEnd) {
+      return null;
+    }
+
+    const absoluteSegments = [...activeSegments, ...preservedSegments];
+    const previewStart = this.getEarliestSegmentStart(absoluteSegments);
+    const previewEnd = this.getLatestSegmentEnd(absoluteSegments) ?? proposalHandoverEnd;
+    if (!previewStart || !previewEnd || previewEnd <= previewStart) {
+      return null;
+    }
+
+    const offsetTime = (value: Date): Date => new Date(value.getTime() - previewStart.getTime());
+    const segments = absoluteSegments.map(segment => ({
+      ...segment,
+      start: offsetTime(segment.start),
+      end: offsetTime(segment.end),
+    }));
+
+    return {
+      durationMinutes: Math.max(1, Math.round((previewEnd.getTime() - previewStart.getTime()) / 60000)),
+      segments,
+    };
+  }
+
+  private buildStablePartialOrderPreviewSegments(
+    activeSegments: SchedulerDropVisualSegment[],
+    preservedSegments: SchedulerDropVisualSegment[],
+  ): SchedulerDropVisualSegment[] {
+    const allSegments = [...activeSegments, ...preservedSegments];
+    const checkinSegments = allSegments.filter(segment => this.isSegmentForActivity(segment, 'act-checkin'));
+    const handoverSegments = allSegments.filter(segment => this.isSegmentForActivity(segment, 'act-handover'));
+    const workSegments = allSegments.filter(segment =>
+      !this.isSegmentForActivity(segment, 'act-checkin') &&
+      !this.isSegmentForActivity(segment, 'act-handover') &&
+      !this.isSegmentForActivity(segment, 'act-mobility')
+    );
+    const sourceSegments = [
+      ...checkinSegments,
+      ...workSegments,
+      ...handoverSegments,
+    ];
+    if (!sourceSegments.length) return [];
+
+    const firstSourceStart = this.getEarliestSegmentStart(sourceSegments) ?? sourceSegments[0].start;
+    let cursor = new Date(firstSourceStart);
+    const shiftedSegments: SchedulerDropVisualSegment[] = [];
+
+    const appendCluster = (cluster: SchedulerDropVisualSegment[]): void => {
+      if (!cluster.length) return;
+      const clusterStart = this.getEarliestSegmentStart(cluster) ?? cluster[0].start;
+      const primarySegment = this.getPrimaryPreviewSegment(cluster);
+      const clusterEnd = primarySegment
+        ? new Date(clusterStart.getTime() + Math.max(0, primarySegment.end.getTime() - primarySegment.start.getTime()))
+        : this.getLatestSegmentEnd(cluster) ?? cluster[0].end;
+      const offsetMs = cursor.getTime() - clusterStart.getTime();
+      shiftedSegments.push(...cluster.map(segment => ({
+        ...segment,
+        start: new Date(segment.start.getTime() + offsetMs),
+        end: new Date(segment.start.getTime() + offsetMs + Math.max(0, segment.end.getTime() - segment.start.getTime())),
+      })));
+      cursor = new Date(cursor.getTime() + Math.max(0, clusterEnd.getTime() - clusterStart.getTime()));
+    };
+
+    const appendSequential = (segments: SchedulerDropVisualSegment[]): void => {
+      const sorted = [...segments].sort((first, second) => first.start.getTime() - second.start.getTime());
+      for (const segment of sorted) appendCluster([segment]);
+    };
+
+    appendSequential(checkinSegments);
+
+    const workClusters = new Map<string, SchedulerDropVisualSegment[]>();
+    for (const segment of workSegments) {
+      const key = segment.jobId
+        ? `job:${segment.jobId}`
+        : `time:${segment.start.getTime()}-${segment.end.getTime()}`;
+      const cluster = workClusters.get(key) ?? [];
+      cluster.push(segment);
+      workClusters.set(key, cluster);
+    }
+    [...workClusters.values()]
+      .sort((first, second) => first[0].start.getTime() - second[0].start.getTime())
+      .forEach(cluster => appendCluster(cluster));
+
+    appendSequential(handoverSegments);
+    return shiftedSegments;
+  }
+
+  private getPrimaryPreviewSegment(cluster: SchedulerDropVisualSegment[]): SchedulerDropVisualSegment | undefined {
+    return [...cluster].sort((first, second) =>
+      this.getResourceTypeSortOrder(first.resourceId ?? '') - this.getResourceTypeSortOrder(second.resourceId ?? '') ||
+      first.start.getTime() - second.start.getTime()
+    )[0];
+  }
+
+  private isSegmentForActivity(segment: SchedulerDropVisualSegment, activityTemplateId: string): boolean {
+    return !!segment.jobId && this.getActivityTemplateId(segment.jobId) === activityTemplateId;
+  }
+
+  private alignPartialJobSegmentsToExistingAnchors(
+    order: any,
+    activeSegments: SchedulerDropVisualSegment[],
+    resources: Resource[],
+  ): { segments: SchedulerDropVisualSegment[]; invalidReason?: string } {
+    const anchorByJobId = this.getExistingJobAnchorsForOrder(order);
+
+    let invalidReason = '';
+    const alignedSegments = activeSegments.map(segment => {
+      if (!segment.jobId || this.isActivityId(segment.jobId)) return segment;
+      const anchor = anchorByJobId.get(segment.jobId);
+      if (!anchor) return segment;
+
+      const resource = resources.find(candidate => candidate.id === segment.resourceId);
+      const isFree = segment.resourceId
+        ? this.isResourceFreeForPartialJobAnchor(segment.resourceId, anchor.start, anchor.end, segment.jobId)
+        : true;
+      if (!isFree && !invalidReason) {
+        invalidReason = `${resource?.name ?? segment.resourceId} is not available during the already scheduled job time.`;
+      }
+
+      return {
+        ...segment,
+        start: new Date(anchor.start),
+        end: new Date(anchor.end),
+      };
+    });
+
+    return { segments: alignedSegments, invalidReason: invalidReason || undefined };
+  }
+
+  private getExistingJobAnchorsForOrder(order: any): Map<string, { start: Date; end: Date; bookingSetId?: string }> {
+    const anchorByJobId = new Map<string, { start: Date; end: Date; bookingSetId?: string }>();
+    const entriesByJobId = new Map<string, ScheduleEntry[]>();
+    for (const entry of this.getExistingScheduleEntriesForOrder(order)) {
+      if (!this.isJobScheduleEntry(entry) || (entry.kind !== 'blocked-order' && entry.kind !== 'scheduled')) continue;
+      const entries = entriesByJobId.get(entry.jobId) ?? [];
+      entries.push(entry);
+      entriesByJobId.set(entry.jobId, entries);
+    }
+
+    for (const [jobId, entries] of entriesByJobId.entries()) {
+      const primaryEntry = [...entries].sort((first, second) =>
+        this.getResourceTypeSortOrder(first.resourceId) - this.getResourceTypeSortOrder(second.resourceId) ||
+        first.start.getTime() - second.start.getTime()
+      )[0];
+      if (!primaryEntry) continue;
+      anchorByJobId.set(jobId, {
+        start: new Date(primaryEntry.start),
+        end: new Date(primaryEntry.end),
+        bookingSetId: this.getEntryBookingSetId(primaryEntry),
+      });
+    }
+    return anchorByJobId;
+  }
+
+  private getResourceTypeSortOrder(resourceId: string): number {
+    const resource = this.resources.find(candidate => candidate.id === resourceId);
+    const resourceType = (resource?.meta as any)?.type;
+    const order: Record<string, number> = { mechanic: 0, bay: 1, device: 2 };
+    return order[resourceType] ?? 99;
+  }
+
+  private isResourceFreeForPartialJobAnchor(resourceId: string, start: Date, end: Date, jobId: string): boolean {
+    const overlaps = (a: Date, b: Date, c: Date, d: Date): boolean => a < d && c < b;
+    const busyEvent = this.events.some(event =>
+      event.resourceId === resourceId &&
+      (event.meta?.entry?.jobId ?? event.meta?.job?.id) !== jobId &&
+      overlaps(start, end, event.start, event.end)
+    );
+    if (busyEvent) return false;
+
+    const busyScheduleEntry = this.allScheduleEntries.some(entry =>
+      entry.resourceId === resourceId &&
+      entry.jobId !== jobId &&
+      overlaps(start, end, entry.start, entry.end)
+    );
+    if (busyScheduleEntry) return false;
+
+    return !this.unavailability.some(block =>
+      block.resourceId === resourceId && overlaps(start, end, block.start, block.end)
+    );
+  }
+
+  private buildWorkflowPartialOrderPreviewPlan(
+    order: any,
+    activeSegments: SchedulerDropVisualSegment[],
+    preservedSegments: SchedulerDropVisualSegment[],
+    searchFrom: Date,
+    activityCandidates: ActivityTile[],
+    invalidReason = '',
+  ): { segments: SchedulerDropVisualSegment[]; invalid?: boolean; invalidReason?: string } {
+    const baseStart = this.getBookableSearchStart(new Date(searchFrom));
+    const normalizedSegments = this.normalizeSegmentsToWorkflowStart([
+      ...activeSegments.map(segment => ({ ...segment, active: true })),
+      ...preservedSegments.map(segment => ({ ...segment, active: false })),
+    ], baseStart);
+    const normalizedActiveSegments = normalizedSegments.filter(segment => segment.active !== false);
+    const normalizedPreservedSegments = normalizedSegments.filter(segment => segment.active === false);
+    const workflowSegments = this.buildStablePartialOrderPreviewSegments(normalizedActiveSegments, normalizedPreservedSegments);
+    const validation = invalidReason || this.getWorkflowPartialOrderValidationError(order, workflowSegments, preservedSegments, activityCandidates);
+
+    return {
+      segments: workflowSegments,
+      invalid: !!validation,
+      invalidReason: validation || undefined,
+    };
+  }
+
+  private normalizeSegmentsToWorkflowStart(segments: SchedulerDropVisualSegment[], baseStart: Date): SchedulerDropVisualSegment[] {
+    const earliestStart = this.getEarliestSegmentStart(segments);
+    if (!earliestStart) return [];
+    const offsetMs = baseStart.getTime() - earliestStart.getTime();
+    return segments.map(segment => ({
+      ...segment,
+      absolute: false,
+      start: new Date(segment.start.getTime() + offsetMs),
+      end: new Date(segment.end.getTime() + offsetMs),
+    }));
+  }
+
+  private getWorkflowPartialOrderValidationError(
+    order: any,
+    workflowSegments: SchedulerDropVisualSegment[],
+    preservedSegments: SchedulerDropVisualSegment[],
+    activityCandidates: ActivityTile[],
+  ): string {
+    const activeWorkflowSegments = workflowSegments.filter(segment => segment.active !== false);
+    const checkinEnd = this.hasProposalActivity(activityCandidates, 'act-checkin')
+      ? this.getWorkflowActivitySegment(activeWorkflowSegments, 'act-checkin')?.end ?? null
+      : this.getCheckinEndForOrder(order.id);
+    const handoverStart = this.hasProposalActivity(activityCandidates, 'act-handover')
+      ? this.getWorkflowActivitySegment(activeWorkflowSegments, 'act-handover')?.start ?? null
+      : this.getHandoverStartForOrder(order.id);
+    const activeJobSegments = activeWorkflowSegments.filter(segment => !!segment.jobId && !this.isActivityId(segment.jobId));
+    const preservedJobSegments = preservedSegments.filter(segment => !!segment.jobId && !this.isActivityId(segment.jobId));
+    const firstJobStart = this.minDate(
+      this.getEarliestSegmentStart(activeJobSegments),
+      this.getEarliestSegmentStart(preservedJobSegments),
+    );
+    const latestJobEnd = this.maxDate(
+      this.getLatestSegmentEnd(activeJobSegments),
+      this.getLatestSegmentEnd(preservedJobSegments),
+    );
+
+    if (checkinEnd && firstJobStart && checkinEnd > firstJobStart) {
+      return 'Check-In must finish before scheduled jobs.';
+    }
+    if (handoverStart && latestJobEnd && handoverStart < latestJobEnd) {
+      return 'Handover must start after scheduled jobs are finished.';
+    }
+    if (checkinEnd && handoverStart && handoverStart < checkinEnd) {
+      return 'Handover must start after Check-In is complete.';
+    }
+    return '';
+  }
+
+  private getWorkflowActivitySegment(segments: SchedulerDropVisualSegment[], activityTemplateId: 'act-checkin' | 'act-handover'): SchedulerDropVisualSegment | undefined {
+    const matching = segments
+      .filter(segment => segment.jobId && this.getActivityTemplateId(segment.jobId) === activityTemplateId)
+      .sort((first, second) => first.start.getTime() - second.start.getTime());
+    if (matching.length) return activityTemplateId === 'act-checkin' ? matching[0] : matching[matching.length - 1];
+
+    const advisorSegments = segments
+      .filter(segment => segment.resourceType === 'advisor')
+      .sort((first, second) => first.start.getTime() - second.start.getTime());
+    return activityTemplateId === 'act-checkin' ? advisorSegments[0] : advisorSegments[advisorSegments.length - 1];
+  }
+
+  private minDate(...dates: Array<Date | null | undefined>): Date | null {
+    const times = dates.filter((date): date is Date => !!date).map(date => date.getTime());
+    return times.length ? new Date(Math.min(...times)) : null;
+  }
+
+  private maxDate(...dates: Array<Date | null | undefined>): Date | null {
+    const times = dates.filter((date): date is Date => !!date).map(date => date.getTime());
+    return times.length ? new Date(Math.max(...times)) : null;
+  }
+
+  private getJobsForOrderDropProposal(order: any): any[] {
+    return this.getJobsForOrder(order)
+      .map((job: any) => this.getJobWithPendingRequirementsForOrderDrop(order, job))
+      .filter((job: any | null): job is any => !!job);
+  }
+
+  private getJobWithPendingRequirementsForOrderDrop(order: any, job: any): any | null {
+    const status = this.getJobExecutionStatus(order, job);
+    if (status === 'completed' || status === 'in-progress' || status === 'cancelled') return null;
+
+    const pendingRequirements = this.getPendingJobResourceRequirements(order, job);
+    if (!pendingRequirements.length) return null;
+
+    return {
+      ...job,
+      resourceRequirements: pendingRequirements,
+      requirements: pendingRequirements,
+    };
+  }
+
+  private getPendingJobResourceRequirements(order: any, job: any): JobResourceRequirement[] {
+    const requirements = this.getSchedulingRequirements(job);
+    if (this.getJobExecutionStatus(order, job) === 'unscheduled') return requirements;
+
+    const bookedResourceTypes = new Set(
+      this.getExistingJobBookingsForOrder(job, order)
+        .map(booking => booking.resourceType)
+        .filter((resourceType): resourceType is string => !!resourceType)
+    );
+    return requirements.filter(requirement => !bookedResourceTypes.has(requirement.resourceType));
+  }
+
+  private getExistingJobBookingsForOrder(job: any, order: any): JobBooking[] {
+    const persistedBookings = this.getPersistedBookingsFromEntries(
+      this.getExistingScheduleEntriesForOrder(order).filter(entry =>
+        entry.jobId === job.id &&
+        this.isJobScheduleEntry(entry) &&
+        (entry.kind === 'blocked-order' || entry.kind === 'scheduled')
+      ),
+      [order]
+    );
+    const liveBookings = this.bookings.filter(booking => booking.orderId === order.id && booking.jobId === job.id);
+    const bookingsByResourceType = new Map<string, JobBooking>();
+    [...persistedBookings, ...liveBookings].forEach(booking => {
+      if (booking.resourceType) bookingsByResourceType.set(booking.resourceType, booking);
+    });
+    return [...bookingsByResourceType.values()];
+  }
+
+  private getCachedOrderDropPreviewPlan(order: any, searchFrom: Date): OrderDropPreviewPlan | null {
+    const snappedStart = this.getBookableSearchStart(new Date(searchFrom));
+    const cacheKey = [
+      order.id,
+      snappedStart.getTime(),
+      this.getOrderPlanningState(order),
+      this.allScheduleEntries.length,
+      this.events.length,
+    ].join('|');
+    if (cacheKey === this.orderDropPreviewCacheKey) return this.orderDropPreviewCachePlan;
+
+    const plan = this.buildOrderDropPreviewPlan(order, snappedStart);
+    this.orderDropPreviewCacheKey = cacheKey;
+    this.orderDropPreviewCachePlan = plan;
+    return plan;
+  }
+
+  private getPreservedOrderPreviewSegments(order: any, resourceTypeById: Map<string, ResourceType>): SchedulerDropVisualSegment[] {
+    const entriesById = new Map<string, ScheduleEntry>();
+    this.allScheduleEntries
+      .filter(entry => this.isScheduleEntryForPreviewOrder(entry, order))
+      .forEach(entry => entriesById.set(entry.id, entry));
+    this.events
+      .filter(event => {
+        const entry = event.meta?.entry;
+        return !!entry && this.isScheduleEntryForPreviewOrder({ ...entry, id: event.id, resourceId: event.resourceId, start: event.start, end: event.end }, order);
+      })
+      .forEach(event => {
+        const entry = event.meta?.entry;
+        if (!entry) return;
+        entriesById.set(event.id, { ...entry, id: event.id, resourceId: event.resourceId, start: event.start, end: event.end });
+      });
+
+    return [...entriesById.values()]
+      .map(entry => ({
+        entryId: entry.id,
+        jobId: entry.jobId,
+        resourceId: entry.resourceId,
+        resourceType: resourceTypeById.get(entry.resourceId),
+        start: new Date(entry.start),
+        end: new Date(entry.end),
+        active: false,
+      }));
+  }
+
+  private isScheduleEntryForPreviewOrder(entry: ScheduleEntry, order: any): boolean {
+    const kind = entry.kind ?? 'scheduled';
+    if (kind !== 'scheduled' && kind !== 'blocked-order') return false;
+    const status = entry.workorderItemStatus ? this.getCanonicalWorkOrderItemStatus(entry.workorderItemStatus) : 'scheduled';
+    if (status === 'unscheduled' || status === 'cancelled') return false;
+    if (this.isEntryForOrder(entry, order)) return true;
+    if (this.bookings.some(booking => booking.entryId === entry.id && this.isBookingForOrder(booking, order))) return true;
+
+    const isOrderActivity = this.getActivitiesForOrder(order).some(activity =>
+      activity.id === entry.jobId || this.getOrderActivityId(order.id, this.getActivityTemplateId(activity.id)) === entry.jobId
+    );
+    if (isOrderActivity) return true;
+
+    return this.getJobsForOrder(order).some((job: any) => job.id === entry.jobId);
+  }
+
+  private getEarliestSegmentStart(segments: SchedulerDropVisualSegment[]): Date | null {
+    if (!segments.length) return null;
+    return new Date(Math.min(...segments.map(segment => segment.start.getTime())));
+  }
+
+  private getLatestSegmentEnd(segments: SchedulerDropVisualSegment[]): Date | null {
+    if (!segments.length) return null;
+    return new Date(Math.max(...segments.map(segment => segment.end.getTime())));
+  }
+
+  private getProposalActivitiesForOrder(order: any, onlyUnscheduled: boolean): ActivityTile[] {
+    const activities = this.getActivitiesForOrder(order);
+    return onlyUnscheduled
+      ? activities.filter(activity => this.getActivityExecutionStatus(order, activity) === 'unscheduled')
+      : activities;
+  }
+
+  private hasProposalActivity(activities: ActivityTile[], activityTemplateId: string): boolean {
+    return activities.some(activity => this.getActivityTemplateId(activity.id) === activityTemplateId);
+  }
+
+  canDragOrder(order: any): boolean {
+    return this.getOrderPlanningState(order) !== 'scheduled';
   }
 
   private buildJobDragContext(job: any, order: any): ManualDragContext {
@@ -4154,6 +4879,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.manualDragContext = null;
     this.manualResizeContext = null;
     this.manualResizeResourceId = null;
+    this.orderDropPreviewContext = null;
+    this.orderDropPreviewCacheKey = '';
+    this.orderDropPreviewCachePlan = null;
   }
 
   private buildManualDropInvalidRanges(context: ManualDragContext): SchedulerInvalidDropRange[] {
@@ -4162,6 +4890,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     for (const resource of this.visibleSchedulerResources) {
       const rawResource = resource.meta as Resource | undefined;
       const primaryRequirement = rawResource ? this.getRequirementForResource(context.requirements, rawResource) : null;
+
+      if (context.kind === 'order') {
+        this.addManualSequenceBlockedRanges(ranges, context, resource.id);
+        this.addManualResourceBlockedRanges(ranges, context, resource.id);
+        continue;
+      }
 
       if (
         !rawResource ||
@@ -4207,6 +4941,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       if (context.kind === 'job') {
         if (checkinEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, checkinEnd, day, 'Jobs must start after Check-In is complete.');
         if (handoverStart) this.addClippedManualBlockedRange(ranges, resourceId, handoverStart, day.end, day, 'Jobs must finish before Handover starts.');
+      }
+
+      if (context.kind === 'order') {
+        if (checkinEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, checkinEnd, day, 'Remaining jobs must start after Check-In is complete.');
+        if (handoverStart) this.addClippedManualBlockedRange(ranges, resourceId, handoverStart, day.end, day, 'Remaining jobs must finish before Handover starts.');
       }
 
       if (context.activityTemplateId === 'act-checkin') {

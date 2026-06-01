@@ -893,14 +893,22 @@
     @if (dropPreview) {
       <div class="scheduler__drop-preview"
         [class.scheduler__drop-preview--capacity]="getDropPreviewMode() === 'day-capacity'"
+        [class.scheduler__drop-preview--invalid]="isDropPreviewInvalid()"
+        [class.scheduler__drop-preview--segmented]="hasDropPreviewSegments()"
         [style.left.px]="getDropPreviewLeft()"
         [style.top.px]="getDropPreviewTop()"
         [style.width.px]="getDropPreviewWidth()"
-        [style.height.px]="getDropPreviewHeight()"
-        [style.border]="isDropPreviewInvalid() ? '3px solid #DA1E28' : '3px solid #4C68B1'"
-        [style.background]="isDropPreviewInvalid() ? 'rgba(218,30,40,.18)' : 'rgba(76,104,177,.26)'"
-        [style.box-shadow]="isDropPreviewInvalid() ? '0 0 0 1px white inset, 0 0 0 2px rgba(218,30,40,.18)' : '0 0 0 1px white inset'"
-        style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:30"></div>
+        [style.height.px]="getDropPreviewHeight()">
+        @if (hasDropPreviewSegments()) {
+          @for (segment of getDropPreviewSegments(); track segment.left + '-' + segment.width + '-' + segment.active) {
+            <span class="scheduler__drop-preview-segment"
+              [class.scheduler__drop-preview-segment--active]="segment.active"
+              [class.scheduler__drop-preview-segment--idle]="!segment.active"
+              [style.left.px]="segment.left"
+              [style.width.px]="segment.width"></span>
+          }
+        }
+      </div>
     }
 
     @if (shouldShowCurrentTimeMarker()) {
