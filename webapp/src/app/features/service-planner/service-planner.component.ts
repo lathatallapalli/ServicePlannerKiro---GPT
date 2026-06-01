@@ -129,6 +129,8 @@ interface ApplyProposalOptions {
   replaceExistingOrderBookings?: boolean;
   includeExistingOrderEntriesAsBlockers?: boolean;
   onlyUnscheduledActivities?: boolean;
+  includeScheduledJobs?: boolean;
+  includeScheduledActivities?: boolean;
 }
 
 type ManualPlanInvalidReasonCode =
@@ -253,6 +255,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private orderDropPreviewCacheKey = '';
   private orderDropPreviewCachePlan: OrderDropPreviewPlan | null = null;
   autoBookingWindow: SchedulerTimeRangePayload | null = null;
+  orderDragRescheduleNotice: string | null = null;
   manualResizeResourceId: string | null = null;
   unavailability: UnavailabilityBlock[] = MOCK_UNAVAILABILITY;
 
@@ -1137,7 +1140,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const order = this.allOrders.find(candidate => candidate.id === orderId || candidate.referenceNumber === orderId);
     if (!order) return;
 
-    const previewPlan = this.getCachedOrderDropPreviewPlan(order, payload.start);
+    const previewPlan = this.getCachedOrderDropPreviewPlan(order, payload.start, true);
     if (!previewPlan) {
       this.orderDropPreviewContext = {
         durationMinutes: this.manualDragContext.durationMinutes,
@@ -2030,6 +2033,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return item ? this.getEffectiveWorkOrderItemStatus(order, item) : this.getCanonicalWorkOrderItemStatus(job.workorderItemStatus ?? job.status);
   }
 
+  private hasScheduledItemForOrder(order: any): boolean {
+    return this.getJobsForOrder(order).some((job: any) => this.getJobExecutionStatus(order, job) === 'scheduled') ||
+      this.getActivitiesForOrder(order).some(activity => this.getActivityExecutionStatus(order, activity) === 'scheduled');
+  }
+
   private getActivityExecutionStatus(order: any, activity: ActivityTile): CanonicalWorkOrderItemStatus {
     const item = this.getWorkOrderActivityItems(order).find(candidate => candidate.id === activity.id || candidate.templateId === this.getActivityTemplateId(activity.id));
     const activitySource = activity as ActivityTile & { workorderItemStatus?: WorkorderItemStatus; status?: WorkorderItemStatus };
@@ -2179,6 +2187,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   onOrderDragStart(event: DragEvent, order: any): void {
     this.manualDragContext = this.buildOrderDragContext(order);
+    this.orderDragRescheduleNotice = this.hasScheduledItemForOrder(order)
+      ? 'Already scheduled jobs and activities in this order will be rescheduled to match the drop.'
+      : null;
     this.setManualDragPointerOffset(event);
     this.registerManualDragEnd();
     event.dataTransfer?.setData('orderId', order.id);
@@ -2991,15 +3002,14 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.clearManualInteractionState();
       this.selectedPanelOrderId = activeOrderId;
       this.restoreProposalStateForOrder(activeOrderId);
-      const droppedOrder = this.allOrders.find(order => order.id === activeOrderId || order.referenceNumber === activeOrderId);
-      const isPartialOrderDrop = !!droppedOrder && this.getOrderPlanningState(droppedOrder) === 'partiallyScheduled';
       this.applyProposal(payload.start, true, false, {
         orderId: activeOrderId,
         preferredResourceIds: [payload.resourceId],
         scrollToFirstEntry: false,
-        replaceExistingOrderBookings: !isPartialOrderDrop,
-        includeExistingOrderEntriesAsBlockers: isPartialOrderDrop,
-        onlyUnscheduledActivities: isPartialOrderDrop,
+        replaceExistingOrderBookings: true,
+        includeExistingOrderEntriesAsBlockers: false,
+        includeScheduledJobs: true,
+        includeScheduledActivities: true,
       });
       return;
     }
@@ -3414,13 +3424,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const targetWorkOrderId = options.orderId ?? this.getActiveWorkOrderId();
     const targetOrder = this.allOrders.find(order => order.id === targetWorkOrderId);
     const unscheduledJobs = targetOrder
-      ? this.getJobsForOrderDropProposal(targetOrder)
+      ? this.getJobsForOrderDropProposal(targetOrder, !!options.includeScheduledJobs)
       : this.jobTiles
         .filter(t => t.workOrder.id === targetWorkOrderId)
         .map(t => t.job);
     if (unscheduledJobs.length === 0) return;
     const replaceExistingOrderBookings = options.replaceExistingOrderBookings ?? true;
-    const activityCandidates = targetOrder ? this.getProposalActivitiesForOrder(targetOrder, !!options.onlyUnscheduledActivities) : [];
+    const activityCandidates = targetOrder
+      ? this.getProposalActivitiesForOrder(targetOrder, !!options.onlyUnscheduledActivities && !options.includeScheduledActivities)
+      : [];
 
     const rawResources = this.bookingEligibleResources.map(r => r.meta as Resource).filter(Boolean);
     const selectedResourceConstraint = this.getSelectedResourceConstraintContext(
@@ -3472,19 +3484,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const partialDropPlan = targetOrder && !replaceExistingOrderBookings
-      ? this.buildOrderDropPreviewPlan(targetOrder, searchFrom)
-      : null;
-    if (partialDropPlan?.invalid) {
-      this.setSchedulingError(partialDropPlan.invalidReason ?? 'Schedule not possible for this drop position.');
-      return;
-    }
-    const shiftedDropSegments = partialDropPlan?.segments
-      ? this.toAbsoluteDropPreviewSegments(partialDropPlan.segments, searchFrom)
-      : [];
-    const partialJobAnchors = targetOrder && !replaceExistingOrderBookings
-      ? this.getExistingJobAnchorsForOrder(targetOrder)
-      : new Map<string, { start: Date; end: Date; bookingSetId?: string }>();
+    const shiftedDropSegments: SchedulerDropVisualSegment[] = [];
     const shiftedJobSegments = shiftedDropSegments.filter(segment => segment.active !== false && !!segment.jobId && !this.isActivityId(segment.jobId));
     const shiftedCheckinSegment = this.getShiftedActivitySegment(shiftedDropSegments, 'act-checkin');
     const shiftedHandoverSegment = this.getShiftedActivitySegment(shiftedDropSegments, 'act-handover');
@@ -3563,9 +3563,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       );
       const persistedEntry = {
         ...entry,
-        start: partialJobAnchors.get(entry.jobId)?.start ?? shiftedEntry?.start ?? entry.start,
-        end: partialJobAnchors.get(entry.jobId)?.end ?? shiftedEntry?.end ?? entry.end,
-        bookingSetId: partialJobAnchors.get(entry.jobId)?.bookingSetId ?? entry.bookingSetId,
+        start: shiftedEntry?.start ?? entry.start,
+        end: shiftedEntry?.end ?? entry.end,
+        bookingSetId: entry.bookingSetId,
         title: unscheduledJobs.find((j: any) => j.id === entry.jobId)?.title ?? entry.jobId,
         kind: 'scheduled' as const,
         workOrderReference: targetOrder?.referenceNumber,
@@ -4098,7 +4098,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private buildOrderDragContext(order: any): ManualDragContext | null {
     const firstJob = order?.jobs?.[0];
-    const previewPlan = this.buildOrderDropPreviewPlan(order);
+    const previewPlan = this.buildOrderDropPreviewPlan(order, undefined, true);
     const durationFru = this.getOrderPlanningState(order) === 'partiallyScheduled'
       ? this.getRemainingOrderFru(order)
       : this.getOrderFru(order);
@@ -4111,8 +4111,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     };
   }
 
-  private buildOrderDropPreviewPlan(order: any, searchFrom?: Date): OrderDropPreviewPlan | null {
-    const jobs = this.getJobsForOrderDropProposal(order);
+  private buildOrderDropPreviewPlan(order: any, searchFrom?: Date, includeScheduledJobs = false): OrderDropPreviewPlan | null {
+    const jobs = this.getJobsForOrderDropProposal(order, includeScheduledJobs);
     const isPartiallyScheduled = this.getOrderPlanningState(order) === 'partiallyScheduled';
     const activityCandidates = this.getProposalActivitiesForOrder(order, isPartiallyScheduled);
     if (!jobs.length) {
@@ -4150,16 +4150,10 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         ? [{ jobId: this.getOrderActivityId(order.id, 'act-mobility'), resourceId: result.mobilityResourceId, resourceType: resourceTypeById.get(result.mobilityResourceId), start: new Date(result.checkinEnd), end: new Date(result.handoverEnd), active: true }]
         : []),
     ];
-    const preservedSegments = isPartiallyScheduled && searchFrom
+    const preservedSegments = isPartiallyScheduled && searchFrom && !includeScheduledJobs
       ? this.getPreservedOrderPreviewSegments(order, resourceTypeById)
       : [];
-    const alignedActiveSegments = isPartiallyScheduled && preservedSegments.length
-      ? this.alignPartialJobSegmentsToExistingAnchors(order, activeSegments, resources)
-      : { segments: activeSegments };
-    const workflowPlan = isPartiallyScheduled && searchFrom && preservedSegments.length
-      ? this.buildWorkflowPartialOrderPreviewPlan(order, alignedActiveSegments.segments, preservedSegments, searchFrom, activityCandidates, alignedActiveSegments.invalidReason)
-      : null;
-    const absoluteSegments = workflowPlan?.segments ?? [...activeSegments, ...preservedSegments];
+    const absoluteSegments = [...activeSegments, ...preservedSegments];
     const previewStart = this.getEarliestSegmentStart(absoluteSegments) ?? new Date(result.checkinStart);
     const previewEnd = this.getLatestSegmentEnd(absoluteSegments) ?? new Date(result.handoverEnd);
     const offsetTime = (value: Date): Date => new Date(value.getTime() - this.getBookableSearchStart(searchFrom ? new Date(searchFrom) : previewStart).getTime());
@@ -4172,8 +4166,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return {
       durationMinutes: Math.max(1, Math.round((previewEnd.getTime() - previewStart.getTime()) / 60000)),
       segments,
-      invalid: !!workflowPlan?.invalid,
-      invalidReason: workflowPlan?.invalidReason,
+      invalid: false,
+      invalidReason: undefined,
     };
   }
 
@@ -4548,17 +4542,19 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return times.length ? new Date(Math.max(...times)) : null;
   }
 
-  private getJobsForOrderDropProposal(order: any): any[] {
+  private getJobsForOrderDropProposal(order: any, includeScheduledJobs = false): any[] {
     return this.getJobsForOrder(order)
-      .map((job: any) => this.getJobWithPendingRequirementsForOrderDrop(order, job))
+      .map((job: any) => this.getJobWithPendingRequirementsForOrderDrop(order, job, includeScheduledJobs))
       .filter((job: any | null): job is any => !!job);
   }
 
-  private getJobWithPendingRequirementsForOrderDrop(order: any, job: any): any | null {
+  private getJobWithPendingRequirementsForOrderDrop(order: any, job: any, includeScheduledJobs = false): any | null {
     const status = this.getJobExecutionStatus(order, job);
     if (status === 'completed' || status === 'in-progress' || status === 'cancelled') return null;
 
-    const pendingRequirements = this.getPendingJobResourceRequirements(order, job);
+    const pendingRequirements = includeScheduledJobs
+      ? this.getSchedulingRequirements(job)
+      : this.getPendingJobResourceRequirements(order, job);
     if (!pendingRequirements.length) return null;
 
     return {
@@ -4597,18 +4593,19 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return [...bookingsByResourceType.values()];
   }
 
-  private getCachedOrderDropPreviewPlan(order: any, searchFrom: Date): OrderDropPreviewPlan | null {
+  private getCachedOrderDropPreviewPlan(order: any, searchFrom: Date, includeScheduledJobs = false): OrderDropPreviewPlan | null {
     const snappedStart = this.getBookableSearchStart(new Date(searchFrom));
     const cacheKey = [
       order.id,
       snappedStart.getTime(),
       this.getOrderPlanningState(order),
+      includeScheduledJobs ? 'include-scheduled' : 'pending-only',
       this.allScheduleEntries.length,
       this.events.length,
     ].join('|');
     if (cacheKey === this.orderDropPreviewCacheKey) return this.orderDropPreviewCachePlan;
 
-    const plan = this.buildOrderDropPreviewPlan(order, snappedStart);
+    const plan = this.buildOrderDropPreviewPlan(order, snappedStart, includeScheduledJobs);
     this.orderDropPreviewCacheKey = cacheKey;
     this.orderDropPreviewCachePlan = plan;
     return plan;
@@ -4880,6 +4877,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.manualResizeContext = null;
     this.manualResizeResourceId = null;
     this.orderDropPreviewContext = null;
+    this.orderDragRescheduleNotice = null;
     this.orderDropPreviewCacheKey = '';
     this.orderDropPreviewCachePlan = null;
   }
@@ -4931,6 +4929,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     resourceId: string,
   ): void {
     if (!context.orderId) return;
+    if (context.kind === 'order') return;
 
     const checkinEnd = this.getCheckinEndForOrder(context.orderId);
     const latestJobEnd = this.getLatestJobEndForOrder(context.orderId);
@@ -4941,11 +4940,6 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       if (context.kind === 'job') {
         if (checkinEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, checkinEnd, day, 'Jobs must start after Check-In is complete.');
         if (handoverStart) this.addClippedManualBlockedRange(ranges, resourceId, handoverStart, day.end, day, 'Jobs must finish before Handover starts.');
-      }
-
-      if (context.kind === 'order') {
-        if (checkinEnd) this.addClippedManualBlockedRange(ranges, resourceId, day.start, checkinEnd, day, 'Remaining jobs must start after Check-In is complete.');
-        if (handoverStart) this.addClippedManualBlockedRange(ranges, resourceId, handoverStart, day.end, day, 'Remaining jobs must finish before Handover starts.');
       }
 
       if (context.activityTemplateId === 'act-checkin') {
@@ -4966,7 +4960,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     resourceId: string,
   ): void {
     for (const event of this.events) {
-      if (event.resourceId === resourceId && !this.isSameManualDraggedItem(event, context)) {
+      if (event.resourceId === resourceId && !this.isSameManualDraggedItem(event, context) && !this.isEventFromDraggedOrder(event, context)) {
         ranges.push({ resourceId, start: event.start, end: event.end });
       }
     }
@@ -5219,6 +5213,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       if (handoverStart && end > handoverStart) reasons.push({ code: 'after-handover' });
     }
 
+    if (context.kind === 'order') return reasons;
+
     if (context.activityTemplateId === 'act-checkin') {
       if (firstJobStart && end > firstJobStart) reasons.push({ code: 'checkin-after-job' });
       if (handoverStart && end > handoverStart) reasons.push({ code: 'checkin-after-handover' });
@@ -5269,6 +5265,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return !this.events.some(event =>
       event.resourceId === resourceId &&
       !this.isSameManualDraggedItem(event, context) &&
+      !this.isEventFromDraggedOrder(event, context) &&
       overlaps(start, end, event.start, event.end)
     ) && !this.unavailability.some(block =>
       block.resourceId === resourceId &&
@@ -5310,6 +5307,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     }
 
     return eventEntry?.jobId === context.itemId || event.meta?.job?.id === context.itemId;
+  }
+
+  private isEventFromDraggedOrder(event: SchedulerEvent, context: ManualDragContext): boolean {
+    if (context.kind !== 'order' || !context.orderId) return false;
+    const order = this.allOrders.find(candidate => candidate.id === context.orderId || candidate.referenceNumber === context.orderId);
+    return !!order && this.isEventForOrder(event, order);
   }
 
   private isSplitScheduleEntry(entry: ScheduleEntry): boolean {
