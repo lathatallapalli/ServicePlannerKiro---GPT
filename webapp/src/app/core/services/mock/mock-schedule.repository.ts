@@ -16,7 +16,7 @@ export class MockScheduleRepository extends ScheduleRepository {
   );
 
   getEntries(from: Date, to: Date): Observable<ScheduleEntry[]> {
-    return of(this.entries.filter(e => e.start >= from && e.end <= to).map(entry => ({ ...entry })));
+    return of(this.entries.filter(e => e.start < to && e.end > from).map(entry => ({ ...entry })));
   }
 
   assign(entry: ScheduleEntry): Observable<ScheduleEntry> {

@@ -174,14 +174,15 @@
       [detailedEventIds]="plannedBookingEventIds"
       [detailedOrderIds]="detailedOrderIds"
       [scrollToEventId]="scrollToEventId"
+      [scrollToEventIds]="scrollToEventIds"
       [scrollToEventRequestId]="scrollToEventRequestId"
       [resourceViews]="resourceViews"
       [selectedResourceView]="selectedResourceView"
       [rightPaneOpen]="!isFullPlanner() || isOrderPanelOpen"
       [navigationMeta]="plannerNavigationMeta"
       [navigationTitle]="plannerNavigationTitle"
-      [previousNavigationLabel]="plannerViewMode === 'week' ? 'Previous week' : 'Previous day'"
-      [nextNavigationLabel]="plannerViewMode === 'week' ? 'Next week' : 'Next day'"
+      [previousNavigationLabel]="plannerViewMode === 'day' ? 'Previous day' : 'Previous week'"
+      [nextNavigationLabel]="plannerViewMode === 'day' ? 'Next day' : 'Next week'"
       (eventMoved)="onEventMoved($event)"
       (eventDragStarted)="onSchedulerEventDragStarted($event.eventId, $event.pointerOffsetMinutes)"
       (eventDragEnded)="onSchedulerEventDragEnded($event.eventId)"
@@ -256,7 +257,7 @@
       <section class="order-panel__accordion" style="align-self:stretch;display:flex;flex-direction:column;gap:4px;min-height:0;overflow:hidden">
         <div class="order-panel__list" style="align-self:stretch;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:16px;padding-top:12px;padding-bottom:24px">
           <ng-template #orderCard let-order>
-            <article class="order-panel__order-card" [attr.id]="'order-panel-card-' + order.id" draggable="true" (dragstart)="onOrderDragStart($event, order)" [style.outline]="isPanelOrderFocused(order) || isActiveOrderSearchMatch(order) ? '2px solid #4C68B1' : null" style="align-self:stretch;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab;outline-offset:-2px">
+            <article class="order-panel__order-card" [attr.id]="'order-panel-card-' + order.id" draggable="true" (dragstart)="onOrderDragStart($event, order)" [style.outline]="isPanelOrderFocused(order) ? '2px solid #4C68B1' : null" style="align-self:stretch;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab;outline-offset:-2px">
               <div style="align-self:stretch;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
                 <div style="align-self:stretch;display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
                   <strong style="min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
@@ -278,7 +279,7 @@
                     }
                   </span>
                   <span style="position:absolute;right:0;top:3px;display:inline-flex;justify-content:flex-end;align-items:center;gap:4px">
-                    <button type="button" [attr.aria-label]="isFullPlannerOrderOnly(order) ? 'Show all orders on planner' : 'View only this order on planner'" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="viewOnlyOrderOnPlanner(order, $event)" [style.background]="isFullPlannerOrderOnly(order) ? '#4C68B1' : 'var(--Button-button-secondary,#626469)'" style="width:32px;height:32px;border:0;color:white;padding:8px;display:flex;cursor:pointer"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3C4.5 3 1.7 6.1 1 8c.7 1.9 3.5 5 7 5s6.3-3.1 7-5c-.7-1.9-3.5-5-7-5Zm0 9c-2.7 0-4.9-2.2-5.9-4C3.1 6.2 5.3 4 8 4s4.9 2.2 5.9 4c-1 1.8-3.2 4-5.9 4Zm0-6.5A2.5 2.5 0 1 0 8 10.5 2.5 2.5 0 0 0 8 5.5Zm0 4A1.5 1.5 0 1 1 8 6.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg></button>
+                    <button type="button" [disabled]="!canViewOnlyOrderOnPlanner(order)" [attr.aria-label]="!canViewOnlyOrderOnPlanner(order) ? 'No bookings to show on planner' : isFullPlannerOrderOnly(order) ? 'Show all orders on planner' : 'View only this order on planner'" [attr.title]="!canViewOnlyOrderOnPlanner(order) ? 'No bookings to show on planner' : isFullPlannerOrderOnly(order) ? 'Show all orders on planner' : 'View only this order on planner'" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="viewOnlyOrderOnPlanner(order, $event)" [style.background]="!canViewOnlyOrderOnPlanner(order) ? 'var(--Button-button-disabled,#C6C6C6)' : isFullPlannerOrderOnly(order) ? '#4C68B1' : 'var(--Button-button-secondary,#626469)'" [style.color]="canViewOnlyOrderOnPlanner(order) ? 'white' : 'var(--Icon-icon-disabled,#8D8D8D)'" [style.cursor]="canViewOnlyOrderOnPlanner(order) ? 'pointer' : 'not-allowed'" style="width:32px;height:32px;border:0;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3C4.5 3 1.7 6.1 1 8c.7 1.9 3.5 5 7 5s6.3-3.1 7-5c-.7-1.9-3.5-5-7-5Zm0 9c-2.7 0-4.9-2.2-5.9-4C3.1 6.2 5.3 4 8 4s4.9 2.2 5.9 4c-1 1.8-3.2 4-5.9 4Zm0-6.5A2.5 2.5 0 1 0 8 10.5 2.5 2.5 0 0 0 8 5.5Zm0 4A1.5 1.5 0 1 1 8 6.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg></button>
                     <button type="button" aria-label="Open order" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 14H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h5v1H3v10h10V8h1v5a1 1 0 0 1-1 1Z" fill="currentColor"/><path d="M10 1v1h3.293L9 6.293 9.707 7 14 2.707V6h1V1h-5Z" fill="currentColor"/></svg></button>
                     <button type="button" aria-label="Undo order booking" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="onUndoOrderBooking(order); $event.stopPropagation()" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex;cursor:pointer"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5H3.907L5.701 3.207 5 2.5l-3 3 3 3 .701-.707L3.909 6H10a3 3 0 1 1 0 6H6v1h4a4 4 0 0 0 0-8Z" fill="currentColor"/></svg></button>
                     <button type="button" [attr.aria-label]="isOrderExpanded(order) ? 'Collapse order' : 'Expand order'" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="toggleOrderExpanded(order.id, $event)" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex;cursor:pointer"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderExpanded(order) ? 'none' : 'rotate(180deg)'"><path d="M8 5 13 10l-.7.7L8 6.4l-4.3 4.3L3 10l5-5Z" fill="currentColor"/></svg></button>
@@ -414,22 +415,52 @@
                 @for (order of visiblePendingOrders; track order.id) {
                   <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
                 } @empty {
-                  <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">No Results</div>
+                  <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">{{ emptyOrderSectionMessage }}</div>
                 }
               </div>
             }
 
-            <button type="button" aria-controls="planned-orders" [attr.aria-expanded]="!isOrderGroupCollapsed('planned')" (click)="toggleOrderGroup('planned')" style="align-self:stretch;width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Background-background,white);padding:8px 12px 8px 6px;display:flex;align-items:center;gap:2px;cursor:pointer;text-align:left;color:#161616">
-              <span style="font-size:16px;font-weight:600;line-height:22px;letter-spacing:0">Planned</span>
-              <span style="width:32px;height:32px;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderGroupCollapsed('planned') ? 'rotate(180deg)' : 'none'"><path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/></svg></span>
-              <span style="margin-left:auto;min-height:24px;padding:4px 8px;background:var(--Tag-tag-background-gray,#E0E0E0);color:var(--Tag-tag-color-gray,#161616);border-radius:999px;font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">{{ visiblePlannedOrders.length }} {{ isSearchActive ? 'Results' : 'Orders' }}</span>
+            <button type="button" aria-controls="scheduled-orders" [attr.aria-expanded]="!isOrderGroupCollapsed('scheduled')" (click)="toggleOrderGroup('scheduled')" style="align-self:stretch;width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Background-background,white);padding:8px 12px 8px 6px;display:flex;align-items:center;gap:2px;cursor:pointer;text-align:left;color:#161616">
+              <span style="font-size:16px;font-weight:600;line-height:22px;letter-spacing:0">Scheduled</span>
+              <span style="width:32px;height:32px;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderGroupCollapsed('scheduled') ? 'rotate(180deg)' : 'none'"><path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/></svg></span>
+              <span style="margin-left:auto;min-height:24px;padding:4px 8px;background:var(--Tag-tag-background-gray,#E0E0E0);color:var(--Tag-tag-color-gray,#161616);border-radius:999px;font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">{{ visibleScheduledOrders.length }} {{ isSearchActive ? 'Results' : 'Orders' }}</span>
             </button>
-            @if (!isOrderGroupCollapsed('planned')) {
-              <div id="planned-orders" style="align-self:stretch;display:flex;flex-direction:column;gap:16px">
-                @for (order of visiblePlannedOrders; track order.id) {
+            @if (!isOrderGroupCollapsed('scheduled')) {
+              <div id="scheduled-orders" style="align-self:stretch;display:flex;flex-direction:column;gap:16px">
+                @for (order of visibleScheduledOrders; track order.id) {
                   <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
                 } @empty {
-                  <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">No Results</div>
+                  <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">{{ emptyOrderSectionMessage }}</div>
+                }
+              </div>
+            }
+
+            <button type="button" aria-controls="in-progress-orders" [attr.aria-expanded]="!isOrderGroupCollapsed('in-progress')" (click)="toggleOrderGroup('in-progress')" style="align-self:stretch;width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Background-background,white);padding:8px 12px 8px 6px;display:flex;align-items:center;gap:2px;cursor:pointer;text-align:left;color:#161616">
+              <span style="font-size:16px;font-weight:600;line-height:22px;letter-spacing:0">In-Progress</span>
+              <span style="width:32px;height:32px;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderGroupCollapsed('in-progress') ? 'rotate(180deg)' : 'none'"><path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/></svg></span>
+              <span style="margin-left:auto;min-height:24px;padding:4px 8px;background:var(--Tag-tag-background-gray,#E0E0E0);color:var(--Tag-tag-color-gray,#161616);border-radius:999px;font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">{{ visibleInProgressOrders.length }} {{ isSearchActive ? 'Results' : 'Orders' }}</span>
+            </button>
+            @if (!isOrderGroupCollapsed('in-progress')) {
+              <div id="in-progress-orders" style="align-self:stretch;display:flex;flex-direction:column;gap:16px">
+                @for (order of visibleInProgressOrders; track order.id) {
+                  <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
+                } @empty {
+                  <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">{{ emptyOrderSectionMessage }}</div>
+                }
+              </div>
+            }
+
+            <button type="button" aria-controls="completed-orders" [attr.aria-expanded]="!isOrderGroupCollapsed('completed')" (click)="toggleOrderGroup('completed')" style="align-self:stretch;width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Background-background,white);padding:8px 12px 8px 6px;display:flex;align-items:center;gap:2px;cursor:pointer;text-align:left;color:#161616">
+              <span style="font-size:16px;font-weight:600;line-height:22px;letter-spacing:0">Completed</span>
+              <span style="width:32px;height:32px;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderGroupCollapsed('completed') ? 'rotate(180deg)' : 'none'"><path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/></svg></span>
+              <span style="margin-left:auto;min-height:24px;padding:4px 8px;background:var(--Tag-tag-background-gray,#E0E0E0);color:var(--Tag-tag-color-gray,#161616);border-radius:999px;font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">{{ visibleCompletedOrders.length }} {{ isSearchActive ? 'Results' : 'Orders' }}</span>
+            </button>
+            @if (!isOrderGroupCollapsed('completed')) {
+              <div id="completed-orders" style="align-self:stretch;display:flex;flex-direction:column;gap:16px">
+                @for (order of visibleCompletedOrders; track order.id) {
+                  <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
+                } @empty {
+                  <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">{{ emptyOrderSectionMessage }}</div>
                 }
               </div>
             }
@@ -445,10 +476,12 @@
 
   @if (eventContextMenu) {
     <div role="menu" [style.left.px]="eventContextMenu.x" [style.top.px]="eventContextMenu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()" style="position:fixed;z-index:1001;min-width:160px;max-width:288px;box-shadow:0 2px 6px rgba(0,0,0,.30);display:inline-flex;flex-direction:column;background:var(--Layer-layer-01,#F4F4F4);font-family:'IBM Plex Sans',sans-serif">
-      <button type="button" role="menuitem" [disabled]="!canSplitContextEvent()" (click)="splitContextEvent()" style="width:100%;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:15px 16px 11px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
+      @if (canSplitContextEvent()) {
+      <button type="button" role="menuitem" (click)="splitContextEvent()" style="width:100%;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:15px 16px 11px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
         <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Split</span>
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M12 6.5C12.5304 6.5 13.0391 6.28929 13.4142 5.91421C13.7893 5.53914 14 5.03043 14 4.5V4C14 3.46957 13.7893 2.96086 13.4142 2.58579C13.0391 2.21071 12.5304 2 12 2H11.5C10.9696 2 10.4609 2.21071 10.0858 2.58579C9.71071 2.96086 9.5 3.46957 9.5 4V5.5H6.5V4C6.5 3.46957 6.28929 2.96086 5.91421 2.58579C5.53914 2.21071 5.03043 2 4.5 2H4C3.46957 2 2.96086 2.21071 2.58579 2.58579C2.21071 2.96086 2 3.46957 2 4V4.5C2 5.03043 2.21071 5.53914 2.58579 5.91421C2.96086 6.28929 3.46957 6.5 4 6.5H5.5V9.5H4C3.46957 9.5 2.96086 9.71071 2.58579 10.0858C2.21071 10.4609 2 10.9696 2 11.5V12C2 12.5304 2.21071 13.0391 2.58579 13.4142C2.96086 13.7893 3.46957 14 4 14H4.5C5.03043 14 5.53914 13.7893 5.91421 13.4142C6.28929 13.0391 6.5 12.5304 6.5 12V10.5H9.5V12C9.5 12.5304 9.71071 13.0391 10.0858 13.4142C10.4609 13.7893 10.9696 14 11.5 14H12C12.5304 14 13.0391 13.7893 13.4142 13.4142C13.7893 13.0391 14 12.5304 14 12V11.5C14 10.9696 13.7893 10.4609 13.4142 10.0858C13.0391 9.71071 12.5304 9.5 12 9.5H10.5V6.5H12ZM9.5 9.5H6.5V6.5H9.5V9.5Z" fill="currentColor"/></svg>
       </button>
+      }
       <button type="button" role="menuitem" [disabled]="!getContextEventCustomerEmail()" (click)="copyContextCustomerEmail()" style="width:100%;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
         <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Copy customer mail</span>
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" fill-opacity="0.01" style="mix-blend-mode:multiply"/><path d="M14 3H2C1.73488 3.0003 1.48059 3.10576 1.29312 3.29324C1.10565 3.48071 1.00028 3.73488 1 4V12C1.00028 12.2651 1.10565 12.5193 1.29312 12.7068C1.48059 12.8942 1.73488 12.9997 2 13H14C14.2651 12.9997 14.5194 12.8942 14.7069 12.7068C14.8943 12.5193 14.9997 12.2651 15 12V4C14.9997 3.73488 14.8943 3.48071 14.7069 3.29324C14.5194 3.10576 14.2651 3.0003 14 3ZM12.8995 4L8 7.7675L3.1005 4H12.8995ZM2 12V4.455L7.695 8.835C7.78257 8.90231 7.8899 8.93882 8.00033 8.93882C8.11076 8.93882 8.21809 8.90231 8.30567 8.835L14 4.455V12H2Z" fill="currentColor"/></svg>
@@ -462,7 +495,7 @@
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M13 14H3C2.73489 13.9996 2.48075 13.8942 2.29329 13.7067C2.10583 13.5193 2.00036 13.2651 2 13V3C2.00036 2.73489 2.10583 2.48075 2.29329 2.29329C2.48075 2.10583 2.73489 2.00036 3 2H8V3H3V13H13V8H14V13C13.9996 13.2651 13.8942 13.5193 13.7067 13.7067C13.5193 13.8942 13.2651 13.9996 13 14Z" fill="currentColor"/><path d="M10 1V2H13.293L9 6.293L9.707 7L14 2.707V6H15V1H10Z" fill="currentColor"/></svg>
       </button>
       <button type="button" role="menuitem" (click)="deleteContextEvent()" style="width:100%;border:0;border-top:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Layer-layer-01,#F4F4F4);padding:15px 16px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
-        <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Delete</span>
+        <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cancel</span>
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" fill-opacity="0.01" style="mix-blend-mode:multiply"/><path fill-rule="evenodd" clip-rule="evenodd" d="M14.5 3C14.7761 3.00001 15 3.22391 15 3.5V12.5C15 12.7761 14.7761 13 14.5 13H5.99997C5.86742 13 5.7402 12.9473 5.64645 12.8535L1.14645 8.35352C0.951192 8.15822 0.951175 7.84177 1.14645 7.64648L5.64645 3.14648C5.7402 3.05273 5.86742 3 5.99997 3H14.5ZM2.207 8L6.207 12H14V4H6.207L2.207 8ZM12.5 5.70703L10.207 8L12.5 10.293L11.7929 11L9.49997 8.70703L7.207 11L6.49997 10.293L8.79293 8L6.49997 5.70703L7.207 5L9.49997 7.29297L11.7929 5L12.5 5.70703Z" fill="currentColor"/></svg>
       </button>
     </div>
@@ -650,7 +683,7 @@
         </button>
         <div style="display:flex">
           <button class="booking-modal__delete" type="button" (click)="deleteSelectedBooking()">
-            <span>Delete</span>
+            <span>Cancel</span>
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
               <path d="M14 4H13V14C13 14.5523 12.5523 15 12 15H4C3.44772 15 3 14.5523 3 14V4H2V3H14V4ZM4 14H12V4H4V14ZM7 12H6V6H7V12ZM10 12H9V6H10V12ZM10 2H6V1H10V2Z" />
             </svg>

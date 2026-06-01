@@ -121,6 +121,24 @@
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.795 10.724 10.019A5.51 5.51 0 1 0 10.017 10.726L13.793 14.5021 14.5 13.795ZM2 6.50208A4.5 4.5 0 1 1 6.5 11.0021 4.505 4.505 0 0 1 2 6.50208Z" fill="currentColor"/></svg>
           </button>
         </div>
+        <div style="align-self:stretch;min-width:0;height:32px;display:flex;align-items:center;justify-content:space-between;text-transform:none">
+          <button type="button" aria-label="Deselect all resources" title="Deselect all resources" [disabled]="!hasSelectedResources()" (click)="deselectAllResources()" [style.color]="hasSelectedResources() ? 'var(--Icon-icon-primary,#161616)' : 'var(--Icon-icon-disabled,#8D8D8D)'" [style.cursor]="hasSelectedResources() ? 'pointer' : 'not-allowed'" style="width:32px;height:32px;border:0;background:transparent;padding:8px;display:flex;align-items:center;justify-content:center">
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M12 4.7 11.3 4 8 7.3 4.7 4 4 4.7 7.3 8 4 11.3l.7.7L8 8.7l3.3 3.3.7-.7L8.7 8 12 4.7Z" fill="currentColor"/></svg>
+          </button>
+          <button type="button" [attr.aria-label]="areAllVisibleGroupsCollapsed() ? 'Expand all resource groups' : 'Collapse all resource groups'" [attr.title]="areAllVisibleGroupsCollapsed() ? 'Expand all resource groups' : 'Collapse all resource groups'" (click)="toggleAllGroupsCollapsed()" style="width:32px;height:32px;border:0;background:transparent;color:var(--Icon-icon-primary,#161616);padding:8px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+            @if (areAllVisibleGroupsCollapsed()) {
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+                <path d="M2 1V7H3V2H7V1H2ZM9 1V2H13V7H14V1H9ZM2 9V15H7V14H3V9H2ZM13 9V14H9V15H14V9H13Z" fill="currentColor"/>
+              </svg>
+            } @else {
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
+                <path d="M2 3H7V2H2V7H3V3ZM9 2V3H13V7H14V2H9ZM3 9H2V14H7V13H3V9ZM13 13H9V14H14V9H13V13Z" fill="currentColor"/>
+              </svg>
+            }
+          </button>
+        </div>
       </div>
     </div>
     <div class="scheduler__header-scroll" #headerScroll (pointerdown)="onTimeRangePointerDown($event)" style="margin-right:32px">

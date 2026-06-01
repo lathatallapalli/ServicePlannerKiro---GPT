@@ -45,6 +45,7 @@ export class ActionRibbon {
       label: 'View',
       type: 'dropdown',
       options: [
+        { label: 'Free', value: 'free' },
         { label: 'Day', value: 'day' },
         { label: 'Week', value: 'week' },
         { label: 'Month', value: 'month' },
@@ -150,3 +151,4 @@ export class ActionRibbon {
     this.previewResourceViewValue = null;
   }
 }
+

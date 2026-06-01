@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-export type PlannerViewMode = 'day' | 'week' | 'month';
+export type PlannerViewMode = 'free' | 'day' | 'week' | 'month';
 
 export interface ResourceFavoriteView {
   label: string;
@@ -75,3 +75,4 @@ export class PlannerSettingsService {
     this.optimizeAdvisorActivityBookingForPersonalCalendar.set(enabled);
   }
 }
+

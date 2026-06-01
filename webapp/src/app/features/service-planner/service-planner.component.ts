@@ -71,6 +71,7 @@ type WorkOrderItemKind = 'job' | 'activity';
 type SchedulingRole = 'start-boundary' | 'work' | 'end-boundary' | 'span';
 type CanonicalWorkOrderItemStatus = Exclude<WorkorderItemStatus, 'started'>;
 type OrderPlanningState = 'unscheduled' | 'partiallyScheduled' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+type OrderPanelGroup = 'pending' | 'scheduled' | 'in-progress' | 'completed';
 
 interface NormalizedWorkOrderItem {
   id: string;
@@ -121,6 +122,11 @@ interface ManualPlanValidationResult {
   reasons: ManualPlanInvalidReason[];
 }
 
+interface SelectedResourceConstraintContext {
+  requiredResourceIds: string[];
+  hasRelevantSelection: boolean;
+}
+
 @Component({
   selector: 'app-service-planner',
   standalone: true,
@@ -148,6 +154,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   events: SchedulerEvent[] = [];
   capacityBlocks: SchedulerCapacityBlock[] = [];
   scheduleEntries: ScheduleEntry[] = [];
+  allScheduleEntries: ScheduleEntry[] = [];
   groups: SchedulerGroup[] = [];
   allOrders: any[] = [];
   jobTiles: JobTile[] = [];
@@ -168,6 +175,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   bookingModalResourceId = '';
   bookingModalAdditionalResourceIds: Record<string, string> = {};
   scrollToEventId: string | null = null;
+  scrollToEventIds: string[] = [];
   scrollToEventRequestId = 0;
   isOrderPanelOpen = false;
   orderPanelWidth = 342;
@@ -182,7 +190,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   activeSearchResultIndex = 0;
   expandedOrderIds = new Set<string>();
   searchRevealedOrderIds = new Set<string>();
-  collapsedOrderGroups = new Set<'planned' | 'pending'>();
+  collapsedOrderGroups = new Set<OrderPanelGroup>();
+  expandedEmptyOrderGroups = new Set<OrderPanelGroup>();
+  expandedEmptySearchOrderGroups = new Set<OrderPanelGroup>();
   selectedPanelOrderId = '';
   focusedPlanningOrderId = '';
   fullPlannerOrderOnlyId = '';
@@ -199,6 +209,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private proposalStateByOrder = new Map<string, { history: Date[]; endHistory: Date[]; index: number }>();
   private latestAutoBookingEntryIds = new Set<string>();
   private isAutoProposalVisible = false;
+  private isReplacingFocusedOrderBookings = false;
   manualDragContext: ManualDragContext | null = null;
   manualResizeContext: ManualDragContext | null = null;
   autoBookingWindow: SchedulerTimeRangePayload | null = null;
@@ -206,12 +217,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   unavailability: UnavailabilityBlock[] = MOCK_UNAVAILABILITY;
 
   private readonly mockCurrentTime = new Date('2024-04-15T09:00:00');
+  private readonly freeViewWindowDays = 10;
+  private readonly freeViewLazyLoadDays = 5;
   private currentPlannerTime = new Date('2024-04-15T09:15:00');
   private currentPlannerTimeTimer: ReturnType<typeof setInterval> | null = null;
   viewStart = new Date('2024-04-15T09:00:00');
   viewEnd   = new Date('2024-04-15T21:00:00');
   selectedMonthPreviewDate: Date | null = null;
   private nextViewModeAnchor: Date | null = null;
+  private isFreeTimelineLoading = false;
 
   get plannerCurrentTime(): Date {
     return this.currentPlannerTime;
@@ -282,6 +296,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (this.plannerViewMode === 'week') {
       return `${this.formatShortDate(this.viewStart)} - ${this.formatShortDate(this.viewEnd)}`;
     }
+    if (this.plannerViewMode === 'free') return 'Full calendar';
     return this.formatLongDate(this.viewStart);
   }
 
@@ -289,6 +304,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (this.plannerViewMode === 'week') {
       return `Calendar week ${this.getCalendarWeek(this.viewStart)}`;
     }
+    if (this.plannerViewMode === 'free') return 'Free view';
     return this.viewStart.toLocaleDateString('en-GB', { weekday: 'long' });
   }
 
@@ -356,7 +372,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   get bookings(): JobBooking[] {
-    return this.getPersistedBookingsFromEntries(this.scheduleEntries, this.allOrders);
+    return this.getPersistedBookingsFromEntries(this.allScheduleEntries, this.allOrders);
   }
 
   /** After booking, only show resources that have at least one event */
@@ -389,21 +405,23 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private getFullPlannerVisibleResources(): SchedulerResource[] {
-    const order = this.getFullPlannerOrderOnly();
-    if (!order) return this.fullPlannerResources;
-    const resourceIds = new Set(
-      this.events
-        .filter(event => this.isEventForOrder(event, order))
-        .map(event => event.resourceId)
+    const focusedOrder = this.getFullPlannerFocusedOrder();
+    if (!focusedOrder) return this.fullPlannerResources;
+
+    const bookedResourceIds = new Set(
+      this.allScheduleEntries
+        .filter(entry => this.isEntryForOrder(entry, focusedOrder))
+        .map(entry => entry.resourceId)
     );
-    return resourceIds.size
-      ? this.fullPlannerResources.filter(resource => resourceIds.has(resource.id))
-      : this.fullPlannerResources;
+    if (!bookedResourceIds.size) return this.fullPlannerResources;
+
+    return this.fullPlannerResources.filter(resource => bookedResourceIds.has(resource.id));
   }
 
-  private getFullPlannerOrderOnly(): any | null {
+  private getFullPlannerFocusedOrder(): any | null {
     if (this.plannerMode !== 'full' || !this.fullPlannerOrderOnlyId) return null;
-    return this.allOrders.find(order => order.id === this.fullPlannerOrderOnlyId || order.referenceNumber === this.fullPlannerOrderOnlyId) ?? null;
+    const order = this.allOrders.find(candidate => candidate.id === this.fullPlannerOrderOnlyId || candidate.referenceNumber === this.fullPlannerOrderOnlyId) ?? null;
+    return order && this.hasPlannerBookingsForOrder(order) ? order : null;
   }
 
   get visibleSchedulerResources(): SchedulerResource[] {
@@ -432,17 +450,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   get visibleSchedulerEvents(): SchedulerEvent[] {
-    const order = this.getFullPlannerOrderOnly();
-    return order ? this.events.filter(event => this.isEventForOrder(event, order)) : this.events;
+    return this.events;
   }
 
   get visibleSchedulerCapacityBlocks(): SchedulerCapacityBlock[] {
-    const order = this.getFullPlannerOrderOnly();
-    return order ? this.capacityBlocks.filter(block => {
-      const blockOrder = (block.meta as any)?.order;
-      const entry = (block.meta as any)?.entry;
-      return blockOrder?.id === order.id || blockOrder?.referenceNumber === order.referenceNumber || entry?.workOrderReference === order.referenceNumber;
-    }) : this.capacityBlocks;
+    return this.capacityBlocks;
   }
 
   get visibleSchedulerUnavailability(): UnavailabilityBlock[] {
@@ -531,19 +543,75 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   get filteredPanelOrders(): any[] {
     const query = this.orderPanelSearch.trim().toLowerCase();
-    const orders = this.plannerMode === 'order'
-      ? this.allOrders.filter(order => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId)
-      : this.allOrders;
+    const orders = this.getPanelBaseOrders();
 
     if (!query) return orders;
-    return orders.filter(order =>
-      [
-        order.referenceNumber,
-        order.id,
-        order.vehicle?.licensePlate,
-        order.customer?.name,
-      ].filter(Boolean).join(' ').toLowerCase().includes(query)
-    );
+    return orders.filter(order => this.doesOrderMatchPanelQuery(order, query));
+  }
+
+  private getPanelBaseOrders(): any[] {
+    return this.plannerMode === 'order'
+      ? this.allOrders.filter(order => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId)
+      : this.allOrders;
+  }
+
+  private getPanelSearchOrders(): any[] {
+    const query = this.bookingSearchQuery.trim().toLowerCase();
+    if (!query) return this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders());
+
+    const matchedOrderIds = new Set(this.panelSearchMatches.map(match => match.orderId));
+    return this.getPanelBaseOrders().filter(order => matchedOrderIds.has(order.id));
+  }
+
+  private filterOrdersByCurrentPlannerScope(orders: any[]): any[] {
+    const range = this.getCurrentPlannerScopeRange();
+    if (!range) return orders;
+    return orders.filter(order => this.isOrderRelevantToRange(order, range.start, range.end));
+  }
+
+  private getCurrentPlannerScopeRange(): { start: Date; end: Date } | null {
+    if (this.plannerViewMode === 'free' || this.plannerViewMode === 'month') return null;
+    return { start: this.viewStart, end: this.viewEnd };
+  }
+
+  private isOrderRelevantToRange(order: any, start: Date, end: Date): boolean {
+    return this.events.some(event =>
+      this.isEventForOrder(event, order) && this.doRangesOverlap(event.start, event.end, start, end)
+    ) || this.allScheduleEntries.some(entry =>
+      this.isEntryForOrder(entry, order) && this.doRangesOverlap(entry.start, entry.end, start, end)
+    ) || this.doesOrderAppointmentOverlapRange(order, start, end)
+      || this.doesQuickViewSelectionOverlapRange(order, start, end);
+  }
+
+  private doesOrderAppointmentOverlapRange(order: any, rangeStart: Date, rangeEnd: Date): boolean {
+    if (!order?.appointmentStart) return false;
+    const start = new Date(order.appointmentStart);
+    const end = order.appointmentEnd ? new Date(order.appointmentEnd) : start;
+    return this.doRangesOverlap(start, end, rangeStart, rangeEnd);
+  }
+
+  private doesQuickViewSelectionOverlapRange(order: any, rangeStart: Date, rangeEnd: Date): boolean {
+    const selection = this.quickViewSelection.getSelection(order.id);
+    if (!selection) return false;
+    const checkinStart = selection.checkinStart ? new Date(selection.checkinStart) : null;
+    const handoverStart = selection.handoverStart ? new Date(selection.handoverStart) : null;
+    const handoverEnd = selection.handoverEnd ? new Date(selection.handoverEnd) : null;
+    if (checkinStart && handoverEnd) return this.doRangesOverlap(checkinStart, handoverEnd, rangeStart, rangeEnd);
+    return [checkinStart, handoverStart, handoverEnd].some(date => !!date && this.doRangesOverlap(date, date, rangeStart, rangeEnd));
+  }
+
+  private doRangesOverlap(start: Date, end: Date, rangeStart: Date, rangeEnd: Date): boolean {
+    const normalizedEnd = end.getTime() > start.getTime() ? end : new Date(start.getTime() + 1);
+    return start < rangeEnd && normalizedEnd > rangeStart;
+  }
+
+  private doesOrderMatchPanelQuery(order: any, query: string): boolean {
+    return [
+      order.referenceNumber,
+      order.id,
+      order.vehicle?.licensePlate,
+      order.customer?.name,
+    ].filter(Boolean).join(' ').toLowerCase().includes(query);
   }
 
   get isSearchActive(): boolean {
@@ -553,7 +621,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   get panelSearchMatches(): PanelSearchMatch[] {
     const query = this.bookingSearchQuery.trim().toLowerCase();
     if (!query) return [];
-    return this.allOrders.flatMap(order => this.getSearchMatchesForOrder(order, query));
+    return this.filterOrdersByCurrentPlannerScope(this.allOrders).flatMap(order => this.getSearchMatchesForOrder(order, query));
   }
 
   get searchMatchCount(): number {
@@ -565,22 +633,38 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   get visiblePanelOrders(): any[] {
-    if (!this.isSearchActive) return this.filteredPanelOrders;
-    const matchedOrderIds = new Set(this.panelSearchMatches.map(match => match.orderId));
-    const orders = this.plannerMode === 'order'
-      ? this.allOrders.filter(order => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId)
-      : this.allOrders;
-    return orders.filter(order => matchedOrderIds.has(order.id));
+    return this.isSearchActive ? this.getPanelSearchOrders() : this.filteredPanelOrders;
   }
 
-  get visiblePlannedOrders(): any[] {
-    return this.visiblePanelOrders.filter(order => this.isOrderPlanned(order));
+  get visibleScheduledOrders(): any[] {
+    const orders = this.isSearchActive
+      ? this.getPanelSearchOrders()
+      : this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders());
+    return orders.filter(order => this.getOrderPlanningState(order) === 'scheduled');
+  }
+
+  get visibleInProgressOrders(): any[] {
+    const orders = this.isSearchActive
+      ? this.getPanelSearchOrders()
+      : this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders());
+    return orders.filter(order => this.getOrderPlanningState(order) === 'in-progress');
+  }
+
+  get visibleCompletedOrders(): any[] {
+    const orders = this.isSearchActive
+      ? this.getPanelSearchOrders()
+      : this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders());
+    return orders.filter(order => this.getOrderPlanningState(order) === 'completed');
   }
 
   get visiblePendingOrders(): any[] {
-    return this.visiblePanelOrders.filter(order => !this.isOrderPlanned(order));
+    const orders = this.isSearchActive ? this.getPanelSearchOrders() : this.getPanelBaseOrders();
+    return orders.filter(order => !this.isOrderPlanned(order));
   }
 
+  get emptyOrderSectionMessage(): string {
+    return this.isSearchActive ? 'No Results' : 'No Orders';
+  }
   private get resourcesForSelectedView(): SchedulerResource[] {
     const activeView = this.plannerSettings.selectedResourceView();
     if (!activeView) return this.resources;
@@ -657,7 +741,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       const activeOrder = this.allOrders.find(order => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId);
       this.alignViewWindowToOrder(activeOrder, this.plannerViewMode);
 
-      this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
+      this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(visibleEntries => {
       const tileSourceOrders = this.plannerMode === 'order'
         ? orders.filter((order: any) => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId)
         : orders;
@@ -682,7 +766,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       }));
       this.updatePlannerResourceContext();
 
-      this.applyScheduleEntries(entries);
+      this.applyScheduleEntries(visibleEntries);
 
       this.unavailability = [
         ...MOCK_UNAVAILABILITY,
@@ -758,6 +842,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.scheduleRepo.unassign(payload.eventId).subscribe(() => {
       this.scheduleRepo.assign(updatedEntry).subscribe(assigned => {
         const normalized: ScheduleEntry = { ...updatedEntry, ...assigned, kind: 'day-capacity', resourceId: payload.resourceId };
+        this.upsertAllScheduleEntries([normalized]);
         this.scheduleEntries = [
           ...this.scheduleEntries.filter(candidate => candidate.id !== payload.eventId),
           normalized,
@@ -808,6 +893,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.scheduleRepo.unassign(payload.eventId).subscribe(() => {
       this.scheduleRepo.assign(updatedEntry).subscribe(assigned => {
         const normalized: ScheduleEntry = { ...updatedEntry, ...assigned, kind: nextKind, resourceId: payload.resourceId };
+        this.upsertAllScheduleEntries([normalized]);
         this.scheduleEntries = [
           ...this.scheduleEntries.filter(candidate => candidate.id !== payload.eventId),
           normalized,
@@ -914,7 +1000,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
   onEventContextMenu(payload: EventContextMenuPayload): void {
     const event = this.events.find(candidate => candidate.id === payload.eventId);
-    if (!this.isJobEvent(event)) return;
+    if (!event) return;
     this.eventContextMenu = { eventId: payload.eventId, x: payload.x, y: payload.y };
   }
 
@@ -1150,7 +1236,24 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.expandedOrderIds = ids;
   }
 
-  toggleOrderGroup(group: 'planned' | 'pending'): void {
+  toggleOrderGroup(group: OrderPanelGroup): void {
+    const orderCount = this.getVisibleOrdersForPanelGroup(group).length;
+    if (orderCount === 0) {
+      const sourceGroups = this.isSearchActive ? this.expandedEmptySearchOrderGroups : this.expandedEmptyOrderGroups;
+      const expandedEmptyGroups = new Set(sourceGroups);
+      if (expandedEmptyGroups.has(group)) {
+        expandedEmptyGroups.delete(group);
+      } else {
+        expandedEmptyGroups.add(group);
+      }
+      if (this.isSearchActive) {
+        this.expandedEmptySearchOrderGroups = expandedEmptyGroups;
+      } else {
+        this.expandedEmptyOrderGroups = expandedEmptyGroups;
+      }
+      return;
+    }
+
     const groups = new Set(this.collapsedOrderGroups);
     if (groups.has(group)) {
       groups.delete(group);
@@ -1160,11 +1263,20 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.collapsedOrderGroups = groups;
   }
 
-  isOrderGroupCollapsed(group: 'planned' | 'pending'): boolean {
-    if (this.isSearchActive && (group === 'planned' ? this.visiblePlannedOrders.length : this.visiblePendingOrders.length) > 0) {
-      return false;
+  isOrderGroupCollapsed(group: OrderPanelGroup): boolean {
+    const orderCount = this.getVisibleOrdersForPanelGroup(group).length;
+    if (this.isSearchActive) {
+      return orderCount === 0 && !this.expandedEmptySearchOrderGroups.has(group);
     }
+    if (orderCount === 0) return !this.expandedEmptyOrderGroups.has(group);
     return this.collapsedOrderGroups.has(group);
+  }
+
+  private getVisibleOrdersForPanelGroup(group: OrderPanelGroup): any[] {
+    if (group === 'scheduled') return this.visibleScheduledOrders;
+    if (group === 'in-progress') return this.visibleInProgressOrders;
+    if (group === 'completed') return this.visibleCompletedOrders;
+    return this.visiblePendingOrders;
   }
 
   private expandFirstVisibleOrder(): void {
@@ -1182,13 +1294,23 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   viewOnlyOrderOnPlanner(order: any, event?: Event): void {
     event?.stopPropagation();
-    this.fullPlannerOrderOnlyId = this.fullPlannerOrderOnlyId === order.id ? '' : order.id;
+    if (!this.hasPlannerBookingsForOrder(order)) return;
+    const isActive = this.fullPlannerOrderOnlyId === order.id;
+    this.fullPlannerOrderOnlyId = isActive ? '' : order.id;
     this.selectedPanelOrderId = order.id;
-    this.setFocusedPlanningOrder(order);
+    this.setFocusedPlanningOrder(isActive ? null : order);
+    this.showBookingDetails = isActive;
+    if (!isActive) {
+      this.expandedOrderIds = new Set([order.id]);
+    }
   }
 
   isFullPlannerOrderOnly(order: any): boolean {
     return this.fullPlannerOrderOnlyId === order.id;
+  }
+
+  canViewOnlyOrderOnPlanner(order: any): boolean {
+    return this.hasPlannerBookingsForOrder(order);
   }
 
   onBookingDetailsToggle(checked: boolean): void {
@@ -1228,10 +1350,25 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   focusPlannerEvent(eventId: string, options: { openDetails?: boolean } = {}): void {
     queueMicrotask(() => {
       this.scrollToEventId = eventId;
+      this.scrollToEventIds = [];
       this.scrollToEventRequestId++;
       if (options.openDetails) {
         this.onEventClicked({ eventId });
       }
+    });
+  }
+
+  private focusPlannerEvents(eventIds: string[]): void {
+    const uniqueEventIds = [...new Set(eventIds.filter(Boolean))];
+    if (!uniqueEventIds.length) return;
+    if (uniqueEventIds.length === 1) {
+      this.focusPlannerEvent(uniqueEventIds[0]);
+      return;
+    }
+    queueMicrotask(() => {
+      this.scrollToEventId = null;
+      this.scrollToEventIds = uniqueEventIds;
+      this.scrollToEventRequestId++;
     });
   }
 
@@ -1285,9 +1422,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const removedEntry = event.meta?.entry as ScheduleEntry | undefined;
 
     this.scheduleRepo.unassign(event.id).subscribe(() => {
-      this.events = this.events.filter(candidate => candidate.id !== event.id);
-      this.capacityBlocks = this.capacityBlocks.filter(block => block.id !== event.id);
-      this.scheduleEntries = this.scheduleEntries.filter(entry => entry.id !== event.id);
+      this.removeScheduleEntriesById([event.id]);
       this.latestAutoBookingEntryIds.delete(event.id);
       this.refreshWorkOrderItemStatusForEntry(removedEntry);
       this.selectedBookingEvent = null;
@@ -1737,13 +1872,13 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private getEffectiveWorkOrderItemStatus(order: any, item: NormalizedWorkOrderItem): CanonicalWorkOrderItemStatus {
     if (item.kind === 'activity') return this.resolveActivityItemStatus(order, item);
     const explicitStatus = this.getCanonicalWorkOrderItemStatus(item.source?.workorderItemStatus ?? item.source?.status ?? item.executionStatus);
-    if (explicitStatus === 'completed' || explicitStatus === 'in-progress' || explicitStatus === 'cancelled') return explicitStatus;
+    if (explicitStatus !== 'unscheduled') return explicitStatus;
     return this.hasWorkOrderItemAllocation(order, item) ? 'scheduled' : 'unscheduled';
   }
 
   private resolveActivityItemStatus(order: any, item: NormalizedWorkOrderItem): CanonicalWorkOrderItemStatus {
     const explicitStatus = this.getCanonicalWorkOrderItemStatus(item.source?.workorderItemStatus ?? item.source?.status ?? item.executionStatus);
-    if (explicitStatus === 'completed' || explicitStatus === 'in-progress' || explicitStatus === 'cancelled') return explicitStatus;
+    if (explicitStatus !== 'unscheduled') return explicitStatus;
 
     const entryStatus = this.getActivityScheduleEntryStatus(order, item);
     if (entryStatus !== 'unscheduled') return entryStatus;
@@ -1852,19 +1987,20 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   onBookPreviousForOrder(order: any): void {
-    this.selectedPanelOrderId = order.id;
-    this.setFocusedPlanningOrder(order);
     this.restoreProposalStateForOrder(order.id);
-    this.onBookPrevious();
+    if (this.currentProposalIndex <= 0) return;
+    this.currentProposalIndex--;
+    const searchFrom = this.proposalHistory[this.currentProposalIndex];
+    this.applyProposal(searchFrom, false, true, { orderId: order.id, revealOrder: false });
   }
 
-  canNavigateAvailability(_orderId: string): boolean {
-    return true;
+  canNavigateAvailability(orderId: string): boolean {
+    if ((this.proposalStateByOrder.get(orderId)?.index ?? -1) >= 0) return true;
+    const order = this.allOrders.find(candidate => candidate.id === orderId || candidate.referenceNumber === orderId);
+    return !!order && this.getExistingScheduleEntriesForOrder(order).length > 0;
   }
 
   onBookNextForOrder(order: any): void {
-    this.selectedPanelOrderId = order.id;
-    this.setFocusedPlanningOrder(order);
     this.restoreProposalStateForOrder(order.id);
     if (this.currentProposalIndex < 0) {
       const scheduledEntries = this.getExistingScheduleEntriesForOrder(order);
@@ -1874,13 +2010,16 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         this.proposalHistory = [start];
         this.proposalEndHistory = [end];
         this.currentProposalIndex = 0;
-        this.applyProposal(this.getBookableSearchStart(new Date(end.getTime() + 15 * 60000)), false);
+        this.applyProposal(this.getBookableSearchStart(new Date(end.getTime() + 15 * 60000)), false, false, { orderId: order.id, revealOrder: false });
         return;
       }
-      this.applyProposal(this.getBookableSearchStart(new Date(this.viewStart.getTime() + 15 * 60000)), true);
+      this.applyProposal(this.getBookableSearchStart(new Date(this.viewStart.getTime() + 15 * 60000)), true, false, { orderId: order.id, revealOrder: false });
       return;
     }
-    this.onBookNext();
+    const currentProposalEnd = this.proposalEndHistory[this.currentProposalIndex]
+      ?? this.proposalHistory[this.currentProposalIndex];
+    const nextSearchFrom = this.getBookableSearchStart(new Date(currentProposalEnd.getTime() + 15 * 60000));
+    this.applyProposal(nextSearchFrom, false, false, { orderId: order.id, revealOrder: false });
   }
 
   isJobScheduled(job: any): boolean {
@@ -1925,7 +2064,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const liveSets = this.groupBookingsByTime(liveBookings);
     if (liveSets.length) return liveSets;
 
-    const entries = this.scheduleEntries.filter(entry =>
+    const entries = this.allScheduleEntries.filter(entry =>
       entry.jobId === job.id &&
       entry.workOrderReference === order.referenceNumber &&
       this.isJobScheduleEntry(entry) &&
@@ -1946,7 +2085,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private groupBookingsByTime(bookings: JobBooking[]): BookingSet[] {
     const groups = new Map<string, JobBooking[]>();
     for (const booking of bookings) {
-      const entry = this.scheduleEntries.find(candidate => candidate.id === booking.entryId);
+      const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
       if (!entry) continue;
       const key = booking.bookingSetId ?? this.getEntryBookingSetId(entry);
       const group = groups.get(key) ?? [];
@@ -1964,7 +2103,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private getBookingSetStart(set: BookingSet): number {
-    const entry = this.scheduleEntries.find(candidate => candidate.id === set.bookings[0]?.entryId);
+    const entry = this.allScheduleEntries.find(candidate => candidate.id === set.bookings[0]?.entryId);
     return entry?.start.getTime() ?? 0;
   }
 
@@ -1992,7 +2131,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private getBookingSetEntries(entry: ScheduleEntry): ScheduleEntry[] {
     const bookingSetId = this.getEntryBookingSetId(entry);
-    return this.scheduleEntries.filter(candidate =>
+    return this.allScheduleEntries.filter(candidate =>
       this.isJobScheduleEntry(candidate) &&
       this.getEntryBookingSetId(candidate) === bookingSetId
     );
@@ -2035,7 +2174,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   canUndoBooking(booking: JobBooking): boolean {
-    return this.bookings.some(candidate => candidate.entryId === booking.entryId) || this.scheduleEntries.some(entry => entry.id === booking.entryId);
+    return this.bookings.some(candidate => candidate.entryId === booking.entryId) || this.allScheduleEntries.some(entry => entry.id === booking.entryId);
   }
 
   getActivitiesForOrder(order: any): ActivityTile[] {
@@ -2063,7 +2202,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getBookingScheduleSummary(booking: JobBooking): string {
-    const entry = this.scheduleEntries.find(candidate => candidate.id === booking.entryId);
+    const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
     if (!entry) return '';
     return `${this.formatOrderScheduleDateTime(entry.start)} | ${this.formatDuration(entry.start, entry.end)}`;
   }
@@ -2086,7 +2225,6 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   shouldShowOrderDetails(order: any): boolean {
     if (this.plannerMode === 'order' && (order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId)) return true;
-    if (this.isPanelOrderFocused(order)) return true;
     if (!this.isSearchActive) return this.isOrderExpanded(order);
     return this.isOrderExpanded(order) || this.isOrderSearchRevealed(order) || this.getSearchMatchesForOrder(order).some(match => match.type !== 'order-header');
   }
@@ -2119,10 +2257,6 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private isOrderSearchRevealed(order: any): boolean {
     return this.searchRevealedOrderIds.has(order.id);
-  }
-
-  isActiveOrderSearchMatch(order: any): boolean {
-    return this.panelSearchMatches[this.activeSearchResultIndex]?.orderId === order.id;
   }
 
   getSearchHighlightParts(value: unknown): SearchHighlightPart[] {
@@ -2164,6 +2298,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private revealActiveSearchMatch(): void {
     const match = this.panelSearchMatches[this.activeSearchResultIndex];
     if (!match) return;
+    this.selectedPanelOrderId = match.orderId;
     this.searchRevealedOrderIds = new Set([...this.searchRevealedOrderIds, match.orderId]);
     queueMicrotask(() => {
       document.getElementById(`order-panel-card-${match.orderId}`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -2232,7 +2367,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private getExistingScheduleEntriesForOrder(order: any): ScheduleEntry[] {
-    return this.scheduleEntries.filter(entry => entry.workOrderReference === order.referenceNumber);
+    return this.allScheduleEntries.filter(entry => entry.workOrderReference === order.referenceNumber);
+  }
+
+  private hasPlannerBookingsForOrder(order: any): boolean {
+    return this.allScheduleEntries.some(entry => this.isEntryForOrder(entry, order));
   }
 
   private getPersistedBookingsFromEntries(entries: ScheduleEntry[], orders: any[]): JobBooking[] {
@@ -2265,8 +2404,68 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private applyScheduleEntries(entries: ScheduleEntry[]): void {
     this.scheduleEntries = entries;
+    this.upsertAllScheduleEntries(entries);
     this.events = this.mapScheduleEntriesToEvents(entries);
     this.capacityBlocks = this.mapScheduleEntriesToCapacityBlocks(entries);
+  }
+
+  private getFreeViewWindowStart(anchor: Date): Date {
+    const start = new Date(anchor);
+    start.setHours(9, 0, 0, 0);
+    return start;
+  }
+
+  private getFreeViewWindowEnd(start: Date): Date {
+    const end = new Date(start);
+    end.setDate(start.getDate() + this.freeViewWindowDays - 1);
+    end.setHours(21, 0, 0, 0);
+    return end;
+  }
+
+  private getFreeViewLazyRange(direction: 'previous' | 'next'): { start: Date; end: Date } {
+    if (direction === 'next') {
+      const start = new Date(this.viewEnd);
+      start.setDate(start.getDate() + 1);
+      start.setHours(9, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(start.getDate() + this.freeViewLazyLoadDays - 1);
+      end.setHours(21, 0, 0, 0);
+      return { start, end };
+    }
+
+    const end = new Date(this.viewStart);
+    end.setDate(end.getDate() - 1);
+    end.setHours(21, 0, 0, 0);
+    const start = new Date(end);
+    start.setDate(end.getDate() - this.freeViewLazyLoadDays + 1);
+    start.setHours(9, 0, 0, 0);
+    return { start, end };
+  }
+
+  private upsertAllScheduleEntries(entries: ScheduleEntry[]): void {
+    if (!entries.length) return;
+    const entriesById = new Map(this.allScheduleEntries.map(entry => [entry.id, entry]));
+    entries.forEach(entry => entriesById.set(entry.id, entry));
+    this.allScheduleEntries = [...entriesById.values()];
+  }
+
+  private removeScheduleEntriesById(entryIds: Iterable<string>): ScheduleEntry[] {
+    const ids = new Set(entryIds);
+    if (!ids.size) return [];
+    const removedEntries = this.allScheduleEntries.filter(entry => ids.has(entry.id));
+    this.allScheduleEntries = this.allScheduleEntries.filter(entry => !ids.has(entry.id));
+    this.scheduleEntries = this.scheduleEntries.filter(entry => !ids.has(entry.id));
+    this.events = this.events.filter(event => !ids.has(event.id));
+    this.capacityBlocks = this.capacityBlocks.filter(block => !ids.has(block.id));
+    this.clearOrderOnlyIfNoBookingsRemain();
+    return removedEntries;
+  }
+
+  private clearOrderOnlyIfNoBookingsRemain(): void {
+    if (!this.fullPlannerOrderOnlyId) return;
+    if (this.isReplacingFocusedOrderBookings) return;
+    const order = this.allOrders.find(candidate => candidate.id === this.fullPlannerOrderOnlyId || candidate.referenceNumber === this.fullPlannerOrderOnlyId);
+    if (!order || !this.hasPlannerBookingsForOrder(order)) this.fullPlannerOrderOnlyId = '';
   }
 
   private mapScheduleEntriesToCapacityBlocks(entries: ScheduleEntry[]): SchedulerCapacityBlock[] {
@@ -2354,6 +2553,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private upsertScheduleEntry(entry: ScheduleEntry): void {
+    this.upsertAllScheduleEntries([entry]);
     this.scheduleEntries = [
       ...this.scheduleEntries.filter(candidate => candidate.id !== entry.id),
       entry,
@@ -2362,12 +2562,18 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private updateScheduleEntryTimes(entryId: string, start: Date, end: Date): void {
+    this.allScheduleEntries = this.allScheduleEntries.map(entry =>
+      entry.id === entryId ? { ...entry, start, end } : entry
+    );
     this.scheduleEntries = this.scheduleEntries.map(entry =>
       entry.id === entryId ? { ...entry, start, end } : entry
     );
   }
 
   private updateScheduleEntry(entryId: string, changes: Partial<ScheduleEntry>): void {
+    this.allScheduleEntries = this.allScheduleEntries.map(entry =>
+      entry.id === entryId ? { ...entry, ...changes } : entry
+    );
     this.scheduleEntries = this.scheduleEntries.map(entry =>
       entry.id === entryId ? { ...entry, ...changes } : entry
     );
@@ -2395,7 +2601,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private hasRemainingEntryForWorkOrderItem(order: any, entry: ScheduleEntry, category: 'job' | 'activity'): boolean {
-    return this.scheduleEntries.some(candidate => {
+    return this.allScheduleEntries.some(candidate => {
       const candidateCategory = candidate.workorderItemCategory ?? (this.isActivityScheduleEntry(candidate) ? 'activity' : 'job');
       if (candidateCategory !== category) return false;
       if (category === 'activity') {
@@ -2462,9 +2668,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (entryIds.size === 0) return;
 
     entryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
-    this.scheduleEntries = this.scheduleEntries.filter(entry => !entryIds.has(entry.id));
-    this.events = this.events.filter(event => !entryIds.has(event.id));
-    this.capacityBlocks = this.capacityBlocks.filter(block => !entryIds.has(block.id));
+    this.removeScheduleEntriesById(entryIds);
     this.refreshWorkOrderItemStatusesForEntries(entries);
     this.unavailability = this.unavailability.filter(block =>
       !entries.some(entry =>
@@ -2480,7 +2684,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private getExistingScheduleBookingForJob(job: any, order: any, resourceType?: string): JobBooking | undefined {
-    const entries = this.scheduleEntries.filter(entry =>
+    const entries = this.allScheduleEntries.filter(entry =>
       entry.jobId === job.id &&
       entry.workOrderReference === order.referenceNumber &&
       (entry.kind === 'blocked-order' || entry.kind === 'scheduled')
@@ -2764,9 +2968,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.pinVisibleResource(resourceId);
     }
     this.scheduleRepo.unassign(booking.entryId).subscribe(() => {
-      this.events = this.events.filter(e => e.id !== booking.entryId);
-      this.capacityBlocks = this.capacityBlocks.filter(block => block.id !== booking.entryId);
-      this.scheduleEntries = this.scheduleEntries.filter(entry => entry.id !== booking.entryId);
+      this.removeScheduleEntriesById([booking.entryId]);
       this.latestAutoBookingEntryIds.delete(booking.entryId);
       this.refreshWorkOrderItemStatusForEntry(removedEntry);
       if (this.latestAutoBookingEntryIds.size === 0) {
@@ -2779,7 +2981,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   onUndoOrderBooking(order: any): void {
     const targetOrder = this.allOrders.find(candidate => candidate.id === order.id || candidate.referenceNumber === order.referenceNumber) ?? order;
     const orderBookings = this.bookings.filter(booking => this.isBookingForOrder(booking, targetOrder));
-    const orderEntryIds = new Set(this.scheduleEntries
+    const orderEntryIds = new Set(this.allScheduleEntries
       .filter(entry => this.isEntryForOrder(entry, targetOrder))
       .map(entry => entry.id));
     if (!orderBookings.length && orderEntryIds.size === 0) return;
@@ -2788,12 +2990,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       orderEntryIds.has(entryId) || orderBookings.some(booking => booking.entryId === entryId)
     );
     if (latestOrderAutoEntryIds.length) {
-      const removedEntries = this.scheduleEntries.filter(entry => latestOrderAutoEntryIds.includes(entry.id));
       latestOrderAutoEntryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
       const entryIds = new Set(latestOrderAutoEntryIds);
-      this.events = this.events.filter(event => !entryIds.has(event.id));
-      this.capacityBlocks = this.capacityBlocks.filter(block => !entryIds.has(block.id));
-      this.scheduleEntries = this.scheduleEntries.filter(entry => !entryIds.has(entry.id));
+      const removedEntries = this.removeScheduleEntriesById(entryIds);
       latestOrderAutoEntryIds.forEach(entryId => this.latestAutoBookingEntryIds.delete(entryId));
       this.refreshWorkOrderItemStatusesForEntries(removedEntries);
       if (this.latestAutoBookingEntryIds.size === 0) {
@@ -2811,7 +3010,10 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (!order) return;
     this.selectedPanelOrderId = order.id;
     this.expandedOrderIds = new Set([...this.expandedOrderIds, order.id]);
-    const targetGroup: 'planned' | 'pending' = this.isOrderPlanned(order) ? 'planned' : 'pending';
+    const state = this.getOrderPlanningState(order);
+    const targetGroup: OrderPanelGroup = state === 'scheduled' || state === 'in-progress' || state === 'completed'
+      ? state
+      : 'pending';
     this.collapsedOrderGroups = new Set([...this.collapsedOrderGroups].filter(group => group !== targetGroup));
     if (this.isFullPlanner() && !this.isOrderPanelOpen) {
       this.isOrderPanelOpen = true;
@@ -2952,7 +3154,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     searchFrom: Date,
     resetHistory: boolean,
     isReplay = false,
-    options: { orderId?: string; preferredResourceIds?: string[]; scrollToFirstEntry?: boolean } = {},
+    options: { orderId?: string; preferredResourceIds?: string[]; scrollToFirstEntry?: boolean; revealOrder?: boolean } = {},
   ): void {
     searchFrom = this.getBookableSearchStart(searchFrom);
     const targetWorkOrderId = options.orderId ?? this.getActiveWorkOrderId();
@@ -2964,7 +3166,13 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (unscheduledJobs.length === 0) return;
 
     const rawResources = this.bookingEligibleResources.map(r => r.meta as Resource).filter(Boolean);
-    const requiredResourceIds = this.getRequiredResourceIdsForProposal(rawResources, options.preferredResourceIds ?? []);
+    const selectedResourceConstraint = this.getSelectedResourceConstraintContext(
+      unscheduledJobs,
+      rawResources,
+      options.preferredResourceIds ?? [],
+      targetOrder,
+    );
+    const requiredResourceIds = selectedResourceConstraint.requiredResourceIds;
     const selectedResourceErrors = this.getSelectedResourceConstraintErrors(unscheduledJobs, rawResources, requiredResourceIds, targetOrder);
     if (selectedResourceErrors.length) {
       this.setSchedulingError(selectedResourceErrors.join(' '));
@@ -2995,7 +3203,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (!result) {
       this.setSchedulingError(this.autoBookingWindow
         ? 'Schedule not possible within selected time range.'
-        : requiredResourceIds.length
+        : selectedResourceConstraint.hasRelevantSelection
           ? 'Schedule not possible with the selected resources. Change the selection or choose another availability.'
           : 'Schedule not possible with the visible resources. Add resources to the view/type filter or choose another availability.');
       return;
@@ -3030,8 +3238,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
     this.clearSchedulingError();
 
+    const isReplacingFocusedOrder = !!targetOrder && this.fullPlannerOrderOnlyId === targetOrder.id;
+    this.isReplacingFocusedOrderBookings = isReplacingFocusedOrder;
     if (targetOrder) this.clearExistingScheduleEntriesForOrder(targetOrder);
     this.clearCurrentBookings(targetWorkOrderId ?? undefined);
+    this.isReplacingFocusedOrderBookings = false;
 
     // Track history
     if (!isReplay) {
@@ -3057,6 +3268,16 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const shouldScrollToFirstEntry = options.scrollToFirstEntry ?? true;
     const scrollTargetEntryId = shouldScrollToFirstEntry ? result.entries[0]?.id : undefined;
     this.autoBookingRangeNotice = this.buildAutoBookingRangeNotice(result, visibleRangeAtProposal, currentViewMode, scrollTargetEntryId);
+    const proposalFocusIds: string[] = [];
+    const expectedProposalFocusCount = result.entries.length
+      + (targetOrder && this.hasOrderActivity(targetOrder, 'act-checkin') ? 1 : 0)
+      + (targetOrder && this.hasOrderActivity(targetOrder, 'act-handover') ? 1 : 0)
+      + (targetOrder && needsMobility && mobilityDriver ? 1 : 0);
+    const focusInRangeProposal = (): void => {
+      if (!shouldScrollToFirstEntry || this.autoBookingRangeNotice) return;
+      if (proposalFocusIds.length !== expectedProposalFocusCount) return;
+      this.focusPlannerEvents(proposalFocusIds);
+    };
     result.entries.forEach(entry => {
       const persistedEntry = {
         ...entry,
@@ -3087,24 +3308,35 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         }];
         this.upsertScheduleEntry(assigned);
         this.latestAutoBookingEntryIds.add(assigned.id);
+        proposalFocusIds.push(assigned.id);
+        focusInRangeProposal();
       });
     });
 
     if (targetOrder) {
       if (this.hasOrderActivity(targetOrder, 'act-checkin')) {
-        this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-checkin'), checkinAdvisor, checkinStart, checkinEnd, targetWorkOrderId ?? undefined);
+        this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-checkin'), checkinAdvisor, checkinStart, checkinEnd, targetWorkOrderId ?? undefined, assigned => {
+          proposalFocusIds.push(assigned.id);
+          focusInRangeProposal();
+        });
       }
       if (this.hasOrderActivity(targetOrder, 'act-handover')) {
-        this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-handover'), handoverAdvisor, handoverStart, handoverEnd, targetWorkOrderId ?? undefined);
+        this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-handover'), handoverAdvisor, handoverStart, handoverEnd, targetWorkOrderId ?? undefined, assigned => {
+          proposalFocusIds.push(assigned.id);
+          focusInRangeProposal();
+        });
       }
       if (needsMobility && mobilityDriver) {
-        this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-mobility'), mobilityDriver, checkinEnd, handoverEnd, targetWorkOrderId ?? undefined);
+        this.bookActivity(this.getOrderActivityId(targetWorkOrderId, 'act-mobility'), mobilityDriver, checkinEnd, handoverEnd, targetWorkOrderId ?? undefined, assigned => {
+          proposalFocusIds.push(assigned.id);
+          focusInRangeProposal();
+        });
       }
     }
     if (targetWorkOrderId) {
       this.syncOrderAppointment(targetWorkOrderId, checkinStart, handoverEnd);
     }
-    this.revealOrderInPanel(targetOrder);
+    if (options.revealOrder !== false) this.revealOrderInPanel(targetOrder);
   }
 
   private getActiveWorkOrderId(): string | null {
@@ -3118,7 +3350,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private getFocusedPlanningOrder(): any | null {
     const focusedOrderId = this.plannerMode === 'order'
       ? this.activeOrderId
-      : this.focusedPlanningOrderId;
+      : this.getFullPlannerFocusedOrder()?.id ?? this.focusedPlanningOrderId;
     if (!focusedOrderId) return null;
     return this.allOrders.find(candidate => candidate.id === focusedOrderId || candidate.referenceNumber === focusedOrderId) ?? null;
   }
@@ -3139,6 +3371,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const start = new Date(anchor);
     start.setHours(9, 0, 0, 0);
     const end = new Date(start);
+    if (mode === 'free') {
+      const windowStart = this.getFreeViewWindowStart(anchor);
+      this.viewStart = windowStart;
+      this.viewEnd = this.getFreeViewWindowEnd(windowStart);
+      return;
+    }
     if (mode === 'week') {
       const day = start.getDay();
       const diff = day === 0 ? -6 : 1 - day;
@@ -3182,8 +3420,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
     outsideDates.sort((first, second) => first.getTime() - second.getTime());
     const targetDate = new Date(outsideDates[0]);
-    const periodLabel = mode === 'week' ? 'week' : 'day';
-    const targetLabel = mode === 'week'
+    const periodLabel = mode === 'week' || mode === 'free' ? 'week' : 'day';
+    const targetLabel = mode === 'week' || mode === 'free'
       ? 'next available week'
       : outsideDates.some(date => !this.isSameCalendarDay(date, visibleRange.start))
         ? 'next available day'
@@ -3200,6 +3438,10 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private shiftPlannerWindow(direction: -1 | 1): void {
     this.autoBookingRangeNotice = null;
     const anchor = new Date(this.viewStart);
+    if (this.plannerViewMode === 'free') {
+      this.loadAdjacentFreeTimeline(direction < 0 ? 'previous' : 'next');
+      return;
+    }
     if (this.plannerViewMode === 'week') {
       anchor.setDate(anchor.getDate() + direction * 7);
     } else if (this.plannerViewMode === 'month') {
@@ -3217,6 +3459,27 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       if (focusEventId) {
         this.focusPlannerEvent(focusEventId);
       }
+    });
+  }
+
+  private loadAdjacentFreeTimeline(direction: 'previous' | 'next'): void {
+    if (this.isFreeTimelineLoading) return;
+    this.isFreeTimelineLoading = true;
+    const range = this.getFreeViewLazyRange(direction);
+    this.scheduleRepo.getEntries(range.start, range.end).subscribe({
+      next: entries => {
+        const nextStart = direction === 'previous' ? range.start : this.viewStart;
+        const nextEnd = direction === 'next' ? range.end : this.viewEnd;
+        this.viewStart = nextStart;
+        this.viewEnd = nextEnd;
+        this.applyScheduleEntries([...entries, ...this.scheduleEntries]);
+      },
+      complete: () => {
+        this.isFreeTimelineLoading = false;
+      },
+      error: () => {
+        this.isFreeTimelineLoading = false;
+      },
     });
   }
 
@@ -3358,10 +3621,28 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return [...missing];
   }
 
-  private getRequiredResourceIdsForProposal(resources: Resource[], additionalResourceIds: string[]): string[] {
+  private getSelectedResourceConstraintContext(
+    jobs: any[],
+    resources: Resource[],
+    additionalResourceIds: string[],
+    order: any | undefined,
+  ): SelectedResourceConstraintContext {
     const visibleResourceIds = new Set(resources.map(resource => resource.id));
-    return [...new Set([...this.selectedResourceIds, ...additionalResourceIds])]
+    const requirements = [
+      ...jobs.flatMap(job => this.getSchedulingRequirements(job)),
+      ...this.getRequiredActivityRequirements(order, resources),
+    ];
+    const relevantSelectedResourceIds = this.selectedResourceIds.filter(resourceId => {
+      const resource = resources.find(candidate => candidate.id === resourceId);
+      return !!resource && requirements.some(requirement => this.hasMatchingResource([resource], requirement));
+    });
+    const requiredResourceIds = [...new Set([...relevantSelectedResourceIds, ...additionalResourceIds])]
       .filter(resourceId => visibleResourceIds.has(resourceId));
+
+    return {
+      requiredResourceIds,
+      hasRelevantSelection: relevantSelectedResourceIds.length > 0 || additionalResourceIds.some(resourceId => visibleResourceIds.has(resourceId)),
+    };
   }
 
   private getSelectedResourceConstraintErrors(
@@ -4183,7 +4464,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private clearCurrentBookings(orderId?: string): void {
-    const removedEntries = this.scheduleEntries.filter(entry =>
+    const removedEntries = this.allScheduleEntries.filter(entry =>
       this.bookings.some(booking => booking.entryId === entry.id && (!orderId || booking.orderId === orderId))
     );
     const autoEntryIds = new Set(
@@ -4192,9 +4473,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         .map(booking => booking.entryId)
     );
     autoEntryIds.forEach(id => this.scheduleRepo.unassign(id).subscribe());
-    this.events = this.events.filter(e => !autoEntryIds.has(e.id));
-    this.capacityBlocks = this.capacityBlocks.filter(block => !autoEntryIds.has(block.id));
-    this.scheduleEntries = this.scheduleEntries.filter(entry => !autoEntryIds.has(entry.id));
+    this.removeScheduleEntriesById(autoEntryIds);
     this.refreshWorkOrderItemStatusesForEntries(removedEntries);
     for (const entryId of autoEntryIds) {
       this.latestAutoBookingEntryIds.delete(entryId);
@@ -4204,7 +4483,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     }
   }
 
-  private bookActivity(activityId: string, resource: any, start: Date, end: Date, orderId?: string): void {
+  private bookActivity(activityId: string, resource: any, start: Date, end: Date, orderId?: string, onAssigned?: (entry: ScheduleEntry) => void): void {
     const activityTemplateId = this.getActivityTemplateId(activityId);
     const activityTitle = this.getActivityTemplate(activityTemplateId)?.title ?? activityId;
     const order = this.allOrders.find(candidate => candidate.id === orderId);
@@ -4212,7 +4491,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const normalizedEnd = this.isFixedDurationActivity(activityId)
       ? new Date(start.getTime() + this.getActivityDurationMinutes(activityId) * 60000)
       : end;
-    const existingEntry = this.scheduleEntries.find(candidate =>
+    const existingEntry = this.allScheduleEntries.find(candidate =>
       candidate.workorderItemCategory === 'activity' &&
       this.getActivityTemplateId(candidate.jobId) === activityTemplateId &&
       (!!workOrderReference && candidate.workOrderReference === workOrderReference)
@@ -4240,6 +4519,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
               : event
           );
           this.latestAutoBookingEntryIds.add(existingEntry.id);
+          onAssigned?.(assigned);
         });
       });
       return;
@@ -4266,6 +4546,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       })];
       this.upsertScheduleEntry(assigned);
       this.latestAutoBookingEntryIds.add(assigned.id);
+      onAssigned?.(assigned);
     });
   }
 
@@ -4305,13 +4586,16 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       .map(booking => this.events.find(event => event.id === booking.entryId))
       .filter((event): event is SchedulerEvent => !!event);
     const orderReference = this.getOrderReference(orderId);
-    const existingJobEvents = this.events.filter(event =>
-      (!orderReference || event.meta?.entry?.workOrderReference === orderReference) &&
-      this.isJobEvent(event)
+    const existingJobEntries = this.allScheduleEntries.filter(entry =>
+      (!orderReference || entry.workOrderReference === orderReference) &&
+      this.isJobScheduleEntry(entry)
     );
-    const jobEvents = [...bookedJobEvents, ...existingJobEvents];
-    if (!jobEvents.length) return null;
-    return new Date(Math.max(...jobEvents.map(event => event.end.getTime())));
+    const endTimes = [
+      ...bookedJobEvents.map(event => event.end.getTime()),
+      ...existingJobEntries.map(entry => entry.end.getTime()),
+    ];
+    if (!endTimes.length) return null;
+    return new Date(Math.max(...endTimes));
   }
 
   private getOrderReference(orderId?: string): string | undefined {
@@ -4353,12 +4637,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       const entryIds = [...this.latestAutoBookingEntryIds].filter(entryId =>
         !activeOrderId || this.isScheduleEntryForOrder(entryId, activeOrderId)
       );
-      const removedEntries = this.scheduleEntries.filter(entry => entryIds.includes(entry.id));
       entryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
       const entryIdSet = new Set(entryIds);
-      this.events = this.events.filter(e => !entryIdSet.has(e.id));
-      this.capacityBlocks = this.capacityBlocks.filter(block => !entryIdSet.has(block.id));
-      this.scheduleEntries = this.scheduleEntries.filter(entry => !entryIdSet.has(entry.id));
+      const removedEntries = this.removeScheduleEntriesById(entryIdSet);
       entryIds.forEach(entryId => this.latestAutoBookingEntryIds.delete(entryId));
       this.refreshWorkOrderItemStatusesForEntries(removedEntries);
       this.isAutoProposalVisible = false;
@@ -4387,7 +4668,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private isBookingForOrder(booking: JobBooking, order: any): boolean {
     if (booking.orderId === order.id || booking.orderId === order.referenceNumber) return true;
-    const entry = this.scheduleEntries.find(candidate => candidate.id === booking.entryId);
+    const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
     return this.isEntryForOrder(entry, order);
   }
 
@@ -4486,3 +4767,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return 'morning';
   }
 }
+
+
+
+
+
+

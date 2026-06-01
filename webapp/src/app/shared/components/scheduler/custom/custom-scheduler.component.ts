@@ -93,6 +93,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public selectedResourceView: ResourceFavoriteView | null = null;
   @Input('rightPaneOpen') public rightPaneOpen = false;
   @Input() public scrollToEventId: string | null = null;
+  @Input() public scrollToEventIds: string[] = [];
   @Input() public scrollToEventRequestId = 0;
   @Input() public invalidDropRanges: SchedulerInvalidDropRange[] = [];
   @Input() public resizeInvalidHint = '';
@@ -217,8 +218,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private timeRangeSelection: { anchor: Date; current: Date } | null = null;
   private timeRangeMove: { durationMinutes: number; pointerOffsetMinutes: number } | null = null;
   private timeRangeResize: { edge: 'left' | 'right'; fixedTimelineMinutes: number } | null = null;
-  private activePulseEventId: string | null = null;
-  private pendingPulseEventId: string | null = null;
+  private activePulseEventIds = new Set<string>();
+  private pendingPulseEventIds = new Set<string>();
   private pulseTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private pulseScrollSettleTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private programmaticScrollPulse = false;
@@ -259,8 +260,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       this.buildTimeSlots();
       queueMicrotask(() => this.updateTimelineViewportWidth());
     }
-    if ((changes['scrollToEventId'] || changes['scrollToEventRequestId']) && this.scrollToEventId) {
-      queueMicrotask(() => this.scrollToEvent(this.scrollToEventId));
+    if (changes['scrollToEventId'] || changes['scrollToEventIds'] || changes['scrollToEventRequestId']) {
+      const eventIds = this.scrollToEventIds.length ? this.scrollToEventIds : (this.scrollToEventId ? [this.scrollToEventId] : []);
+      if (eventIds.length) queueMicrotask(() => this.scrollToEvents(eventIds));
     }
   }
 
@@ -643,7 +645,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   isPulsingOrderRun(run: SchedulerOrderRun): boolean {
-    return !!this.activePulseEventId && run.events.some(event => this.getSourceEventId(event) === this.activePulseEventId);
+    return run.events.some(event => this.activePulseEventIds.has(this.getSourceEventId(event)));
   }
 
   getOrderRunLeft(run: SchedulerOrderRun): number {
@@ -675,7 +677,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   isPulsingEvent(event: SchedulerEvent): boolean {
-    return this.getSourceEventId(event) === this.activePulseEventId;
+    return this.activePulseEventIds.has(this.getSourceEventId(event));
   }
 
   isEventResizeActive(event: SchedulerEvent): boolean {
@@ -1255,11 +1257,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   public onBodyScroll(): void {
     this.syncHeaderScroll();
-    if (this.pendingPulseEventId && this.programmaticScrollPulse) {
-      this.schedulePulseAfterScrollSettles(this.pendingPulseEventId);
+    if (this.pendingPulseEventIds.size && this.programmaticScrollPulse) {
+      this.schedulePulseAfterScrollSettles([...this.pendingPulseEventIds]);
       return;
     }
-    if (!this.programmaticScrollPulse && this.activePulseEventId) {
+    if (!this.programmaticScrollPulse && this.activePulseEventIds.size) {
       this.clearPulse();
     }
   }
@@ -1287,67 +1289,72 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.cdr.detectChanges();
   }
 
-  private scrollToEvent(eventId: string | null): void {
-    if (!eventId || !this.bodyScrollRef) return;
-    const event = this.events.find(candidate => candidate.id === eventId);
-    if (!event) return;
+  private scrollToEvents(eventIds: string[]): void {
+    if (!eventIds.length || !this.bodyScrollRef) return;
+    const requestedIds = this.normalizePulseEventIds(eventIds);
+    const requestedIdSet = new Set(requestedIds);
+    const events = this.events.filter(candidate => requestedIdSet.has(candidate.id) || requestedIdSet.has(this.getSourceEventId(candidate)));
+    if (!events.length) return;
 
     const body = this.bodyScrollRef.nativeElement;
-    const eventLeft = this.getEventLeft(event);
-    const eventWidth = this.getEventWidth(event);
-    const left = Math.max(0, eventLeft + eventWidth / 2 - body.clientWidth / 2);
-    const top = Math.max(0, this.getResourceTop(event.resourceId) - GROUP_ROW_HEIGHT);
+    const minLeft = Math.min(...events.map(event => this.getEventLeft(event)));
+    const maxRight = Math.max(...events.map(event => this.getEventLeft(event) + this.getEventWidth(event)));
+    const minTop = Math.min(...events.map(event => this.getResourceTop(event.resourceId)));
+    const left = Math.max(0, minLeft + (maxRight - minLeft) / 2 - body.clientWidth / 2);
+    const top = Math.max(0, minTop - GROUP_ROW_HEIGHT);
     const alreadyInView = Math.abs(body.scrollLeft - left) < 2 && Math.abs(body.scrollTop - top) < 2;
     if (alreadyInView) {
-      this.activatePulseImmediately(eventId);
+      this.activatePulseImmediately(requestedIds);
     } else {
-      this.queuePulse(eventId);
+      this.queuePulse(requestedIds);
     }
     body.scrollTo({ left, top, behavior: 'smooth' });
     this.syncHeaderScroll();
   }
 
-  private queuePulse(eventId: string): void {
+  private queuePulse(eventIds: string[]): void {
     this.clearPulseTimeout();
     this.clearPulseScrollSettleTimeout();
-    this.activePulseEventId = null;
-    this.pendingPulseEventId = eventId;
+    this.activePulseEventIds.clear();
+    this.pendingPulseEventIds = new Set(this.normalizePulseEventIds(eventIds));
     this.programmaticScrollPulse = true;
-    this.schedulePulseAfterScrollSettles(eventId);
+    this.schedulePulseAfterScrollSettles([...this.pendingPulseEventIds]);
   }
 
-  private schedulePulseAfterScrollSettles(eventId: string): void {
+  private schedulePulseAfterScrollSettles(eventIds: string[]): void {
     this.clearPulseScrollSettleTimeout();
-    this.pulseScrollSettleTimeoutId = setTimeout(() => this.activatePulse(eventId), 180);
+    this.pulseScrollSettleTimeoutId = setTimeout(() => this.activatePulse(eventIds), 180);
   }
 
-  private activatePulse(eventId: string): void {
-    if (this.pendingPulseEventId !== eventId) return;
-    this.pendingPulseEventId = null;
-    this.activePulseEventId = eventId;
+  private activatePulse(eventIds: string[]): void {
+    const normalizedIds = this.normalizePulseEventIds(eventIds);
+    if (!this.arePulseEventIdsEqual(this.pendingPulseEventIds, normalizedIds)) return;
+    this.pendingPulseEventIds.clear();
+    this.activePulseEventIds = new Set(normalizedIds);
     this.programmaticScrollPulse = false;
     this.cdr.detectChanges();
     this.pulseTimeoutId = setTimeout(() => {
-      if (this.activePulseEventId === eventId) this.activePulseEventId = null;
+      if (this.arePulseEventIdsEqual(this.activePulseEventIds, normalizedIds)) this.activePulseEventIds.clear();
       this.cdr.detectChanges();
     }, 1200);
   }
 
-  private activatePulseImmediately(eventId: string): void {
+  private activatePulseImmediately(eventIds: string[]): void {
     this.clearPulseTimeout();
     this.clearPulseScrollSettleTimeout();
-    this.pendingPulseEventId = null;
+    this.pendingPulseEventIds.clear();
     this.programmaticScrollPulse = false;
-    this.activePulseEventId = null;
+    this.activePulseEventIds.clear();
     this.cdr.detectChanges();
-    setTimeout(() => this.activatePulseFromCurrentPosition(eventId));
+    setTimeout(() => this.activatePulseFromCurrentPosition(eventIds));
   }
 
-  private activatePulseFromCurrentPosition(eventId: string): void {
-    this.activePulseEventId = eventId;
+  private activatePulseFromCurrentPosition(eventIds: string[]): void {
+    const normalizedIds = this.normalizePulseEventIds(eventIds);
+    this.activePulseEventIds = new Set(normalizedIds);
     this.cdr.detectChanges();
     this.pulseTimeoutId = setTimeout(() => {
-      if (this.activePulseEventId === eventId) this.activePulseEventId = null;
+      if (this.arePulseEventIdsEqual(this.activePulseEventIds, normalizedIds)) this.activePulseEventIds.clear();
       this.cdr.detectChanges();
     }, 1200);
   }
@@ -1355,9 +1362,18 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private clearPulse(): void {
     this.clearPulseTimeout();
     this.clearPulseScrollSettleTimeout();
-    this.activePulseEventId = null;
-    this.pendingPulseEventId = null;
+    this.activePulseEventIds.clear();
+    this.pendingPulseEventIds.clear();
     this.programmaticScrollPulse = false;
+  }
+
+  private normalizePulseEventIds(eventIds: string[]): string[] {
+    return [...new Set(eventIds.filter(Boolean))];
+  }
+
+  private arePulseEventIdsEqual(currentIds: Set<string>, nextIds: string[]): boolean {
+    if (currentIds.size !== nextIds.length) return false;
+    return nextIds.every(eventId => currentIds.has(eventId));
   }
 
   private clearPulseTimeout(): void {
@@ -1530,6 +1546,27 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.collapsedGroupIds.add(groupId);
   }
 
+  expandAllGroups(): void {
+    this.collapsedGroupIds.clear();
+  }
+
+  collapseAllGroups(): void {
+    this.collapsedGroupIds = new Set(this.visibleGroups.map(group => group.id));
+  }
+
+  areAllVisibleGroupsCollapsed(): boolean {
+    const visibleGroupIds = this.visibleGroups.map(group => group.id);
+    return visibleGroupIds.length > 0 && visibleGroupIds.every(groupId => this.collapsedGroupIds.has(groupId));
+  }
+
+  toggleAllGroupsCollapsed(): void {
+    if (this.areAllVisibleGroupsCollapsed()) {
+      this.expandAllGroups();
+      return;
+    }
+    this.collapseAllGroups();
+  }
+
   isGroupCollapsed(groupId: string): boolean {
     return this.collapsedGroupIds.has(groupId);
   }
@@ -1545,6 +1582,13 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   hasSelectedResources(): boolean {
     return this.resources.some(resource => this.isResourceSelected(resource.id));
+  }
+
+  deselectAllResources(): void {
+    for (const resourceId of this.selectedResourceIds) {
+      this.resourceSelectionChange.emit({ resourceId, selected: false });
+    }
+    this.showSelectedOnlyResources = false;
   }
 
   isResourceSelected(resourceId: string): boolean {

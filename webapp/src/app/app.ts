@@ -214,6 +214,7 @@ export class App implements OnInit {
     {
       label: 'View', type: 'dropdown' as const,
       options: [
+        { label: 'Free', value: 'free' },
         { label: 'Day', value: 'day' },
         { label: 'Week', value: 'week' },
         { label: 'Month', value: 'month' },
@@ -224,6 +225,8 @@ export class App implements OnInit {
     {
       label: 'Scheduler Timescale', type: 'dropdown' as const,
       options: [
+        { label: '5 minutes', value: '5' },
+        { label: '10 minutes', value: '10' },
         { label: '15 minutes', value: '15' },
         { label: '30 minutes', value: '30' },
         { label: '1 hour',     value: '60' },
