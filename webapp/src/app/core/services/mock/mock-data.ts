@@ -118,6 +118,137 @@ const getTimedExecutionStatus = (start: Date, end: Date) => {
   return 'scheduled' as const;
 };
 
+const mayPlannerDemoBookings: Array<{
+  day: number;
+  reference: string;
+  jobId: string;
+  resourceId: string;
+  start: string;
+  end: string;
+  title: string;
+  kind?: ScheduleEntry['kind'];
+  category?: ScheduleEntry['workorderItemCategory'];
+}> = [
+  { day: 1, reference: '014826501', jobId: 'job-wo-bg-1002-1', resourceId: 'mech-mark-owen', start: '09:15', end: '11:15', title: 'May service inspection' },
+  { day: 1, reference: '014826501', jobId: 'job-wo-bg-1002-2', resourceId: 'advisor-ted-phillips', start: '09:00', end: '10:30', title: 'Customer intake', category: 'activity' },
+  { day: 2, reference: '014826502', jobId: 'job-wo-bg-1003-1', resourceId: 'mech-phil-parker', start: '10:00', end: '14:30', title: 'Brake noise diagnosis' },
+  { day: 2, reference: '014826502', jobId: 'job-wo-bg-1003-2', resourceId: 'car-audi-a4-kl657og', start: '09:00', end: '17:30', title: 'Courtesy car reservation', category: 'activity' },
+  { day: 5, reference: '014826503', jobId: 'job-wo-bg-1004-1', resourceId: 'mech-greg-jackson', start: '09:00', end: '16:30', title: 'MOT preparation' },
+  { day: 5, reference: '014826503', jobId: 'job-wo-bg-1004-2', resourceId: 'advisor-frank-miller', start: '14:00', end: '16:00', title: 'Repair approval calls', category: 'activity' },
+  { day: 6, reference: '014826504', jobId: 'job-wo-bg-1005-1', resourceId: 'mech-jeff-goldberg', start: '09:30', end: '12:30', title: 'Suspension repair' },
+  { day: 6, reference: '014826504', jobId: 'job-wo-bg-1005-2', resourceId: 'car-audi-a3-kl643ju', start: '10:00', end: '18:00', title: 'Courtesy car reservation', category: 'activity' },
+  { day: 7, reference: '014826505', jobId: 'job-wo-bg-1006-1', resourceId: 'mech-kelly-hanson', start: '11:00', end: '15:00', title: 'Control unit diagnostics' },
+  { day: 7, reference: '014826505', jobId: 'job-wo-bg-1006-2', resourceId: 'advisor-ted-phillips', start: '09:00', end: '13:00', title: 'Service advisor appointments', category: 'activity' },
+  { day: 8, reference: '014826506', jobId: 'job-wo-bg-1007-1', resourceId: 'mech-scenario-flex', start: '09:00', end: '18:00', title: 'High-priority workshop support' },
+  { day: 8, reference: '014826506', jobId: 'job-wo-bg-1007-2', resourceId: 'car-bmw-320-mw112ab', start: '09:00', end: '21:00', title: 'Courtesy car all day', category: 'activity' },
+  { day: 9, reference: '014826507', jobId: 'job-wo-bg-1008-1', resourceId: 'mech-mark-owen', start: '09:30', end: '11:30', title: 'Tyre pressure warning' },
+  { day: 9, reference: '014826507', jobId: 'job-wo-bg-1008-2', resourceId: 'mech-phil-parker', start: '13:00', end: '17:00', title: 'Brake pad replacement' },
+  { day: 12, reference: '014826508', jobId: 'job-wo-bg-1009-1', resourceId: 'advisor-frank-miller', start: '09:00', end: '16:30', title: 'Reception coverage', category: 'activity' },
+  { day: 12, reference: '014826508', jobId: 'job-wo-bg-1009-2', resourceId: 'mech-greg-jackson', start: '10:00', end: '12:30', title: 'Emissions fault diagnosis' },
+  { day: 13, reference: '014826509', jobId: 'job-wo-bg-1010-1', resourceId: 'mech-jeff-goldberg', start: '09:00', end: '11:00', title: 'Steering vibration check' },
+  { day: 13, reference: '014826509', jobId: 'job-wo-bg-1010-2', resourceId: 'car-scenario-courtesy', start: '09:00', end: '15:00', title: 'Short courtesy car booking', category: 'activity' },
+  { day: 14, reference: '014826501', jobId: 'job-wo-bg-1002-1', resourceId: 'mech-kelly-hanson', start: '09:00', end: '12:00', title: 'Battery draw test' },
+  { day: 14, reference: '014826501', jobId: 'job-wo-bg-1002-2', resourceId: 'advisor-ted-phillips', start: '13:00', end: '17:00', title: 'Customer handover block', category: 'activity' },
+  { day: 15, reference: '014826502', jobId: 'job-wo-bg-1003-1', resourceId: 'mech-phil-parker', start: '09:00', end: '21:00', title: 'Major repair day' },
+  { day: 15, reference: '014826502', jobId: 'job-wo-bg-1003-2', resourceId: 'car-audi-a4-kl657og', start: '09:00', end: '21:00', title: 'Courtesy car all day', category: 'activity' },
+  { day: 16, reference: '014826503', jobId: 'job-wo-bg-1004-1', resourceId: 'mech-mark-owen', start: '10:00', end: '13:00', title: 'Final inspection' },
+  { day: 16, reference: '014826503', jobId: 'job-wo-bg-1004-2', resourceId: 'advisor-frank-miller', start: '09:00', end: '11:00', title: 'Check-in wave', category: 'activity' },
+  { day: 19, reference: '014826504', jobId: 'job-wo-bg-1005-1', resourceId: 'mech-greg-jackson', start: '09:00', end: '15:30', title: 'Diagnostics backlog' },
+  { day: 19, reference: '014826504', jobId: 'job-wo-bg-1005-2', resourceId: 'mech-jeff-goldberg', start: '12:30', end: '17:30', title: 'Workshop overflow' },
+  { day: 20, reference: '014826505', jobId: 'job-wo-bg-1006-1', resourceId: 'advisor-scenario-lead', start: '09:00', end: '18:00', title: 'Service advisor desk', category: 'activity' },
+  { day: 20, reference: '014826505', jobId: 'job-wo-bg-1006-2', resourceId: 'car-audi-a3-kl643ju', start: '09:00', end: '17:00', title: 'Courtesy car booking', category: 'activity' },
+  { day: 21, reference: '014826506', jobId: 'job-wo-bg-1007-1', resourceId: 'mech-scenario-flex', start: '09:00', end: '12:00', title: 'Express jobs support' },
+  { day: 21, reference: '014826506', jobId: 'job-wo-bg-1007-2', resourceId: 'mech-kelly-hanson', start: '13:00', end: '18:00', title: 'Electrical diagnosis' },
+  { day: 22, reference: '014826507', jobId: 'job-wo-bg-1008-1', resourceId: 'car-bmw-320-mw112ab', start: '09:00', end: '21:00', title: 'Courtesy car all day', category: 'activity' },
+  { day: 22, reference: '014826507', jobId: 'job-wo-bg-1008-2', resourceId: 'mech-phil-parker', start: '10:00', end: '14:00', title: 'Brake repair follow-up' },
+  { day: 23, reference: '014826508', jobId: 'job-wo-bg-1009-1', resourceId: 'mech-mark-owen', start: '09:30', end: '12:00', title: 'Quick service package' },
+  { day: 23, reference: '014826508', jobId: 'job-wo-bg-1009-2', resourceId: 'advisor-ted-phillips', start: '10:00', end: '15:00', title: 'Advisor bookings', category: 'activity' },
+  { day: 26, reference: '014826509', jobId: 'job-wo-bg-1010-1', resourceId: 'mech-jeff-goldberg', start: '09:00', end: '18:00', title: 'Workshop campaign' },
+  { day: 26, reference: '014826509', jobId: 'job-wo-bg-1010-2', resourceId: 'car-scenario-courtesy', start: '12:00', end: '18:00', title: 'Afternoon courtesy car', category: 'activity' },
+  { day: 27, reference: '014826501', jobId: 'job-wo-bg-1002-1', resourceId: 'mech-kelly-hanson', start: '10:00', end: '12:30', title: 'Battery replacement' },
+  { day: 27, reference: '014826501', jobId: 'job-wo-bg-1002-2', resourceId: 'advisor-frank-miller', start: '09:00', end: '14:00', title: 'Advisor customer calls', category: 'activity' },
+  { day: 28, reference: '014826502', jobId: 'job-wo-bg-1003-1', resourceId: 'mech-greg-jackson', start: '09:00', end: '11:30', title: 'A/C service' },
+  { day: 28, reference: '014826502', jobId: 'job-wo-bg-1003-2', resourceId: 'car-audi-a4-kl657og', start: '09:00', end: '18:00', title: 'Courtesy car booking', category: 'activity' },
+  { day: 29, reference: '014826503', jobId: 'job-wo-bg-1004-1', resourceId: 'mech-scenario-flex', start: '09:00', end: '15:00', title: 'Workshop recovery block' },
+  { day: 29, reference: '014826503', jobId: 'job-wo-bg-1004-2', resourceId: 'advisor-scenario-lead', start: '13:00', end: '17:30', title: 'Late handovers', category: 'activity' },
+  { day: 30, reference: '014826504', jobId: 'job-wo-bg-1005-1', resourceId: 'mech-mark-owen', start: '09:00', end: '10:30', title: 'Pre-weekend check' },
+  { day: 30, reference: '014826504', jobId: 'job-wo-bg-1005-2', resourceId: 'car-audi-a3-kl643ju', start: '09:00', end: '13:00', title: 'Morning courtesy car', category: 'activity' },
+];
+
+const mayPlannerDayCapacity: Array<{
+  day: number;
+  reference: string;
+  jobId: string;
+  resourceId: string;
+  hours: number;
+  title: string;
+}> = [
+  { day: 2, reference: '014826502', jobId: 'job-wo-bg-1003-1', resourceId: 'mech-jeff-goldberg', hours: 2, title: 'Prepare parts and road test' },
+  { day: 6, reference: '014826504', jobId: 'job-wo-bg-1005-2', resourceId: 'mech-greg-jackson', hours: 3, title: 'Capacity hold: diagnostics' },
+  { day: 8, reference: '014826506', jobId: 'job-wo-bg-1007-1', resourceId: 'advisor-frank-miller', hours: 2, title: 'Callback capacity' },
+  { day: 12, reference: '014826508', jobId: 'job-wo-bg-1009-2', resourceId: 'mech-phil-parker', hours: 4, title: 'Capacity hold: brake repair' },
+  { day: 15, reference: '014826502', jobId: 'job-wo-bg-1003-2', resourceId: 'advisor-ted-phillips', hours: 3, title: 'Capacity hold: handovers' },
+  { day: 19, reference: '014826504', jobId: 'job-wo-bg-1005-1', resourceId: 'car-scenario-courtesy', hours: 6, title: 'Courtesy car day hold' },
+  { day: 22, reference: '014826507', jobId: 'job-wo-bg-1008-2', resourceId: 'mech-mark-owen', hours: 2, title: 'Capacity hold: quality check' },
+  { day: 28, reference: '014826502', jobId: 'job-wo-bg-1003-1', resourceId: 'mech-kelly-hanson', hours: 3, title: 'Capacity hold: A/C follow-up' },
+];
+
+const MOCK_MAY_PLANNER_SCHEDULE_ENTRIES: ScheduleEntry[] = [
+  ...mayPlannerDemoBookings.map((booking, index) => ({
+    id: `sch-may-demo-${index + 1}`,
+    jobId: booking.jobId,
+    resourceId: booking.resourceId,
+    start: new Date(`2024-05-${String(booking.day).padStart(2, '0')}T${booking.start}:00`),
+    end: new Date(`2024-05-${String(booking.day).padStart(2, '0')}T${booking.end}:00`),
+    title: booking.title,
+    color: '#A6C8FF',
+    kind: 'scheduled' as const,
+    workOrderReference: booking.reference,
+    workorderItemStatus: 'scheduled' as const,
+    workorderItemCategory: booking.category ?? 'job',
+  })),
+  ...mayPlannerDayCapacity.map((block, index) => ({
+    id: `sch-may-capacity-${index + 1}`,
+    jobId: block.jobId,
+    resourceId: block.resourceId,
+    start: new Date(`2024-05-${String(block.day).padStart(2, '0')}T09:00:00`),
+    end: new Date(new Date(`2024-05-${String(block.day).padStart(2, '0')}T09:00:00`).getTime() + block.hours * 60 * 60000),
+    title: block.title,
+    color: '#4C68B1',
+    kind: 'day-capacity' as const,
+    workOrderReference: block.reference,
+    workorderItemStatus: 'scheduled' as const,
+    workorderItemCategory: 'job' as const,
+  })),
+];
+
+const MOCK_MAY_CAPACITY_DEMO_UNAVAILABILITY: UnavailabilityBlock[] = [
+  ...['mech-mark-owen', 'mech-phil-parker', 'mech-greg-jackson'].map(resourceId => ({
+    resourceId,
+    start: new Date('2024-05-16T09:00:00'),
+    end: new Date('2024-05-16T21:00:00'),
+    reason: 'May demo mechanic demand',
+    title: 'May demo mechanic demand',
+    color: '#E0E0E0',
+  })),
+  ...['advisor-scenario-lead', 'advisor-ted-phillips'].map(resourceId => ({
+    resourceId,
+    start: new Date('2024-05-20T09:00:00'),
+    end: new Date('2024-05-20T21:00:00'),
+    reason: 'May demo advisor shortage',
+    title: 'May demo advisor shortage',
+    color: '#E0E0E0',
+  })),
+  ...['car-scenario-courtesy', 'car-audi-a4-kl657og', 'car-audi-a3-kl643ju', 'car-bmw-320-mw112ab'].map(resourceId => ({
+    resourceId,
+    start: new Date('2024-05-22T09:00:00'),
+    end: new Date('2024-05-22T21:00:00'),
+    reason: 'May demo courtesy car shortage',
+    title: 'May demo courtesy car shortage',
+    color: '#E0E0E0',
+  })),
+];
+
 const defaultActivityItems = [
   { templateId: 'act-checkin', title: 'Check-In', resourceType: 'advisor' as const, resourceLabel: 'Service Advisor', fru: 0.5, estimatedDurationMinutes: 30 },
   { templateId: 'act-handover', title: 'Handover', resourceType: 'advisor' as const, resourceLabel: 'Service Advisor', fru: 0.5, estimatedDurationMinutes: 30 },
@@ -391,6 +522,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
 ];
 
 export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
+  ...MOCK_MAY_PLANNER_SCHEDULE_ENTRIES,
   { id: 'sch-bg-1002-phil-1', jobId: 'job-wo-bg-1002-1', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T11:15:00'), end: new Date('2024-04-15T11:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
   { id: 'sch-bg-1002-bay-1', jobId: 'job-wo-bg-1002-1', resourceId: 'bay-pc-2', start: new Date('2024-04-15T11:15:00'), end: new Date('2024-04-15T11:45:00'), title: 'Windshield Washer Repair', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
   { id: 'sch-bg-1002-phil-2', jobId: 'job-wo-bg-1002-2', resourceId: 'mech-phil-parker', start: new Date('2024-04-15T11:45:00'), end: new Date('2024-04-15T12:00:00'), title: 'Wiper Blade Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826501' },
@@ -644,6 +776,7 @@ MOCK_WORK_ORDERS.forEach(order => {
 });
 
 export const MOCK_UNAVAILABILITY: UnavailabilityBlock[] = [
+  ...MOCK_MAY_CAPACITY_DEMO_UNAVAILABILITY,
   ...['2024-04-22', '2024-04-23', '2024-04-24', '2024-04-25', '2024-04-26', '2024-04-27', '2024-04-28'].flatMap(date =>
     MOCK_RESOURCES.map(resource => ({
       resourceId: resource.id,

@@ -94,11 +94,19 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  overflow: auto;
+  overflow: hidden;
   background: var(--Background-background, #ffffff);
   color: var(--Text-text-primary, #161616);
   font-family: 'IBM Plex Sans', Arial, sans-serif;
   box-sizing: border-box;
+}
+
+.month-overview__header {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .month-overview__title-row h2 {
@@ -109,10 +117,58 @@
 }
 
 .month-overview__title-row {
-  margin-bottom: 8px;
   display: inline-flex;
   align-items: center;
   gap: 2px;
+}
+
+.month-overview__capacity-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.month-overview__capacity-switch {
+  width: 48px;
+  padding: 2px;
+  border: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #63A375;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
+  cursor: pointer;
+
+  &[aria-checked='false'] {
+    background: var(--Icon-icon-on-color-disabled, #8D8D8D);
+    justify-content: flex-start;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--Focus-focus, #4C68B1);
+    outline-offset: 2px;
+  }
+}
+
+.month-overview__capacity-switch-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--Icon-icon-on-color, white);
+  display: block;
+}
+
+.month-overview__capacity-label {
+  padding-top: 3px;
+  padding-bottom: 3px;
+  color: var(--Text-text-primary, #161616);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: .16px;
 }
 
 .month-overview__nav-button {
@@ -143,6 +199,7 @@
 }
 
 .month-overview__body {
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   gap: 16px;
@@ -152,6 +209,9 @@
 .month-overview__calendar {
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: auto;
   order: 2;
 }
@@ -171,15 +231,18 @@
 }
 
 .month-overview__grid {
+  flex: 1 1 auto;
+  min-height: 0;
   border-left: 1px solid var(--Border-border-subtle-01, #C6C6C6);
   border-top: 1px solid var(--Border-border-subtle-01, #C6C6C6);
+  grid-auto-rows: minmax(0, 1fr);
 }
 
 .month-overview__day {
   appearance: none;
   width: 100%;
-  min-height: 118px;
-  padding: 10px 12px;
+  min-height: 0;
+  padding: 8px 10px;
   border: 0;
   border-right: 1px solid var(--Border-border-subtle-01, #C6C6C6);
   border-bottom: 1px solid var(--Border-border-subtle-01, #C6C6C6);
@@ -204,12 +267,38 @@
 
 .month-overview__day--outside {
   background: var(--Layer-layer-01, #F4F4F4);
-  color: var(--Text-text-secondary, #525252);
+  color: var(--Text-text-placeholder, #A8A8A8);
+}
+
+.month-overview__day--past {
+  background: #FAFAFA;
+  color: var(--Text-text-placeholder, #A8A8A8);
 }
 
 .month-overview__day--selected {
   box-shadow: inset 0 0 0 2px var(--Border-border-interactive, #4C68B1);
   background: var(--Layer-layer-selected-01, #E0E0E0);
+}
+
+.month-overview__day--past.month-overview__day--selected {
+  background: var(--Layer-layer-selected-01, #E0E0E0);
+}
+
+.month-overview__day--past .month-overview__summary,
+.month-overview__day--past .month-overview__empty,
+.month-overview__day--past .month-overview__availability {
+  opacity: .58;
+}
+
+.month-overview__day--past .month-overview__summary span,
+.month-overview__day--past .month-overview__empty {
+  color: var(--Text-text-placeholder, #A8A8A8);
+}
+
+.month-overview__day--outside .month-overview__summary strong,
+.month-overview__day--outside .month-overview__summary span,
+.month-overview__day--outside .month-overview__empty {
+  color: var(--Text-text-placeholder, #A8A8A8);
 }
 
 .month-overview__day-heading {
@@ -238,20 +327,19 @@
 }
 
 .month-overview__summary {
-  margin-top: 18px;
+  margin-top: 8px;
   display: flex;
   align-items: baseline;
   gap: 6px;
 }
 
 .month-overview__summary strong {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 400;
-  line-height: 36px;
+  line-height: 26px;
 }
 
 .month-overview__summary span,
-.month-overview__resources,
 .month-overview__empty {
   color: var(--Text-text-secondary, #525252);
   font-size: 12px;
@@ -260,7 +348,182 @@
 }
 
 .month-overview__empty {
-  margin-top: 24px;
+  margin-top: 12px;
+}
+
+.month-overview__availability {
+  margin-top: auto;
+  padding-top: 6px;
+  min-height: 42px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.month-overview__availability--hidden {
+  visibility: hidden;
+}
+
+.month-overview__availability-row {
+  --availability-color: var(--Support-support-success, #24A148);
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 6px;
+  color: var(--Text-text-secondary, #525252);
+  font-size: 11px;
+  line-height: 12px;
+  letter-spacing: .16px;
+}
+
+.month-overview__availability-row--medium {
+  --availability-color: var(--Support-support-warning, #F1C21B);
+}
+
+.month-overview__availability-row--low {
+  --availability-color: var(--Support-support-error, #DA1E28);
+}
+
+.month-overview__availability-row--muted {
+  --availability-color: var(--Border-border-subtle-01, #C6C6C6);
+}
+
+.month-overview__availability-label {
+  font-weight: 600;
+  color: var(--Text-text-primary, #161616);
+}
+
+.month-overview__day--past .month-overview__availability-label,
+.month-overview__day--past .month-overview__availability-value,
+.month-overview__availability-row--muted .month-overview__availability-label,
+.month-overview__availability-row--muted .month-overview__availability-value {
+  color: var(--Text-text-placeholder, #A8A8A8);
+}
+
+.month-overview__availability-track {
+  height: 4px;
+  overflow: hidden;
+  background: var(--Border-border-subtle-01, #C6C6C6);
+}
+
+.month-overview__availability-fill {
+  display: block;
+  height: 100%;
+  background: var(--availability-color);
+}
+
+.month-overview__availability-row--empty:not(.month-overview__availability-row--muted) .month-overview__availability-fill {
+  min-width: 4px;
+}
+
+.month-overview__availability-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1280px), (max-height: 760px) {
+  .month-overview__capacity-toggle,
+  .month-overview__availability {
+    display: none;
+  }
+
+  .month-overview__day {
+    min-height: 128px;
+  }
+}
+
+.month-preview__out-of-view {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--Border-border-subtle-01, #C6C6C6);
+  background: var(--Notification-notification-info-background, #EDF5FF);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--Text-text-primary, #161616);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: .32px;
+}
+
+.month-preview__out-of-view button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--Link-link-primary, #4C68B1);
+  font: inherit;
+  cursor: pointer;
+}
+
+.month-preview__availability {
+  margin: 0;
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.month-preview__availability-title {
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: 0.16px;
+}
+
+.month-preview__availability-row {
+  --availability-color: var(--Support-support-success, #24A148);
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 10px;
+  color: var(--Text-text-secondary, #525252);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: .32px;
+}
+
+.month-preview__availability-row--medium {
+  --availability-color: var(--Support-support-warning, #F1C21B);
+}
+
+.month-preview__availability-row--low {
+  --availability-color: var(--Support-support-error, #DA1E28);
+}
+
+.month-preview__availability-label {
+  color: var(--Text-text-secondary, #525252);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.month-preview__availability-track {
+  height: 4px;
+  overflow: hidden;
+  background: var(--Layer-layer-accent-01, #E0E0E0);
+}
+
+.month-preview__availability-fill {
+  display: block;
+  height: 100%;
+  background: var(--availability-color);
+}
+
+.month-preview__availability-row--empty .month-preview__availability-fill {
+  min-width: 4px;
+}
+
+.month-preview__availability-value {
+  color: var(--Text-text-secondary, #525252);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.month-preview__axis-strip {
+  border-top: 1px solid var(--Border-border-subtle-01, #C6C6C6);
+  border-bottom: 1px solid var(--Border-border-subtle-01, #C6C6C6);
+  background: var(--Background-background, #ffffff);
 }
 
 .booking-modal-overlay {
