@@ -331,13 +331,13 @@
                   </strong>
                   <span [style.background]="getOrderPlanningStateBackground(order)" [style.color]="getOrderPlanningStateColor(order)" [style.outline]="getOrderPlanningStateOutline(order)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getOrderPlanningStateLabel(order) }}</span>
                 </div>
-                <div style="align-self:stretch;padding-right:128px;position:relative;display:flex;flex-direction:column;gap:2px">
-                  <span style="color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                <div style="align-self:stretch;min-width:0;position:relative;display:flex;flex-direction:column;gap:2px">
+                  <span style="display:block;width:calc(100% - 140px);max-width:calc(100% - 140px);min-width:0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                     @for (part of getSearchHighlightParts(order.vehicle?.licensePlate ?? 'No vehicle'); track $index) {
                       @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                     }
                   </span>
-                  <span style="color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                  <span style="display:block;width:calc(100% - 140px);max-width:calc(100% - 140px);min-width:0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                     @for (part of getSearchHighlightParts(order.customer?.name ?? 'Unknown customer'); track $index) {
                       @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                     }
@@ -359,8 +359,8 @@
                   @for (job of getJobsForOrder(order); track job.id) {
                     @if (shouldShowJobForSearch(order, job)) {
                     <div draggable="true" (dragstart)="onJobDragStart($event, job, order)" style="align-self:stretch;background:var(--Layer-layer-02,white);display:flex;flex-direction:column;gap:8px;padding:12px;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);cursor:grab">
-                    <div style="display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                      <strong style="min-width:0;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                    <div style="width:100%;min-width:0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                      <strong style="display:block;flex:1 1 0;min-width:0;max-width:100%;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                         @for (part of getSearchHighlightParts(job.title); track $index) {
                           @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                         }

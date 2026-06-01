@@ -84,4 +84,23 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
       { label: 'Courtesy Car', children: ['Audi A4 KL 657 OG', 'Audi A3 KL 643 JU'] },
     ],
   },
+  {
+    label: 'Service Centre Klagenfurt',
+    value: 'view-service-centre-klagenfurt',
+    resourceIds: [
+      'klg-mech-frank',
+      'klg-mech-mike',
+      'klg-mech-john',
+      'klg-mech-peter',
+      'klg-advisor-jeff',
+      'klg-advisor-tom',
+      'klg-car-audi-a4-k657pj',
+      'klg-car-audi-a3-k336uh',
+    ],
+    groups: [
+      { label: 'Mechanics', children: ['Frank', 'Mike', 'John', 'Peter'] },
+      { label: 'Service Advisors', children: ['Jeff', 'Tom'] },
+      { label: 'Courtesy Cars', children: ['Audi A4 - K 657 PJ', 'Audi A3 - K 336 UH'] },
+    ],
+  },
 ];

@@ -131,9 +131,9 @@
             </button>
             <button type="button" [attr.aria-label]="areAllVisibleGroupsCollapsed() ? 'Expand all resource groups' : 'Collapse all resource groups'" [attr.title]="areAllVisibleGroupsCollapsed() ? 'Expand all resource groups' : 'Collapse all resource groups'" (click)="toggleAllGroupsCollapsed()" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:var(--Icon-icon-on-color,white);padding:8px;display:flex;align-items:center;justify-content:center;cursor:pointer">
               @if (areAllVisibleGroupsCollapsed()) {
-                <img src="http://localhost:3845/assets/f0bb3865e15f0bfde7d2b3541d307ba83e4fab6c.svg" alt="" aria-hidden="true" width="16" height="16" style="filter:brightness(0) invert(1)" />
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2 3h12v1H2V3Zm0 4h12v1H2V7Zm0 4h8v1H2v-1Zm11.5.5L11 9h5l-2.5 2.5Z" fill="currentColor"/></svg>
               } @else {
-                <img src="http://localhost:3845/assets/e4e8aa02d4c208589bfb9697c4d7713cb0bb5a4d.svg" alt="" aria-hidden="true" width="16" height="16" style="filter:brightness(0) invert(1)" />
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2 3h12v1H2V3Zm0 4h12v1H2V7Zm0 4h8v1H2v-1Zm11.5-2.5L16 11h-5l2.5-2.5Z" fill="currentColor"/></svg>
               }
             </button>
           </div>

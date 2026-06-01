@@ -2932,6 +2932,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       return;
     }
     if (payload.dropType === 'order' && activeOrderId) {
+      this.clearManualInteractionState();
       this.selectedPanelOrderId = activeOrderId;
       this.restoreProposalStateForOrder(activeOrderId);
       this.applyProposal(payload.start, true, false, {
