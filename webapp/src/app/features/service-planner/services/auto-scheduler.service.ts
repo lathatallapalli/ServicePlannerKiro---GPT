@@ -355,6 +355,8 @@ export class AutoSchedulerService {
     const preferredIds = new Set(preferredResourceIds);
     const requiredIds = new Set(requiredResourceIds);
 
+    const requiredResources = resources.filter(resource => requiredIds.has(resource.id));
+
     // For each requirement, find candidate resources (type + qualification match)
     const candidatesByReq = requirements.map((req, index) => {
       const matchingResources = resources.filter(r =>
@@ -362,10 +364,17 @@ export class AutoSchedulerService {
         req.requiredQualifications.every(q => r.qualifications.some(rq => rq.id === q.id))
       );
       const requiredMatches = matchingResources.filter(resource => requiredIds.has(resource.id));
+      const shouldForceRequiredMatches = requiredMatches.length > 0 &&
+        requiredMatches.length <= 1 &&
+        !requiredResources.some(resource =>
+          !requiredMatches.includes(resource) &&
+          resource.type === req.resourceType &&
+          req.requiredQualifications.every(q => resource.qualifications.some(rq => rq.id === q.id))
+        );
       return {
         req,
         index,
-        candidates: (requiredMatches.length ? requiredMatches : matchingResources)
+        candidates: (shouldForceRequiredMatches ? requiredMatches : matchingResources)
           .sort((a, b) => Number(preferredIds.has(b.id)) - Number(preferredIds.has(a.id))),
       };
     });

@@ -406,7 +406,7 @@ $month-bar-height: 60px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 8px;
     padding: 0 12px 0 6px;
     background: var(--Background-background, white);
     font-size: 16px;
@@ -511,11 +511,24 @@ $month-bar-height: 60px;
     display: none;
   }
 
+  &__resource-checkbox-icon--mixed {
+    display: none;
+  }
+
   &__resource-checkbox-input:checked ~ &__resource-checkbox-icon--unchecked {
     display: none;
   }
 
   &__resource-checkbox-input:checked ~ &__resource-checkbox-icon--checked {
+    display: block;
+  }
+
+  &__resource-checkbox-input:indeterminate ~ &__resource-checkbox-icon--unchecked,
+  &__resource-checkbox-input:indeterminate ~ &__resource-checkbox-icon--checked {
+    display: none;
+  }
+
+  &__resource-checkbox-input:indeterminate ~ &__resource-checkbox-icon--mixed {
     display: block;
   }
 

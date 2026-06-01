@@ -1763,6 +1763,26 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return this.collapsedGroupIds.has(groupId);
   }
 
+  areAllGroupResourcesSelected(groupId: string): boolean {
+    const resources = this.getResourcesForGroup(groupId);
+    return resources.length > 0 && resources.every(resource => this.isResourceSelected(resource.id));
+  }
+
+  areSomeGroupResourcesSelected(groupId: string): boolean {
+    return this.getResourcesForGroup(groupId).some(resource => this.isResourceSelected(resource.id));
+  }
+
+  onGroupResourceSelectionChange(event: Event, groupId: string): void {
+    event.stopPropagation();
+    const selected = (event.target as HTMLInputElement).checked;
+    for (const resource of this.getResourcesForGroup(groupId)) {
+      if (this.isResourceSelected(resource.id) !== selected) {
+        this.resourceSelectionChange.emit({ resourceId: resource.id, selected });
+      }
+    }
+    if (!selected) this.showSelectedOnlyResources = false;
+  }
+
   toggleSelectedOnlyResources(): void {
     if (this.showSelectedOnlyResources) {
       this.showSelectedOnlyResources = false;
