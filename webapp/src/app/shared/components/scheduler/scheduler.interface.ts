@@ -48,6 +48,7 @@ export interface SchedulerInvalidDropRange {
 
 export interface SchedulerInvalidCapacityResource {
   resourceId: string;
+  date?: Date;
 }
 
 export interface SchedulerDropVisualContext {

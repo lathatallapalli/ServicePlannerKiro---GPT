@@ -1,4 +1,4 @@
-﻿import {
+import {
   Component, Input, Output, EventEmitter,
   OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy,
   ElementRef, ViewChild, AfterViewInit, NgZone, ChangeDetectorRef, OnDestroy
@@ -18,7 +18,7 @@ import { ResourceFavoriteView } from '../../../../features/service-planner/servi
 
 const MINUTES_PER_FRU = 60;
 
-const SLOT_WIDTH = 60;        // px per slot (fixed â€” one slot always = 60px)
+const SLOT_WIDTH = 60;        // px per slot (fixed — one slot always = 60px)
 const ROW_HEIGHT = 92;        // px per resource row
 const ORDER_TILE_HEIGHT = 28;
 const JOB_TILE_HEIGHT = ROW_HEIGHT - ORDER_TILE_HEIGHT;
@@ -29,12 +29,27 @@ const MONTH_BAR_HEIGHT = 40;
 const RESOURCE_COL_WIDTH = 310;
 const GROUP_ROW_HEIGHT = 48;
 const DAY_CAPACITY_LANE_WIDTH = 96;
+const CAPACITY_COLLAPSED_VISIBLE_COUNT = 2;
+const CAPACITY_OVERFLOW_VISIBLE_COUNT = 1;
+const CAPACITY_BLOCK_HEIGHT = 36;
+const CAPACITY_OVERFLOW_BUTTON_HEIGHT = 12;
+const CAPACITY_LANE_PADDING_Y = 8;
+const CAPACITY_LANE_GAP = 4;
 const EVENT_FULL_TAG_MIN_WIDTH = 220;
 const EVENT_ICON_TAG_MIN_WIDTH = 150;
 const EVENT_CONTACT_MIN_WIDTH = 300;
 
 interface EventHoverTooltip {
   event: SchedulerEvent;
+  x: number;
+  y: number;
+}
+
+interface CapacityOverflowPreview {
+  blocks: SchedulerCapacityBlock[];
+  hiddenCount: number;
+  blockedDurationLabel: string;
+  jobCountLabel: string;
   x: number;
   y: number;
 }
@@ -139,6 +154,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   readonly RESOURCE_COL_WIDTH = RESOURCE_COL_WIDTH;
   readonly GROUP_ROW_HEIGHT = GROUP_ROW_HEIGHT;
   readonly DAY_CAPACITY_LANE_WIDTH = DAY_CAPACITY_LANE_WIDTH;
+  readonly CAPACITY_COLLAPSED_VISIBLE_COUNT = CAPACITY_COLLAPSED_VISIBLE_COUNT;
 
   private timelineViewportWidth = 0;
   private resizeObserver: ResizeObserver | null = null;
@@ -173,7 +189,11 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   get totalBodyHeight(): number {
-    return this.visibleGroups.reduce((height, group) => height + this.GROUP_ROW_HEIGHT + this.getExpandedResourcesForGroup(group.id).length * this.rowHeight, 0);
+    const groupedHeight = this.visibleGroups.reduce((height, group) =>
+      height + this.GROUP_ROW_HEIGHT + this.getExpandedResourcesForGroup(group.id).reduce((sum, resource) => sum + this.getResourceRowHeight(resource.id), 0),
+      0
+    );
+    return groupedHeight + this.getUngroupedResources().reduce((height, resource) => height + this.getResourceRowHeight(resource.id), 0);
   }
 
   months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -185,6 +205,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   collapsedGroupIds = new Set<string>();
   copiedContactKey: string | null = null;
   private copiedContactResetId: ReturnType<typeof setTimeout> | null = null;
+  private expandedCapacityLane: { resourceId: string; dayKey: string } | null = null;
 
   get selectedYear(): number { return this.viewStart.getFullYear(); }
 
@@ -210,6 +231,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private resizing: { event: SchedulerEvent; edge: 'left' | 'right'; startX: number; originalStart: Date; originalEnd: Date } | null = null;
   resizePreview: { event: SchedulerEvent; left: number; top: number; width: number } | null = null;
   hoverTooltip: EventHoverTooltip | null = null;
+  capacityOverflowPreview: CapacityOverflowPreview | null = null;
   dropPreview: DropPreview | null = null;
   dropTargetResourceId: string | null = null;
   private lastValidDropPreview: DropPreview | null = null;
@@ -259,6 +281,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       this.selectedMonth = this.viewStart.getMonth();
       this.buildTimeSlots();
       queueMicrotask(() => this.updateTimelineViewportWidth());
+    }
+    if (changes['capacityBlocks'] || changes['resources'] || changes['viewStart'] || changes['viewEnd']) {
+      this.reconcileExpandedCapacityLane();
     }
     if (changes['scrollToEventId'] || changes['scrollToEventIds'] || changes['scrollToEventRequestId']) {
       const eventIds = this.scrollToEventIds.length ? this.scrollToEventIds : (this.scrollToEventId ? [this.scrollToEventId] : []);
@@ -335,10 +360,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return day.toLocaleDateString('en-GB', { weekday: 'short' });
   }
 
-  // â”€â”€ Layout helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Layout helpers ──────────────────────────────────────────────────────────
 
   getGroupHeight(groupId: string): number {
-    return this.getExpandedResourcesForGroup(groupId).length * this.rowHeight + GROUP_ROW_HEIGHT;
+    return this.getExpandedResourcesForGroup(groupId).reduce((height, resource) => height + this.getResourceRowHeight(resource.id), GROUP_ROW_HEIGHT);
   }
 
   getEventsForResource(resourceId: string): SchedulerEvent[] {
@@ -398,14 +423,111 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     );
   }
 
+  getVisibleCapacityBlocksForResourceDay(resourceId: string, day: Date): SchedulerCapacityBlock[] {
+    const blocks = this.getCapacityBlocksForResourceDay(resourceId, day);
+    return this.isCapacityLaneExpandedForBlocks(resourceId, day, blocks.length)
+      ? blocks
+      : blocks.slice(0, this.getCollapsedCapacityVisibleCount(blocks.length));
+  }
+
+  getHiddenCapacityBlockCount(resourceId: string, day: Date): number {
+    const blockCount = this.getCapacityBlocksForResourceDay(resourceId, day).length;
+    if (this.isCapacityLaneExpandedForBlocks(resourceId, day, blockCount)) return 0;
+    return Math.max(blockCount - this.getCollapsedCapacityVisibleCount(blockCount), 0);
+  }
+
+  private getCollapsedCapacityVisibleCount(blockCount: number): number {
+    return blockCount > CAPACITY_COLLAPSED_VISIBLE_COUNT
+      ? CAPACITY_OVERFLOW_VISIBLE_COUNT
+      : CAPACITY_COLLAPSED_VISIBLE_COUNT;
+  }
+
+  isCapacityLaneExpanded(resourceId: string, day: Date): boolean {
+    return this.isCapacityLaneExpandedForBlocks(
+      resourceId,
+      day,
+      this.getCapacityBlocksForResourceDay(resourceId, day).length,
+    );
+  }
+
+  toggleCapacityLaneExpansion(event: MouseEvent, resourceId: string, day: Date): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.hideCapacityOverflowPreview();
+    const dayKey = this.getCapacityDayKey(day);
+    this.expandedCapacityLane = this.isCapacityLaneExpanded(resourceId, day)
+      ? null
+      : { resourceId, dayKey };
+  }
+
+  getResourceRowHeight(resourceId: string): number {
+    if (this.expandedCapacityLane?.resourceId !== resourceId) return ROW_HEIGHT;
+
+    const day = this.daySlots.find(slot => this.getCapacityDayKey(slot) === this.expandedCapacityLane?.dayKey);
+    if (!day) return ROW_HEIGHT;
+
+    const blockCount = this.getCapacityBlocksForResourceDay(resourceId, day).length;
+    if (!this.isCapacityLaneExpandable(blockCount)) return ROW_HEIGHT;
+
+    const visibleItemCount = blockCount + 1;
+    const expandedHeight = CAPACITY_LANE_PADDING_Y +
+      blockCount * CAPACITY_BLOCK_HEIGHT +
+      CAPACITY_OVERFLOW_BUTTON_HEIGHT +
+      Math.max(visibleItemCount - 1, 0) * CAPACITY_LANE_GAP;
+
+    return Math.max(ROW_HEIGHT, expandedHeight);
+  }
+
+  private isCapacityLaneExpandedForBlocks(resourceId: string, day: Date, blockCount: number): boolean {
+    return this.isCapacityLaneExpandable(blockCount) &&
+      this.expandedCapacityLane?.resourceId === resourceId &&
+      this.expandedCapacityLane.dayKey === this.getCapacityDayKey(day);
+  }
+
+  private isCapacityLaneExpandable(blockCount: number): boolean {
+    return blockCount > CAPACITY_COLLAPSED_VISIBLE_COUNT;
+  }
+
+  private reconcileExpandedCapacityLane(): void {
+    if (!this.expandedCapacityLane) return;
+
+    const day = this.daySlots.find(slot => this.getCapacityDayKey(slot) === this.expandedCapacityLane?.dayKey);
+    const resourceExists = this.resources.some(resource => resource.id === this.expandedCapacityLane?.resourceId);
+    const blockCount = day && resourceExists
+      ? this.getCapacityBlocksForResourceDay(this.expandedCapacityLane.resourceId, day).length
+      : 0;
+
+    if (!this.isCapacityLaneExpandable(blockCount)) {
+      this.expandedCapacityLane = null;
+    }
+  }
+
+  getDropPreviewHeight(): number {
+    return this.dropPreview ? this.getResourceRowHeight(this.dropPreview.resourceId) : ROW_HEIGHT;
+  }
+
+  private getCapacityDayKey(day: Date): string {
+    const year = day.getFullYear();
+    const month = String(day.getMonth() + 1).padStart(2, '0');
+    const date = String(day.getDate()).padStart(2, '0');
+    return `${year}-${month}-${date}`;
+  }
+
   getCapacityLaneLeft(day: Date): number {
     return this.getDayOffsetPx(day);
   }
 
   getCapacityLaneTitle(resourceId: string, day: Date): string {
-    const blocks = this.getCapacityBlocksForResourceDay(resourceId, day);
-    const durationMinutes = blocks.reduce((sum, block) => sum + block.durationMinutes, 0);
+    const durationMinutes = this.getCapacityBlockedDurationMinutes(resourceId, day);
     return durationMinutes ? `${this.formatMinutes(durationMinutes)} blocked` : 'Drop here to block day capacity';
+  }
+
+  getCapacityBlockedDurationLabel(resourceId: string, day: Date): string {
+    return `${this.formatMinutes(this.getCapacityBlockedDurationMinutes(resourceId, day))} blocked`;
+  }
+
+  getCapacityOverflowLabel(resourceId: string, day: Date, hiddenCount: number): string {
+    return `+${hiddenCount} more � ${this.getHiddenCapacityBlockedDurationShortLabel(resourceId, day)}`;
   }
 
   getCapacityBlockTitle(block: SchedulerCapacityBlock): string {
@@ -414,6 +536,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getCapacityBlockDetail(block: SchedulerCapacityBlock): string {
     return this.formatMinutes(block.durationMinutes);
+  }
+
+  getCapacityBlockSummary(block: SchedulerCapacityBlock): string {
+    return `${this.getCapacityBlockDetail(block)} � ${block.title}`;
   }
 
   getCapacityBlockOrderReference(block: SchedulerCapacityBlock): string {
@@ -434,6 +560,69 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getCapacityBlockAriaLabel(block: SchedulerCapacityBlock): string {
     return `${this.getCapacityBlockOrderReference(block)} ${block.title}, day capacity, ${this.getCapacityBlockDetail(block)}`;
+  }
+
+  showCapacityOverflowPreview(event: MouseEvent | FocusEvent, resource: SchedulerResource, day: Date, hiddenCount: number): void {
+    const blocks = this.getCapacityBlocksForResourceDay(resource.id, day);
+    const point = this.getCapacityPreviewPoint(event);
+    this.capacityOverflowPreview = {
+      blocks,
+      hiddenCount,
+      blockedDurationLabel: this.getCapacityBlockedDurationLabel(resource.id, day),
+      jobCountLabel: this.getCapacityJobCountLabel(blocks.length),
+      x: point.x,
+      y: point.y,
+    };
+  }
+
+  moveCapacityOverflowPreview(event: MouseEvent, resource: SchedulerResource, day: Date, hiddenCount: number): void {
+    if (!this.capacityOverflowPreview) return;
+    this.showCapacityOverflowPreview(event, resource, day, hiddenCount);
+  }
+
+  hideCapacityOverflowPreview(): void {
+    this.capacityOverflowPreview = null;
+  }
+
+  private getCapacityPreviewPoint(event: MouseEvent | FocusEvent): { x: number; y: number } {
+    if (event instanceof MouseEvent) {
+      return { x: event.clientX + 12, y: event.clientY + 12 };
+    }
+
+    const element = event.currentTarget as HTMLElement | null;
+    const rect = element?.getBoundingClientRect();
+    return rect
+      ? { x: rect.right + 8, y: rect.top }
+      : { x: 12, y: 12 };
+  }
+
+  private getCapacityBlockedDurationMinutes(resourceId: string, day: Date): number {
+    return this.getCapacityBlocksForResourceDay(resourceId, day)
+      .reduce((sum, block) => sum + block.durationMinutes, 0);
+  }
+
+  private getCapacityBlockedDurationShortLabel(resourceId: string, day: Date): string {
+    return this.formatCapacityDurationShort(this.getCapacityBlockedDurationMinutes(resourceId, day));
+  }
+
+  private getHiddenCapacityBlockedDurationShortLabel(resourceId: string, day: Date): string {
+    const blocks = this.getCapacityBlocksForResourceDay(resourceId, day);
+    const visibleCount = this.getCollapsedCapacityVisibleCount(blocks.length);
+    const hiddenDurationMinutes = blocks
+      .slice(visibleCount)
+      .reduce((sum, block) => sum + block.durationMinutes, 0);
+
+    return this.formatCapacityDurationShort(hiddenDurationMinutes);
+  }
+
+  private formatCapacityDurationShort(durationMinutes: number): string {
+    if (durationMinutes <= 0) return '0h';
+    const hours = durationMinutes / 60;
+    return `${Number.isInteger(hours) ? hours : Number(hours.toFixed(2))}h`;
+  }
+
+  private getCapacityJobCountLabel(blockCount: number): string {
+    return `${blockCount} ${blockCount === 1 ? 'job' : 'jobs'}`;
   }
 
   getUnavailabilityLeft(block: UnavailabilityBlock): number {
@@ -489,7 +678,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getEventWidth(event: SchedulerEvent): number {
-    // Count only visible hours (09:00â€“21:00 per day) across the span
+    // Count only visible hours (09:00–21:00 per day) across the span
     let visibleHours = 0;
     const start = new Date(event.start);
     const end = new Date(event.end);
@@ -821,7 +1010,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   private isCapacityDropPreviewInvalidForResource(resourceId: string): boolean {
-    return this.invalidCapacityResources.some(resource => resource.resourceId === resourceId);
+    return this.invalidCapacityResources.some(resource =>
+      resource.resourceId === resourceId &&
+      (!resource.date || !this.dropPreview?.date || this.isSameDay(resource.date, this.dropPreview.date))
+    );
   }
 
   getEventTagLabel(event: SchedulerEvent): string {
@@ -1106,8 +1298,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const dateLabel = range.start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
     const endDateLabel = range.end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
     return sameDay
-      ? `${dateLabel}, ${this.formatSlot(range.start)}â€“${this.formatSlot(range.end)}`
-      : `${dateLabel} ${this.formatSlot(range.start)}â€“${endDateLabel} ${this.formatSlot(range.end)}`;
+      ? `${dateLabel}, ${this.formatSlot(range.start)}–${this.formatSlot(range.end)}`
+      : `${dateLabel} ${this.formatSlot(range.start)}–${endDateLabel} ${this.formatSlot(range.end)}`;
   }
 
   getActiveTimeRange(): SchedulerTimeRangePayload | null {
@@ -1702,13 +1894,15 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     for (const group of this.visibleGroups) {
       currentY += GROUP_ROW_HEIGHT; // group label height
       for (const resource of this.getExpandedResourcesForGroup(group.id)) {
-        if (y >= currentY && y < currentY + this.rowHeight) return resource;
-        currentY += this.rowHeight;
+        const resourceRowHeight = this.getResourceRowHeight(resource.id);
+        if (y >= currentY && y < currentY + resourceRowHeight) return resource;
+        currentY += resourceRowHeight;
       }
     }
     for (const resource of this.getUngroupedResources()) {
-      if (y >= currentY && y < currentY + this.rowHeight) return resource;
-      currentY += this.rowHeight;
+      const resourceRowHeight = this.getResourceRowHeight(resource.id);
+      if (y >= currentY && y < currentY + resourceRowHeight) return resource;
+      currentY += resourceRowHeight;
     }
     return null;
   }
@@ -1719,17 +1913,17 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       currentY += GROUP_ROW_HEIGHT;
       for (const resource of this.getExpandedResourcesForGroup(group.id)) {
         if (resource.id === resourceId) return currentY;
-        currentY += this.rowHeight;
+        currentY += this.getResourceRowHeight(resource.id);
       }
     }
     for (const resource of this.getUngroupedResources()) {
       if (resource.id === resourceId) return currentY;
-      currentY += this.rowHeight;
+      currentY += this.getResourceRowHeight(resource.id);
     }
     return 0;
   }
 
-  // â”€â”€ Resize â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Resize ──────────────────────────────────────────────────────────────────
 
   onResizeMouseDown(e: MouseEvent, event: SchedulerEvent, edge: 'left' | 'right'): void {
     if (this.readonly) return;
@@ -1804,7 +1998,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.resizePreview = null;
     this.eventResizeEnded.emit({ eventId: event.id });
 
-    // event.start/end already updated live in onResizeMove â€” just emit final values
+    // event.start/end already updated live in onResizeMove — just emit final values
     const deltaX = e.clientX - startX;
     const deltaMinutes = this.getSnappedResizeDeltaMinutes(deltaX);
     const newStart = edge === 'left'
@@ -2119,5 +2313,4 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return Math.max(0, Math.min((offsetPx / this.HOUR_WIDTH) * 60, Math.max(0, (event.end.getTime() - event.start.getTime()) / 60000)));
   }
 }
-
 

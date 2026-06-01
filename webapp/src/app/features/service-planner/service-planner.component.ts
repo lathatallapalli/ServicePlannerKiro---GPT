@@ -2,6 +2,7 @@ import { Component, HostListener, OnDestroy, OnInit, computed, effect } from '@a
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { ComboBoxModule, DatePickerModule, InputModule, SearchModule, SelectModule, TimePickerModule, TimePickerSelectModule, ToggleModule } from 'carbon-components-angular';
 import { CustomSchedulerComponent } from '../../shared/components/scheduler/custom/custom-scheduler.component';
 import { JobTile, JobBooking, ActivityTile } from './components/jobs-panel/jobs-panel.component';
@@ -12,12 +13,11 @@ import { WorkOrderRepository } from '../../core/services/work-order.repository';
 import { PlannerSettingsService, PlannerViewMode } from './services/planner-settings.service';
 import { AutoScheduleResult, AutoSchedulerService } from './services/auto-scheduler.service';
 import { ResourceViewsService } from './services/resource-views.service';
-import { forkJoin } from 'rxjs';
 import { MOCK_UNAVAILABILITY } from '../../core/services/mock/mock-data';
 import { UnavailabilityBlock } from '../../core/models/availability.model';
 import { ScheduleEntry } from '../../core/models/schedule.model';
 import { JobResourceRequirement, WorkorderItemStatus } from '../../core/models/job.model';
-import { Resource } from '../../core/models/resource.model';
+import { Resource, ResourceType } from '../../core/models/resource.model';
 import { ResourceFavoriteView } from './services/planner-settings.service';
 import { AppointmentSyncService } from '../../core/services/appointment-sync.service';
 import { QuickViewSelectionService } from '../quick-view/quick-view-selection.service';
@@ -48,10 +48,21 @@ interface SearchHighlightPart {
 interface PlannerMonthDay {
   date: Date;
   isCurrentMonth: boolean;
+  isPast: boolean;
   isToday: boolean;
   isSelected: boolean;
   bookingCount: number;
-  resourceCount: number;
+  availability: MonthResourceAvailability[];
+}
+
+interface MonthResourceAvailability {
+  type: ResourceType;
+  label: string;
+  shortLabel: string;
+  availableMinutes: number;
+  totalMinutes: number;
+  percentage: number;
+  status: 'good' | 'medium' | 'low';
 }
 
 interface MonthPreviewResource {
@@ -59,6 +70,10 @@ interface MonthPreviewResource {
   events: SchedulerEvent[];
   unavailable: UnavailabilityBlock[];
 }
+
+type MonthPreviewResourceRow =
+  | { kind: 'heading'; id: string; label: string }
+  | ({ kind: 'resource' } & MonthPreviewResource);
 
 interface AutoBookingRangeNotice {
   title: string;
@@ -110,7 +125,8 @@ type ManualPlanInvalidReasonCode =
   | 'checkin-after-handover'
   | 'handover-before-job'
   | 'handover-before-checkin'
-  | 'mobility-fixed-span';
+  | 'mobility-fixed-span'
+  | 'capacity-overbooked';
 
 interface ManualPlanInvalidReason {
   code: ManualPlanInvalidReasonCode;
@@ -148,6 +164,7 @@ interface SelectedResourceConstraintContext {
 })
 export class ServicePlannerComponent implements OnInit, OnDestroy {
   private readonly loggedInAdvisorResourceId = 'advisor-ted-phillips';
+  private readonly monthCapacityPreferenceKey = 'service-planner.month-capacity-visible';
   private readonly personalCalendarGroup: SchedulerGroup = { id: 'group-personal-calendar', label: 'Calendar' };
 
   resources: SchedulerResource[] = [];
@@ -155,6 +172,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   capacityBlocks: SchedulerCapacityBlock[] = [];
   scheduleEntries: ScheduleEntry[] = [];
   allScheduleEntries: ScheduleEntry[] = [];
+  monthPreviewEntries: ScheduleEntry[] = [];
   groups: SchedulerGroup[] = [];
   allOrders: any[] = [];
   jobTiles: JobTile[] = [];
@@ -200,6 +218,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   public schedulingErrorTitle = 'Unable to book first availability';
   autoBookingRangeNotice: AutoBookingRangeNotice | null = null;
   showBookingDetails = true;
+  showMonthCapacity = false;
   plannerMode: 'order' | 'full' = 'full';
   activeOrderId: string | null = null;
   hasPrevious = false;
@@ -226,6 +245,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   selectedMonthPreviewDate: Date | null = null;
   private nextViewModeAnchor: Date | null = null;
   private isFreeTimelineLoading = false;
+  private previousPlannerViewMode: PlannerViewMode = 'day';
 
   get plannerCurrentTime(): Date {
     return this.currentPlannerTime;
@@ -245,26 +265,36 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const startDay = gridStart.getDay();
     gridStart.setDate(gridStart.getDate() - (startDay === 0 ? 6 : startDay - 1));
     gridStart.setHours(0, 0, 0, 0);
+    const monthEnd = new Date(this.viewStart.getFullYear(), this.viewStart.getMonth() + 1, 0);
+    const gridEnd = new Date(monthEnd);
+    const endDay = gridEnd.getDay();
+    gridEnd.setDate(gridEnd.getDate() + (endDay === 0 ? 0 : 7 - endDay));
+    gridEnd.setHours(0, 0, 0, 0);
+    const dayCount = Math.max(7, Math.round((gridEnd.getTime() - gridStart.getTime()) / 86400000) + 1);
 
-    return Array.from({ length: 42 }, (_, index) => {
+    return Array.from({ length: dayCount }, (_, index) => {
       const date = new Date(gridStart);
       date.setDate(gridStart.getDate() + index);
-      const dayStart = new Date(date);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(date);
-      dayEnd.setHours(23, 59, 59, 999);
+      const dayStart = this.getDayBoundary(date, 0, 0);
+      const dayEnd = this.getDayBoundary(date, 23, 59);
+      dayEnd.setSeconds(59, 999);
       const dayEvents = this.events.filter(event => event.start <= dayEnd && event.end >= dayStart);
-      const resourceIds = new Set(dayEvents.map(event => event.resourceId));
+      const todayStart = this.getDayBoundary(this.mockCurrentTime, 0, 0);
 
       return {
         date,
         isCurrentMonth: date.getMonth() === this.viewStart.getMonth(),
+        isPast: dayStart < todayStart,
         isToday: this.isSameCalendarDay(date, this.mockCurrentTime),
         isSelected: this.selectedMonthPreviewDate ? this.isSameCalendarDay(date, this.selectedMonthPreviewDate) : false,
         bookingCount: dayEvents.length,
-        resourceCount: resourceIds.size,
+        availability: this.getMonthResourceAvailability(date, this.getScheduleEntriesForDay(date)),
       };
     });
+  }
+
+  getMonthAvailabilityTitle(item: MonthResourceAvailability): string {
+    return `${item.label}: ${item.percentage}% available (${this.formatDurationHours(item.availableMinutes)} of ${this.formatDurationHours(item.totalMinutes)})`;
   }
 
   get monthOverviewTitle(): string {
@@ -277,19 +307,61 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       : '';
   }
 
-  get monthPreviewResources(): MonthPreviewResource[] {
+  get monthPreviewAvailability(): MonthResourceAvailability[] {
+    return this.selectedMonthPreviewDate
+      ? this.getMonthResourceAvailability(this.selectedMonthPreviewDate, this.getMonthPreviewEntriesForSelectedDate())
+      : [];
+  }
+
+  get monthPreviewResources(): MonthPreviewResourceRow[] {
     if (!this.selectedMonthPreviewDate) return [];
     const dayStart = this.getDayBoundary(this.selectedMonthPreviewDate, 9, 0);
     const dayEnd = this.getDayBoundary(this.selectedMonthPreviewDate, 21, 0);
-    return this.visibleSchedulerResources.map(resource => ({
-      resource,
-      events: this.events
-        .filter(event => event.resourceId === resource.id && event.start < dayEnd && event.end > dayStart)
-        .sort((first, second) => first.start.getTime() - second.start.getTime()),
-      unavailable: this.unavailability
-        .filter(block => block.resourceId === resource.id && block.start < dayEnd && block.end > dayStart)
-        .sort((first, second) => first.start.getTime() - second.start.getTime()),
-    }));
+    const previewEvents = this.mapScheduleEntriesToEvents(this.getMonthPreviewEntriesForSelectedDate());
+    const rows: MonthPreviewResourceRow[] = [];
+    const groupedResources = new Map<string, { label: string; resources: SchedulerResource[] }>();
+
+    this.visibleSchedulerResources.forEach(resource => {
+      const groupId = resource.groupId ?? this.getMonthPreviewResourceTypeLabel(resource);
+      const group = groupedResources.get(groupId) ?? {
+        label: resource.groupLabel ?? this.getMonthPreviewResourceTypeLabel(resource),
+        resources: [],
+      };
+      group.resources.push(resource);
+      groupedResources.set(groupId, group);
+    });
+
+    const orderedGroupIds = [
+      ...this.visibleSchedulerGroups.map(group => group.id),
+      ...Array.from(groupedResources.keys()).filter(groupId => !this.visibleSchedulerGroups.some(group => group.id === groupId)),
+    ];
+
+    orderedGroupIds.forEach(groupId => {
+      const group = groupedResources.get(groupId);
+      if (!group) return;
+      rows.push({ kind: 'heading', id: `heading:${groupId}`, label: group.label });
+
+      group.resources.forEach(resource => {
+      rows.push({
+        kind: 'resource',
+        resource,
+        events: previewEvents
+          .filter(event => event.resourceId === resource.id && event.start < dayEnd && event.end > dayStart)
+          .sort((first, second) => first.start.getTime() - second.start.getTime()),
+        unavailable: this.unavailability
+          .filter(block => block.resourceId === resource.id && block.start < dayEnd && block.end > dayStart)
+          .sort((first, second) => first.start.getTime() - second.start.getTime()),
+      });
+      });
+    });
+
+    return rows;
+  }
+
+  get isMonthPreviewDateInVisibleMonth(): boolean {
+    return !!this.selectedMonthPreviewDate
+      && this.selectedMonthPreviewDate.getMonth() === this.viewStart.getMonth()
+      && this.selectedMonthPreviewDate.getFullYear() === this.viewStart.getFullYear();
   }
 
   get plannerNavigationTitle(): string {
@@ -326,16 +398,24 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   selectMonthPreviewDay(date: Date): void {
     this.selectedMonthPreviewDate = new Date(date);
+    this.loadMonthPreviewEntries();
   }
 
   closeMonthPreview(): void {
     this.selectedMonthPreviewDate = null;
+    this.monthPreviewEntries = [];
   }
 
   openSelectedMonthPreviewInDayView(): void {
     if (!this.selectedMonthPreviewDate) return;
     this.nextViewModeAnchor = new Date(this.selectedMonthPreviewDate);
     this.plannerSettings.setViewMode('day');
+  }
+
+  showSelectedMonthPreviewInCalendar(): void {
+    if (!this.selectedMonthPreviewDate) return;
+    this.setViewWindowForMode('month', new Date(this.selectedMonthPreviewDate));
+    this.reloadScheduleEntries();
   }
 
   getMonthPreviewEventStyle(event: SchedulerEvent): Record<string, string> {
@@ -348,6 +428,83 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   getMonthPreviewEventLabel(event: SchedulerEvent): string {
     return event.title || event.meta?.entry?.title || 'Booking';
+  }
+
+  getMonthPreviewResourceRowId(row: MonthPreviewResourceRow): string {
+    return row.kind === 'heading' ? row.id : row.resource.id;
+  }
+
+  private getMonthPreviewResourceTypeLabel(resource: SchedulerResource): string {
+    const rawResource = resource.meta as Resource | undefined;
+    return rawResource?.type ? `${this.formatResourceType(rawResource.type)}s` : 'Resources';
+  }
+
+  private getMonthResourceAvailability(day: Date, entries: ScheduleEntry[] = this.scheduleEntries): MonthResourceAvailability[] {
+    const dayStart = this.getDayBoundary(day, 9, 0);
+    const dayEnd = this.getDayBoundary(day, 21, 0);
+    const resourceTypes: Array<{ type: ResourceType; label: string; shortLabel: string }> = [
+      { type: 'mechanic', label: 'Mechanics', shortLabel: 'M' },
+      { type: 'advisor', label: 'Service Advisors', shortLabel: 'A' },
+      { type: 'driver', label: 'Courtesy Cars', shortLabel: 'C' },
+    ];
+
+    return resourceTypes.map(({ type, label, shortLabel }) => {
+      const resources = this.resources.filter(resource => {
+        const rawResource = resource.meta as Resource | undefined;
+        return rawResource?.type === type;
+      });
+      const totalMinutes = resources.length * this.getRangeMinutes(dayStart, dayEnd);
+      const usedMinutes = resources.reduce((sum, resource) =>
+        sum + this.getMonthResourceUsedMinutes(resource.id, dayStart, dayEnd, entries),
+      0);
+      const availableMinutes = Math.max(0, totalMinutes - usedMinutes);
+      const percentage = totalMinutes > 0 ? Math.round((availableMinutes / totalMinutes) * 100) : 0;
+
+      return {
+        type,
+        label,
+        shortLabel,
+        availableMinutes,
+        totalMinutes,
+        percentage,
+        status: this.getMonthAvailabilityStatus(percentage),
+      };
+    });
+  }
+
+  private getMonthResourceUsedMinutes(resourceId: string, dayStart: Date, dayEnd: Date, entries: ScheduleEntry[]): number {
+    const entryMinutes = entries
+      .filter(entry => entry.kind !== 'day-capacity' && entry.resourceId === resourceId)
+      .reduce((sum, entry) => sum + this.getClippedRangeMinutes(entry.start, entry.end, dayStart, dayEnd), 0);
+    const unavailableMinutes = this.unavailability
+      .filter(block => block.resourceId === resourceId)
+      .reduce((sum, block) => sum + this.getClippedRangeMinutes(block.start, block.end, dayStart, dayEnd), 0);
+    const capacityMinutes = entries
+      .filter(entry => entry.kind === 'day-capacity' && entry.resourceId === resourceId)
+      .reduce((sum, entry) => sum + this.getClippedRangeMinutes(entry.start, entry.end, dayStart, dayEnd), 0);
+
+    return entryMinutes + unavailableMinutes + capacityMinutes;
+  }
+
+  private getClippedRangeMinutes(start: Date, end: Date, clipStart: Date, clipEnd: Date): number {
+    const clippedStart = Math.max(start.getTime(), clipStart.getTime());
+    const clippedEnd = Math.min(end.getTime(), clipEnd.getTime());
+    return Math.max(0, Math.round((clippedEnd - clippedStart) / 60000));
+  }
+
+  private getRangeMinutes(start: Date, end: Date): number {
+    return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+  }
+
+  private getMonthAvailabilityStatus(percentage: number): MonthResourceAvailability['status'] {
+    if (percentage >= 60) return 'good';
+    if (percentage >= 30) return 'medium';
+    return 'low';
+  }
+
+  private formatDurationHours(minutes: number): string {
+    const hours = minutes / 60;
+    return `${Number.isInteger(hours) ? hours.toFixed(0) : hours.toFixed(1)}h`;
   }
 
   get manualDropSnapMinutes(): number {
@@ -485,9 +642,16 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   get manualCapacityInvalidResources(): SchedulerInvalidCapacityResource[] {
     const context = this.manualDragContext;
     if (!context) return [];
-    return this.visibleSchedulerResources
-      .filter(resource => !this.isManualCapacityResourceCompatible(context, resource))
-      .map(resource => ({ resourceId: resource.id }));
+    const invalidResources: SchedulerInvalidCapacityResource[] = [];
+
+    for (const resource of this.visibleSchedulerResources) {
+      for (const { start } of this.getVisibleWorkingDayRanges()) {
+        const validation = this.validateManualCapacityPlacement(context, resource, start);
+        if (!validation.valid) invalidResources.push({ resourceId: resource.id, date: start });
+      }
+    }
+
+    return invalidResources;
   }
 
   get manualDropVisualContext(): SchedulerDropVisualContext | null {
@@ -710,13 +874,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     });
     effect(() => {
       const mode = this.plannerSettings.viewMode();
-      const anchor = this.nextViewModeAnchor ?? (this.isPlannerReady ? this.viewStart : this.mockCurrentTime);
+      const isLeavingMonthView = this.previousPlannerViewMode === 'month' && mode !== 'month';
+      const anchor = this.nextViewModeAnchor ?? (isLeavingMonthView ? this.mockCurrentTime : (this.isPlannerReady ? this.viewStart : this.mockCurrentTime));
       this.nextViewModeAnchor = null;
       if (mode === 'month') {
         this.isOrderPanelOpen = false;
         this.selectedMonthPreviewDate = new Date(this.mockCurrentTime);
       }
       this.setViewWindowForMode(mode, anchor);
+      this.previousPlannerViewMode = mode;
       if (this.isPlannerReady) {
         this.reloadScheduleEntries();
       }
@@ -725,6 +891,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.startPlannerClock();
+    this.restoreMonthCapacityPreference();
     this.plannerMode = this.route.snapshot.paramMap.has('orderId') ? 'order' : 'full';
     this.activeOrderId = this.route.snapshot.paramMap.get('orderId') ?? null;
     this.showBookingDetails = this.plannerMode === 'full';
@@ -755,6 +922,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.groups = groups.map(g => ({ id: g.id, label: g.name }));
       if (!this.selectedResourceTypeGroupIds.length) {
         this.selectedResourceTypeGroupIds = this.getDefaultResourceTypeGroupIds();
+      } else if (this.viewPersonalCalendarOnTop && !this.selectedResourceTypeGroupIds.includes(this.personalCalendarGroup.id)) {
+        this.selectedResourceTypeGroupIds = [this.personalCalendarGroup.id, ...this.selectedResourceTypeGroupIds];
       }
 
       this.resources = resources.map(r => ({
@@ -767,6 +936,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.updatePlannerResourceContext();
 
       this.applyScheduleEntries(visibleEntries);
+      this.loadMonthPreviewEntries();
 
       this.unavailability = [
         ...MOCK_UNAVAILABILITY,
@@ -789,7 +959,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const context = event ? this.buildPlacedEventDragContext(event) : null;
     if (context && resource) {
       const validation = payload.dropMode === 'day-capacity'
-        ? this.validateManualCapacityPlacement(context, resource)
+        ? this.validateManualCapacityPlacement(context, resource, payload.date ?? payload.start)
         : this.validateManualPlacement(context, resource, payload.start, payload.end);
       if (!validation.valid) {
         this.showManualPlanValidationError('Move not possible', validation);
@@ -863,7 +1033,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const context = this.buildCapacityBlockDragContext(block);
     if (context && resource) {
       const validation = payload.dropMode === 'day-capacity'
-        ? this.validateManualCapacityPlacement(context, resource)
+        ? this.validateManualCapacityPlacement(context, resource, payload.date ?? payload.start)
         : this.validateManualPlacement(context, resource, payload.start, payload.end);
       if (!validation.valid) {
         this.showManualPlanValidationError('Move not possible', validation);
@@ -1083,6 +1253,13 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   onViewPersonalCalendarOnTopChange(event: Event): void {
     const checked = (event.target as HTMLInputElement).checked;
     this.plannerSettings.setViewPersonalCalendarOnTop(checked);
+    if (checked && !this.selectedResourceTypeGroupIds.includes(this.personalCalendarGroup.id)) {
+      this.selectedResourceTypeGroupIds = [this.personalCalendarGroup.id, ...this.selectedResourceTypeGroupIds];
+    } else if (!checked) {
+      this.selectedResourceTypeGroupIds = this.selectedResourceTypeGroupIds.filter(groupId => groupId !== this.personalCalendarGroup.id);
+    }
+    this.retainVisibleResourceSelection();
+    this.updatePlannerResourceContext();
   }
 
   onOptimizeAdvisorActivityBookingChange(event: Event): void {
@@ -1317,6 +1494,19 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.showBookingDetails = checked;
   }
 
+  toggleMonthCapacity(): void {
+    this.showMonthCapacity = !this.showMonthCapacity;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(this.monthCapacityPreferenceKey, this.showMonthCapacity ? 'true' : 'false');
+    }
+  }
+
+  private restoreMonthCapacityPreference(): void {
+    if (typeof localStorage === 'undefined') return;
+    const savedPreference = localStorage.getItem(this.monthCapacityPreferenceKey);
+    this.showMonthCapacity = savedPreference === 'true';
+  }
+
   onAutoBookingWindowSelected(range: SchedulerTimeRangePayload): void {
     this.autoBookingWindow = { start: new Date(range.start), end: new Date(range.end) };
     this.clearSchedulingError();
@@ -1408,6 +1598,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         return 'Handover must start after Check-In is complete.';
       case 'mobility-fixed-span':
         return 'Mobility must keep the Check-In to Handover time span.';
+      case 'capacity-overbooked':
+        return 'This day capacity does not have enough free time.';
     }
   }
 
@@ -2895,7 +3087,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const end = new Date(start.getTime() + durationMinutes * 60000);
     const validationContext = this.buildManualDropContextForPayload(payload, activeOrderId, start, end);
     if (validationContext) {
-      const validation = this.validateManualCapacityPlacement(validationContext, droppedResource);
+      const validation = this.validateManualCapacityPlacement(validationContext, droppedResource, start);
       if (!validation.valid) {
         this.showManualPlanValidationError('Capacity block not possible', validation);
         this.clearManualInteractionState();
@@ -3482,6 +3674,38 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       },
     });
   }
+
+  private loadMonthPreviewEntries(): void {
+    if (!this.selectedMonthPreviewDate) {
+      this.monthPreviewEntries = [];
+      return;
+    }
+    const dayStart = this.getDayBoundary(this.selectedMonthPreviewDate, 0, 0);
+    const dayEnd = this.getDayBoundary(this.selectedMonthPreviewDate, 23, 59);
+    dayEnd.setSeconds(59, 999);
+    this.scheduleRepo.getEntries(dayStart, dayEnd).subscribe(entries => {
+      this.monthPreviewEntries = entries;
+    });
+  }
+
+  private getMonthPreviewEntriesForSelectedDate(): ScheduleEntry[] {
+    if (!this.selectedMonthPreviewDate) return [];
+    return this.getScheduleEntriesForDay(this.selectedMonthPreviewDate, this.monthPreviewEntries);
+  }
+
+  private getScheduleEntriesForDay(day: Date, additionalEntries: ScheduleEntry[] = []): ScheduleEntry[] {
+    const dayStart = this.getDayBoundary(day, 0, 0);
+    const dayEnd = this.getDayBoundary(day, 23, 59);
+    dayEnd.setSeconds(59, 999);
+    const byId = new Map<string, ScheduleEntry>();
+
+    [...additionalEntries, ...this.scheduleEntries]
+      .filter(entry => entry.start <= dayEnd && entry.end >= dayStart)
+      .forEach(entry => byId.set(entry.id, entry));
+
+    return Array.from(byId.values());
+  }
+
 
   private getMonthPreviewRangeStyle(start: Date, end: Date): Record<string, string> {
     if (!this.selectedMonthPreviewDate) return {};
@@ -4141,7 +4365,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return { valid: uniqueReasons.length === 0, reasons: uniqueReasons };
   }
 
-  private validateManualCapacityPlacement(context: ManualDragContext, resource: SchedulerResource): ManualPlanValidationResult {
+  private validateManualCapacityPlacement(context: ManualDragContext, resource: SchedulerResource, day: Date): ManualPlanValidationResult {
     const reasons: ManualPlanInvalidReason[] = [];
     const rawResource = resource.meta as Resource | undefined;
     if (!rawResource) {
@@ -4153,8 +4377,67 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       reasons.push({ code: 'resource-mismatch', detail: this.formatResourceType(rawResource.type) });
     }
 
+    const start = this.getDayCapacityStart(day);
+    reasons.push(...this.getManualCapacitySequenceInvalidReasons(context, start));
+
+    if (!this.hasManualCapacityAvailable(context, resource.id, start)) {
+      reasons.push({ code: 'capacity-overbooked' });
+    }
+
     const uniqueReasons = this.uniqueManualPlanReasons(reasons);
     return { valid: uniqueReasons.length === 0, reasons: uniqueReasons };
+  }
+
+  private hasManualCapacityAvailable(context: ManualDragContext, resourceId: string, day: Date): boolean {
+    const dayStart = this.getDayCapacityStart(day);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setHours(21, 0, 0, 0);
+    const usedMinutes = this.getMonthResourceUsedMinutes(resourceId, dayStart, dayEnd, this.scheduleEntries)
+      - this.getDraggedCapacityBlockMinutesForDay(context, resourceId, dayStart, dayEnd);
+
+    return usedMinutes + context.durationMinutes <= this.getClippedRangeMinutes(dayStart, dayEnd, dayStart, dayEnd);
+  }
+
+  private getManualCapacitySequenceInvalidReasons(context: ManualDragContext, day: Date): ManualPlanInvalidReason[] {
+    if (!context.orderId) return [];
+
+    const dayStart = this.getDayCapacityStart(day);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setHours(21, 0, 0, 0);
+    const checkinEnd = this.getCheckinEndForOrder(context.orderId);
+    const latestJobEnd = this.getLatestJobEndForOrder(context.orderId);
+    const firstJobStart = this.getFirstJobStartForOrder(context.orderId);
+    const handoverStart = this.getHandoverStartForOrder(context.orderId);
+    const reasons: ManualPlanInvalidReason[] = [];
+
+    if (context.kind === 'job') {
+      if (checkinEnd && dayEnd <= checkinEnd) reasons.push({ code: 'before-checkin' });
+      if (handoverStart && dayStart >= handoverStart) reasons.push({ code: 'after-handover' });
+    }
+
+    if (context.activityTemplateId === 'act-checkin') {
+      if (firstJobStart && dayStart >= firstJobStart) reasons.push({ code: 'checkin-after-job' });
+      if (handoverStart && dayStart >= handoverStart) reasons.push({ code: 'checkin-after-handover' });
+    }
+
+    if (context.activityTemplateId === 'act-handover') {
+      if (latestJobEnd && dayEnd <= latestJobEnd) reasons.push({ code: 'handover-before-job' });
+      if (checkinEnd && dayEnd <= checkinEnd) reasons.push({ code: 'handover-before-checkin' });
+    }
+
+    return reasons;
+  }
+
+  private getDraggedCapacityBlockMinutesForDay(
+    context: ManualDragContext,
+    resourceId: string,
+    dayStart: Date,
+    dayEnd: Date,
+  ): number {
+    if (!context.entryId) return 0;
+    const entry = this.scheduleEntries.find(candidate => candidate.id === context.entryId);
+    if (!entry || entry.kind !== 'day-capacity' || entry.resourceId !== resourceId) return 0;
+    return this.getClippedRangeMinutes(entry.start, entry.end, dayStart, dayEnd);
   }
 
   private isManualCapacityResourceValid(context: ManualDragContext, resource: SchedulerResource): boolean {
@@ -4767,9 +5050,4 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return 'morning';
   }
 }
-
-
-
-
-
 

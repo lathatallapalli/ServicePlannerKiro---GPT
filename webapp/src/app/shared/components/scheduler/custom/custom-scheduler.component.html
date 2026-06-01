@@ -250,7 +250,7 @@
       </div>
 
       @for (resource of getExpandedResourcesForGroup(group.id); track resource.id) {
-        <div class="scheduler__row" [style.height.px]="rowHeight"
+        <div class="scheduler__row" [style.height.px]="getResourceRowHeight(resource.id)"
           [class.scheduler__row--drop-target]="isDropTargetResource(resource.id)"
           [class.scheduler__row--drop-invalid]="isDropPreviewInvalidForResource(resource.id)"
           [style.cursor]="isDropPreviewInvalidForResource(resource.id) ? 'not-allowed' : null"
@@ -290,11 +290,11 @@
                   [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
                   [style.left.px]="getCapacityLaneLeft(day)"
                   [style.width.px]="DAY_CAPACITY_LANE_WIDTH"
-                  [attr.title]="getCapacityLaneTitle(resource.id, day)"
+                  [attr.aria-label]="getCapacityLaneTitle(resource.id, day)"
                   (dragover)="onCapacityDragOver($event, resource.id, day)"
                   (dragleave)="onDragLeave()"
                   (drop)="onCapacityDrop($event, resource.id, day)">
-                  @for (block of getCapacityBlocksForResourceDay(resource.id, day); track block.id) {
+                  @for (block of getVisibleCapacityBlocksForResourceDay(resource.id, day); track block.id) {
                     <div
                       class="scheduler__capacity-block"
                       draggable="true"
@@ -311,9 +311,36 @@
                           </svg>
                         </button>
                       </span>
-                      <span class="scheduler__capacity-block-title">{{ getCapacityBlockTitle(block) }}</span>
-                      <span class="scheduler__capacity-block-detail">{{ getCapacityBlockDetail(block) }}</span>
+                      <span class="scheduler__capacity-block-title">{{ getCapacityBlockSummary(block) }}</span>
                     </div>
+                  }
+                  @if (getHiddenCapacityBlockCount(resource.id, day); as hiddenCount) {
+                    <button
+                      type="button"
+                      class="scheduler__capacity-overflow"
+                      [attr.aria-expanded]="isCapacityLaneExpanded(resource.id, day)"
+                      [attr.aria-label]="'Show ' + hiddenCount + ' more day capacity jobs for ' + resource.label"
+                      (mousedown)="suppressEventAction($event)"
+                      (mouseenter)="showCapacityOverflowPreview($event, resource, day, hiddenCount)"
+                      (mousemove)="moveCapacityOverflowPreview($event, resource, day, hiddenCount)"
+                      (mouseleave)="hideCapacityOverflowPreview()"
+                      (focus)="showCapacityOverflowPreview($event, resource, day, hiddenCount)"
+                      (blur)="hideCapacityOverflowPreview()"
+                      (click)="toggleCapacityLaneExpansion($event, resource.id, day)"
+                      (contextmenu)="suppressEventAction($event)">
+                      {{ getCapacityOverflowLabel(resource.id, day, hiddenCount) }}
+                    </button>
+                  }
+                  @if (isCapacityLaneExpanded(resource.id, day)) {
+                    <button
+                      type="button"
+                      class="scheduler__capacity-overflow scheduler__capacity-overflow--less"
+                      aria-label="Collapse day capacity jobs"
+                      (mousedown)="suppressEventAction($event)"
+                      (click)="toggleCapacityLaneExpansion($event, resource.id, day)"
+                      (contextmenu)="suppressEventAction($event)">
+                      Show less
+                    </button>
                   }
                 </div>
               }
@@ -350,7 +377,7 @@
                   class="scheduler__order-run-shadow"
                   [style.left.px]="getOrderRunLeft(run)"
                   [style.width.px]="getOrderRunWidth(run)"
-                  [style.height.px]="rowHeight"
+                  [style.height.px]="getResourceRowHeight(resource.id)"
                   style="position:absolute;top:0;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
                 </div>
                 <div class="scheduler__order-run"
@@ -524,7 +551,7 @@
                   [style.left.px]="getInvalidDropRangeLeft(range)"
                   [style.width.px]="getInvalidDropRangeWidth(range)"
                   [style.top.px]="0"
-                  [style.height.px]="rowHeight"
+                  [style.height.px]="getResourceRowHeight(resource.id)"
                   style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
               }
               @if (shouldShowBaseAvailabilityBlocks()) {
@@ -533,7 +560,7 @@
                     [style.left.px]="getUnavailabilityLeft(block)"
                     [style.width.px]="getUnavailabilityWidth(block)"
                     [style.top.px]="0"
-                    [style.height.px]="rowHeight"
+                    [style.height.px]="getResourceRowHeight(resource.id)"
                     style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
                 }
               }
@@ -544,7 +571,7 @@
     }
 
     @for (resource of getUngroupedResources(); track resource.id) {
-        <div class="scheduler__row" [style.height.px]="rowHeight"
+        <div class="scheduler__row" [style.height.px]="getResourceRowHeight(resource.id)"
         [class.scheduler__row--drop-target]="isDropTargetResource(resource.id)"
         [class.scheduler__row--drop-invalid]="isDropPreviewInvalidForResource(resource.id)"
         [style.cursor]="isDropPreviewInvalidForResource(resource.id) ? 'not-allowed' : null"
@@ -588,7 +615,7 @@
                 (dragover)="onCapacityDragOver($event, resource.id, day)"
                 (dragleave)="onDragLeave()"
                 (drop)="onCapacityDrop($event, resource.id, day)">
-                @for (block of getCapacityBlocksForResourceDay(resource.id, day); track block.id) {
+                @for (block of getVisibleCapacityBlocksForResourceDay(resource.id, day); track block.id) {
                   <div
                     class="scheduler__capacity-block"
                     draggable="true"
@@ -605,9 +632,31 @@
                         </svg>
                       </button>
                     </span>
-                    <span class="scheduler__capacity-block-title">{{ getCapacityBlockTitle(block) }}</span>
-                    <span class="scheduler__capacity-block-detail">{{ getCapacityBlockDetail(block) }}</span>
+                    <span class="scheduler__capacity-block-title">{{ getCapacityBlockSummary(block) }}</span>
                   </div>
+                }
+                @if (getHiddenCapacityBlockCount(resource.id, day); as hiddenCount) {
+                  <button
+                    type="button"
+                    class="scheduler__capacity-overflow"
+                    [attr.aria-expanded]="isCapacityLaneExpanded(resource.id, day)"
+                    [attr.aria-label]="'Show ' + hiddenCount + ' more day capacity jobs for ' + resource.label"
+                    (mousedown)="suppressEventAction($event)"
+                    (click)="toggleCapacityLaneExpansion($event, resource.id, day)"
+                    (contextmenu)="suppressEventAction($event)">
+                    +{{ hiddenCount }} more
+                  </button>
+                }
+                @if (isCapacityLaneExpanded(resource.id, day)) {
+                  <button
+                    type="button"
+                    class="scheduler__capacity-overflow scheduler__capacity-overflow--less"
+                    aria-label="Collapse day capacity jobs"
+                    (mousedown)="suppressEventAction($event)"
+                    (click)="toggleCapacityLaneExpansion($event, resource.id, day)"
+                    (contextmenu)="suppressEventAction($event)">
+                    Show less
+                  </button>
                 }
               </div>
             }
@@ -644,7 +693,7 @@
                 class="scheduler__order-run-shadow"
                 [style.left.px]="getOrderRunLeft(run)"
                 [style.width.px]="getOrderRunWidth(run)"
-                [style.height.px]="rowHeight"
+                [style.height.px]="getResourceRowHeight(resource.id)"
                 style="position:absolute;top:0;box-shadow:0 2px 6px rgba(0,0,0,.3);z-index:1;pointer-events:none">
               </div>
               <div class="scheduler__order-run"
@@ -817,7 +866,7 @@
                 [style.left.px]="getInvalidDropRangeLeft(range)"
                 [style.width.px]="getInvalidDropRangeWidth(range)"
                 [style.top.px]="0"
-                [style.height.px]="rowHeight"
+                [style.height.px]="getResourceRowHeight(resource.id)"
                 style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
             }
             @if (shouldShowBaseAvailabilityBlocks()) {
@@ -826,7 +875,7 @@
                   [style.left.px]="getUnavailabilityLeft(block)"
                   [style.width.px]="getUnavailabilityWidth(block)"
                   [style.top.px]="0"
-                  [style.height.px]="rowHeight"
+                  [style.height.px]="getResourceRowHeight(resource.id)"
                   style="position:absolute;box-sizing:border-box;pointer-events:none;z-index:18"></div>
               }
             }
@@ -841,7 +890,7 @@
         [style.left.px]="getDropPreviewLeft()"
         [style.top.px]="getDropPreviewTop()"
         [style.width.px]="getDropPreviewWidth()"
-        [style.height.px]="rowHeight"
+        [style.height.px]="getDropPreviewHeight()"
         [style.border]="isDropPreviewInvalid() ? '3px solid #DA1E28' : '3px solid #4C68B1'"
         [style.background]="isDropPreviewInvalid() ? 'rgba(218,30,40,.18)' : 'rgba(76,104,177,.26)'"
         [style.box-shadow]="isDropPreviewInvalid() ? '0 0 0 1px white inset, 0 0 0 2px rgba(218,30,40,.18)' : '0 0 0 1px white inset'"
@@ -921,6 +970,31 @@
               <span style="color:var(--Text-text-secondary,#525252)">Phone</span>
               <strong style="min-width:0;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ isEventContactCopied(hoverTooltip.event, 'phone') ? 'Copied' : phone }}</strong>
             </button>
+          }
+        </div>
+      </div>
+    }
+
+    @if (capacityOverflowPreview) {
+      <div
+        class="scheduler__capacity-preview"
+        [style.left.px]="capacityOverflowPreview.x"
+        [style.top.px]="capacityOverflowPreview.y">
+        <div class="scheduler__capacity-preview-header">
+          <strong>Day capacity overview</strong>
+          <span>{{ capacityOverflowPreview.blockedDurationLabel }} · {{ capacityOverflowPreview.jobCountLabel }}</span>
+        </div>
+        <div class="scheduler__capacity-preview-list">
+          @for (block of capacityOverflowPreview.blocks; track block.id) {
+            <div
+              class="scheduler__capacity-block scheduler__capacity-preview-block"
+              [style.border-left-color]="block.color ?? '#4C68B1'"
+              [attr.aria-label]="getCapacityBlockAriaLabel(block)">
+              <span class="scheduler__capacity-block-header">
+                <span class="scheduler__capacity-block-order">{{ getCapacityBlockOrderReference(block) }}</span>
+              </span>
+              <span class="scheduler__capacity-block-title">{{ getCapacityBlockSummary(block) }}</span>
+            </div>
           }
         </div>
       </div>

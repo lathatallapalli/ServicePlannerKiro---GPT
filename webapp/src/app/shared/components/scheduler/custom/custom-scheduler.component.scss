@@ -571,6 +571,7 @@ $month-bar-height: 60px;
     padding: 4px;
     display: flex;
     flex-direction: column;
+    gap: 4px;
     background: rgba(244,244,244,.5);
     background: color-mix(in srgb, var(--Layer-layer-01,#F4F4F4) 50%, transparent);
     border-right: 1px solid #E0E0E0;
@@ -589,6 +590,10 @@ $month-bar-height: 60px;
   }
 
   &__capacity-block {
+    flex: 0 0 36px;
+    min-height: 36px;
+    padding: 2px 4px;
+    box-sizing: border-box;
     border-left: 2px solid #4C68B1;
     background: #E9ECF5;
     overflow: hidden;
@@ -603,6 +608,98 @@ $month-bar-height: 60px;
     white-space: nowrap;
     font-size: 11px;
     line-height: 14px;
+    font-weight: 600;
+  }
+
+  &__capacity-block-title,
+  &__capacity-block-detail {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  &__capacity-block-detail {
+    color: var(--Text-text-secondary, #525252);
+  }
+
+  &__capacity-overflow {
+    flex: 0 0 12px;
+    min-height: 12px;
+    width: 100%;
+    border: 0;
+    padding: 0 4px;
+    background: transparent;
+    color: #4C68B1;
+    font: inherit;
+    font-size: 10px;
+    line-height: 12px;
+    text-align: center;
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+
+  &__capacity-overflow:hover {
+    background: #EDF5FF;
+  }
+
+  &__capacity-overflow:focus-visible {
+    outline: 2px solid var(--Focus-focus, #4C68B1);
+    outline-offset: -2px;
+  }
+
+  &__capacity-overflow--less {
+    flex-basis: 16px;
+    min-height: 16px;
+    line-height: 16px;
+  }
+
+  &__capacity-preview {
+    position: fixed;
+    z-index: 3000;
+    width: 240px;
+    max-width: min(240px, calc(100vw - 24px));
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--Layer-layer-02, #fff);
+    color: var(--Text-text-primary, #161616);
+    border: 1px solid var(--Border-border-subtle-01, #C6C6C6);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .24);
+    pointer-events: none;
+  }
+
+  &__capacity-preview-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: .32px;
+  }
+
+  &__capacity-preview-header span {
+    color: var(--Text-text-secondary, #525252);
+  }
+
+  &__capacity-preview-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__capacity-preview-block {
+    width: 100%;
+    flex-basis: 40px;
+    min-height: 40px;
+  }
+
+  &__capacity-preview-block &__capacity-block-header {
+    display: flex;
+    align-items: center;
   }
 
   &__unavailable {
