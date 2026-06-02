@@ -790,7 +790,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   get panelSearchMatches(): PanelSearchMatch[] {
     const query = this.bookingSearchQuery.trim().toLowerCase();
     if (!query) return [];
-    return this.filterOrdersByCurrentPlannerScope(this.allOrders).flatMap(order => this.getSearchMatchesForOrder(order, query));
+    return this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders()).flatMap(order => this.getSearchMatchesForOrder(order, query));
   }
 
   get searchMatchCount(): number {
@@ -836,10 +836,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
   private get resourcesForSelectedView(): SchedulerResource[] {
     const activeView = this.plannerSettings.selectedResourceView();
-    if (!activeView) return this.resources;
+    if (!activeView) return this.resources.filter(resource => !(resource.meta as Resource | undefined)?.demoLocationId);
 
     const viewResourceIds = new Set(activeView.resourceIds);
-    return this.resources.filter(resource => viewResourceIds.has(resource.id));
+    const viewLocationId = activeView.demoLocationId;
+    return this.resources.filter(resource => {
+      if (!viewResourceIds.has(resource.id)) return false;
+      const resourceLocationId = (resource.meta as Resource | undefined)?.demoLocationId;
+      return viewLocationId ? resourceLocationId === viewLocationId : !resourceLocationId;
+    });
   }
 
   private get visibleResourcePool(): SchedulerResource[] {

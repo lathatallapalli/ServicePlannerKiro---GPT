@@ -87,6 +87,13 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
   {
     label: 'Service Centre Klagenfurt',
     value: 'view-service-centre-klagenfurt',
+    demoLocationId: 'klagenfurt',
+    catalogGroupIds: [
+      'service-centre-klagenfurt-mechanics',
+      'service-centre-klagenfurt-service-advisors',
+      'service-centre-klagenfurt-devices',
+      'service-centre-klagenfurt-courtesy-cars',
+    ],
     resourceIds: [
       'klg-mech-frank',
       'klg-mech-mike',
@@ -94,12 +101,14 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
       'klg-mech-peter',
       'klg-advisor-jeff',
       'klg-advisor-tom',
+      'klg-device-bea-950',
       'klg-car-audi-a4-k657pj',
       'klg-car-audi-a3-k336uh',
     ],
     groups: [
       { label: 'Mechanics', children: ['Frank', 'Mike', 'John', 'Peter'] },
       { label: 'Service Advisors', children: ['Jeff', 'Tom'] },
+      { label: 'Devices', children: ['BEA 950 Emission Tester'] },
       { label: 'Courtesy Cars', children: ['Audi A4 - K 657 PJ', 'Audi A3 - K 336 UH'] },
     ],
   },
