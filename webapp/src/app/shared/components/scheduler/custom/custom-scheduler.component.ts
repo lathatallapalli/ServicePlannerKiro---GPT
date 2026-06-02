@@ -2369,10 +2369,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   private buildDropPreviewSegments(resourceId: string, previewStart: Date, previewEnd: Date, previewWidth: number): DropPreviewSegment[] | undefined {
     if (!this.dropVisualContext?.segments?.length) return undefined;
-    const resourceType = (this.resources.find(resource => resource.id === resourceId)?.meta as any)?.type;
+    const rawResource = this.resources.find(resource => resource.id === resourceId)?.meta as any;
+    const resourceType = rawResource?.type;
+    const resourceQualificationIds = new Set<string>((rawResource?.qualifications ?? []).map((qualification: any) => qualification.id));
 
     const contextSegments = this.dropVisualContext.segments
-      .filter(segment => segment.resourceId === resourceId || (!!resourceType && segment.resourceType === resourceType))
+      .filter(segment => this.isDropVisualSegmentRelevantForResource(segment, resourceId, resourceType, resourceQualificationIds))
       .map(segment => this.normalizeDropVisualSegment(segment, previewStart))
       .filter(segment => this.rangesOverlap(segment.start, segment.end, previewStart, previewEnd));
     if (!contextSegments.length) return [{ active: false, start: previewStart, end: previewEnd, left: 0, width: previewWidth }];
@@ -2417,6 +2419,17 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     }
 
     return segments.filter(segment => segment.width > 0);
+  }
+
+  private isDropVisualSegmentRelevantForResource(
+    segment: { resourceId?: string; resourceType?: string; requiredQualificationIds?: string[] },
+    resourceId: string,
+    resourceType: string | undefined,
+    resourceQualificationIds: Set<string>,
+  ): boolean {
+    if (segment.resourceId === resourceId) return true;
+    if (!resourceType || segment.resourceType !== resourceType) return false;
+    return (segment.requiredQualificationIds ?? []).every(qualificationId => resourceQualificationIds.has(qualificationId));
   }
 
   private normalizeDropVisualSegment(segment: { start: Date; end: Date; active?: boolean }, previewStart: Date): { start: Date; end: Date; active?: boolean } {

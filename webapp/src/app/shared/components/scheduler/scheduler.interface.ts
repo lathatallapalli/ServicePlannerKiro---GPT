@@ -65,6 +65,7 @@ export interface SchedulerDropVisualContext {
 export interface SchedulerDropVisualSegment {
   resourceId?: string;
   resourceType?: string;
+  requiredQualificationIds?: string[];
   entryId?: string;
   jobId?: string;
   start: Date;

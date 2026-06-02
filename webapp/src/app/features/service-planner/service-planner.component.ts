@@ -4394,16 +4394,33 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       return null;
     }
     const resourceTypeById = new Map(resources.map(resource => [resource.id, resource.type]));
+    const getSegmentRequirement = (entry: any): JobResourceRequirement | undefined => {
+      const resourceType = resourceTypeById.get(entry.resourceId);
+      if (!resourceType) return undefined;
+      const resource = resources.find(candidate => candidate.id === entry.resourceId);
+      const job = jobs.find(candidate => candidate.id === entry.jobId);
+      if (!job) return undefined;
+      return this.getSchedulingRequirements(job)
+        .find(requirement =>
+          requirement.resourceType === resourceType &&
+          (!resource || requirement.requiredQualifications.every(qualification =>
+            resource.qualifications.some(resourceQualification => resourceQualification.id === qualification.id)
+          ))
+        );
+    };
     const activeSegments: SchedulerDropVisualSegment[] = [
       ...(this.hasProposalActivity(activityCandidates, 'act-checkin')
-        ? [{ jobId: this.getOrderActivityId(order.id, 'act-checkin'), resourceId: result.checkinResourceId, resourceType: resourceTypeById.get(result.checkinResourceId), start: new Date(result.checkinStart), end: new Date(result.checkinEnd), active: true }]
+        ? [{ jobId: this.getOrderActivityId(order.id, 'act-checkin'), resourceId: result.checkinResourceId, resourceType: resourceTypeById.get(result.checkinResourceId), requiredQualificationIds: [], start: new Date(result.checkinStart), end: new Date(result.checkinEnd), active: true }]
         : []),
-      ...result.entries.map(entry => ({ jobId: entry.jobId, resourceId: entry.resourceId, resourceType: resourceTypeById.get(entry.resourceId), start: new Date(entry.start), end: new Date(entry.end), active: true })),
+      ...result.entries.map(entry => {
+        const requirement = getSegmentRequirement(entry);
+        return { jobId: entry.jobId, resourceId: entry.resourceId, resourceType: resourceTypeById.get(entry.resourceId), requiredQualificationIds: requirement?.requiredQualifications.map(qualification => qualification.id) ?? [], start: new Date(entry.start), end: new Date(entry.end), active: true };
+      }),
       ...(this.hasProposalActivity(activityCandidates, 'act-handover')
-        ? [{ jobId: this.getOrderActivityId(order.id, 'act-handover'), resourceId: result.handoverResourceId, resourceType: resourceTypeById.get(result.handoverResourceId), start: new Date(result.handoverStart), end: new Date(result.handoverEnd), active: true }]
+        ? [{ jobId: this.getOrderActivityId(order.id, 'act-handover'), resourceId: result.handoverResourceId, resourceType: resourceTypeById.get(result.handoverResourceId), requiredQualificationIds: [], start: new Date(result.handoverStart), end: new Date(result.handoverEnd), active: true }]
         : []),
       ...(needsMobility && result.mobilityResourceId
-        ? [{ jobId: this.getOrderActivityId(order.id, 'act-mobility'), resourceId: result.mobilityResourceId, resourceType: resourceTypeById.get(result.mobilityResourceId), start: new Date(result.checkinEnd), end: new Date(result.handoverEnd), active: true }]
+        ? [{ jobId: this.getOrderActivityId(order.id, 'act-mobility'), resourceId: result.mobilityResourceId, resourceType: resourceTypeById.get(result.mobilityResourceId), requiredQualificationIds: [], start: new Date(result.checkinEnd), end: new Date(result.handoverEnd), active: true }]
         : []),
     ];
     const preservedSegments = isPartiallyScheduled && searchFrom && !includeScheduledJobs
