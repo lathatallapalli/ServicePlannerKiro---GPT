@@ -94,15 +94,6 @@ export const RESOURCE_CATALOG_GROUPS: ResourceCatalogGroup[] = [
     ],
   },
   {
-    id: 'service-centre-klagenfurt-devices',
-    label: 'Devices',
-    subtitle: 'Klagenfurt Equipment Catalog',
-    description: 'Workshop devices assigned to Service Centre Klagenfurt',
-    resources: [
-      { id: 'klg-device-bea-950', name: 'BEA 950 Emission Tester', code: 'KLG-DEV-BEA-950', description: 'Emission tester', status: 'Assigned' },
-    ],
-  },
-  {
     id: 'service-centre-klagenfurt-courtesy-cars',
     label: 'Courtesy Cars',
     subtitle: 'Klagenfurt Mobility Catalog',
