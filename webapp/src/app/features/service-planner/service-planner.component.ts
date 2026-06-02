@@ -1,4 +1,4 @@
-import { Component, HostListener, OnDestroy, OnInit, computed, effect } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -147,6 +147,8 @@ interface SelectedResourceConstraintContext {
   styleUrl: './service-planner.component.scss',
 })
 export class ServicePlannerComponent implements OnInit, OnDestroy {
+  @ViewChild(CustomSchedulerComponent) private scheduler?: CustomSchedulerComponent;
+
   private readonly loggedInAdvisorResourceId = 'advisor-ted-phillips';
   private readonly personalCalendarGroup: SchedulerGroup = { id: 'group-personal-calendar', label: 'Calendar' };
 
@@ -314,6 +316,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   goToNextPlannerPeriod(): void {
     this.shiftPlannerWindow(1);
+  }
+
+  goToPlannerCurrentTime(): void {
+    this.autoBookingRangeNotice = null;
+    const target = this.getPlannerDateWithSystemTime();
+    this.currentPlannerTime = target;
+    this.setViewWindowForMode(this.plannerViewMode, target);
+    this.reloadScheduleEntries();
+    setTimeout(() => this.scheduler?.scrollToCurrentTime(), 0);
   }
 
   goToPreviousMonth(): void {
@@ -1129,11 +1140,18 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private startPlannerClock(): void {
-    this.currentPlannerTime = new Date('2024-04-15T09:15:00');
+    this.currentPlannerTime = this.getPlannerDateWithSystemTime();
     if (this.currentPlannerTimeTimer) clearInterval(this.currentPlannerTimeTimer);
     this.currentPlannerTimeTimer = setInterval(() => {
-      this.currentPlannerTime = new Date(this.currentPlannerTime.getTime() + 60000);
+      this.currentPlannerTime = this.getPlannerDateWithSystemTime();
     }, 60000);
+  }
+
+  private getPlannerDateWithSystemTime(): Date {
+    const systemTime = new Date();
+    const plannerTime = new Date(this.currentPlannerTime);
+    plannerTime.setHours(systemTime.getHours(), systemTime.getMinutes(), 0, 0);
+    return plannerTime;
   }
 
   private getDefaultResourceTypeGroupIds(): string[] {

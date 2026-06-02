@@ -125,6 +125,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Output() public timeRangeCleared = new EventEmitter<void>();
   @Output() public previousPeriod = new EventEmitter<void>();
   @Output() public nextPeriod = new EventEmitter<void>();
+  @Output() public currentTimeRequested = new EventEmitter<void>();
 
   @ViewChild('headerScroll') headerScrollRef!: ElementRef<HTMLElement>;
   @ViewChild('bodyScroll') bodyScrollRef!: ElementRef<HTMLElement>;
@@ -1140,9 +1141,14 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   scrollToCurrentTime(): void {
     if (!this.currentTime || !this.bodyScrollRef) return;
     const body = this.bodyScrollRef.nativeElement;
-    const left = Math.max(0, this.getCurrentTimeLeft() - body.clientWidth / 2);
+    const currentTimeLineLeft = RESOURCE_COL_WIDTH + this.getCurrentTimeLeft();
+    const left = Math.max(0, currentTimeLineLeft - body.clientWidth / 2);
     body.scrollTo({ left, top: body.scrollTop, behavior: 'smooth' });
     this.syncHeaderScroll();
+  }
+
+  requestCurrentTime(): void {
+    this.currentTimeRequested.emit();
   }
 
   onTimeRangePointerDown(event: PointerEvent): void {
