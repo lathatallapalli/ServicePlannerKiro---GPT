@@ -1157,17 +1157,17 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         pointerOffsetMinutes: this.manualDragContext.pointerOffsetMinutes,
         segments: this.manualDragContext.previewSegments,
         invalid: true,
+        keepPreviewRangeStable: true,
       };
       return;
     }
 
-    this.manualDragContext.durationMinutes = previewPlan.durationMinutes;
-    this.manualDragContext.previewSegments = previewPlan.segments;
     this.orderDropPreviewContext = {
-      durationMinutes: previewPlan.durationMinutes,
+      durationMinutes: this.manualDragContext.durationMinutes,
       pointerOffsetMinutes: this.manualDragContext.pointerOffsetMinutes,
-      segments: previewPlan.segments,
+      segments: this.manualDragContext.previewSegments,
       invalid: !!previewPlan.invalid,
+      keepPreviewRangeStable: true,
     };
   }
 

@@ -1025,6 +1025,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   private getEffectiveDropPreviewRange(): { start: Date; end: Date } | null {
+    if (this.dropVisualContext?.keepPreviewRangeStable) return null;
     const preview = this.dropPreview;
     const segments = this.dropVisualContext?.segments;
     if (!preview || !segments?.length) return null;

@@ -58,6 +58,7 @@ export interface SchedulerDropVisualContext {
   pointerOffsetMinutes?: number;
   segments?: SchedulerDropVisualSegment[];
   invalid?: boolean;
+  keepPreviewRangeStable?: boolean;
 }
 
 export interface SchedulerDropVisualSegment {
