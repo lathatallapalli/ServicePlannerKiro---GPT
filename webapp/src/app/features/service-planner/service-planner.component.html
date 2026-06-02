@@ -239,6 +239,7 @@
       [detailedOrderIds]="detailedOrderIds"
       [scrollToEventId]="scrollToEventId"
       [scrollToEventIds]="scrollToEventIds"
+      [scrollToEventPulse]="scrollToEventPulse"
       [scrollToEventRequestId]="scrollToEventRequestId"
       [resourceViews]="resourceViews"
       [selectedResourceView]="selectedResourceView"
@@ -343,7 +344,7 @@
                     }
                   </span>
                   <span style="position:absolute;right:0;top:3px;display:inline-flex;justify-content:flex-end;align-items:center;gap:4px">
-                    <button type="button" [disabled]="!canViewOnlyOrderOnPlanner(order)" [attr.aria-label]="!canViewOnlyOrderOnPlanner(order) ? 'No bookings to show on planner' : isFullPlannerOrderOnly(order) ? 'Show all orders on planner' : 'View only this order on planner'" [attr.title]="!canViewOnlyOrderOnPlanner(order) ? 'No bookings to show on planner' : isFullPlannerOrderOnly(order) ? 'Show all orders on planner' : 'View only this order on planner'" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="viewOnlyOrderOnPlanner(order, $event)" [style.background]="!canViewOnlyOrderOnPlanner(order) ? 'var(--Button-button-disabled,#C6C6C6)' : isFullPlannerOrderOnly(order) ? '#4C68B1' : 'var(--Button-button-secondary,#626469)'" [style.color]="canViewOnlyOrderOnPlanner(order) ? 'white' : 'var(--Icon-icon-disabled,#8D8D8D)'" [style.cursor]="canViewOnlyOrderOnPlanner(order) ? 'pointer' : 'not-allowed'" style="width:32px;height:32px;border:0;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3C4.5 3 1.7 6.1 1 8c.7 1.9 3.5 5 7 5s6.3-3.1 7-5c-.7-1.9-3.5-5-7-5Zm0 9c-2.7 0-4.9-2.2-5.9-4C3.1 6.2 5.3 4 8 4s4.9 2.2 5.9 4c-1 1.8-3.2 4-5.9 4Zm0-6.5A2.5 2.5 0 1 0 8 10.5 2.5 2.5 0 0 0 8 5.5Zm0 4A1.5 1.5 0 1 1 8 6.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg></button>
+                    <button type="button" [disabled]="isOrderFocusButtonDisabled(order)" [attr.aria-label]="getOrderFocusButtonLabel(order)" [attr.title]="getOrderFocusButtonLabel(order)" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="viewOnlyOrderOnPlanner(order, $event)" [style.background]="isOrderFocusButtonActive(order) ? '#4C68B1' : isOrderFocusButtonDisabled(order) ? 'var(--Button-button-disabled,#C6C6C6)' : 'var(--Button-button-secondary,#626469)'" [style.color]="isOrderFocusButtonActive(order) || !isOrderFocusButtonDisabled(order) ? 'white' : 'var(--Icon-icon-disabled,#8D8D8D)'" [style.cursor]="isOrderFocusButtonDisabled(order) ? 'not-allowed' : 'pointer'" style="width:32px;height:32px;border:0;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3C4.5 3 1.7 6.1 1 8c.7 1.9 3.5 5 7 5s6.3-3.1 7-5c-.7-1.9-3.5-5-7-5Zm0 9c-2.7 0-4.9-2.2-5.9-4C3.1 6.2 5.3 4 8 4s4.9 2.2 5.9 4c-1 1.8-3.2 4-5.9 4Zm0-6.5A2.5 2.5 0 1 0 8 10.5 2.5 2.5 0 0 0 8 5.5Zm0 4A1.5 1.5 0 1 1 8 6.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg></button>
                     <button type="button" aria-label="Open order" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 14H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h5v1H3v10h10V8h1v5a1 1 0 0 1-1 1Z" fill="currentColor"/><path d="M10 1v1h3.293L9 6.293 9.707 7 14 2.707V6h1V1h-5Z" fill="currentColor"/></svg></button>
                     <button type="button" aria-label="Undo order booking" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="onUndoOrderBooking(order); $event.stopPropagation()" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex;cursor:pointer"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 5H3.907L5.701 3.207 5 2.5l-3 3 3 3 .701-.707L3.909 6H10a3 3 0 1 1 0 6H6v1h4a4 4 0 0 0 0-8Z" fill="currentColor"/></svg></button>
                     <button type="button" [attr.aria-label]="isOrderExpanded(order) ? 'Collapse order' : 'Expand order'" (pointerdown)="$event.stopPropagation()" (dragstart)="$event.preventDefault(); $event.stopPropagation()" (click)="toggleOrderExpanded(order.id, $event)" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:white;padding:8px;display:flex;cursor:pointer"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderExpanded(order) ? 'none' : 'rotate(180deg)'"><path d="M8 5 13 10l-.7.7L8 6.4l-4.3 4.3L3 10l5-5Z" fill="currentColor"/></svg></button>
@@ -427,24 +428,30 @@
                           <button type="button" aria-label="Show booking on planner" (click)="scrollToBookingInAvailabilityView(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M6 1V2H10V1H11V2H13C13.2652 2 13.5195 2.10543 13.707 2.29297C13.8946 2.48051 14 2.73478 14 3V6H13V3H11V4H10V3H6V4H5V3H3V13H5V14H3C2.73478 14 2.48051 13.8946 2.29297 13.707C2.10543 13.5195 2 13.2652 2 13V3C2 2.73478 2.10543 2.48051 2.29297 2.29297C2.48051 2.10543 2.73478 2 3 2H5V1H6ZM10.5 8.5L8.5 10.7002H14.2002V11.6602L8.5 11.5L10.5 13.5L10 14L7 11L10 8L10.5 8.5Z" fill="currentColor"/></svg>
                           </button>
-                          <span style="flex:1 1 0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                          <span [style.color]="isBookingCompleted(booking) ? 'var(--Text-text-helper,#6F6F6F)' : '#161616'" style="flex:1 1 0;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                             @for (part of getSearchHighlightParts(booking.resourceName); track $index) {
                               @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                             }
                           </span>
-                          <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                          @if (!isBookingCompleted(booking)) {
+                            <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                          }
                           <button type="button" aria-label="Open booking details" (click)="openBookingFromSearch(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2Zm0 1a5 5 0 1 0 0 10A5 5 0 0 0 8 3Zm-.5 4h1v4h-1V7Zm0-2h1v1h-1V5Z" fill="currentColor"/></svg>
                           </button>
-                          <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
-                          </button>
+                          @if (!isBookingCompleted(booking)) {
+                            <button type="button" (click)="onUndoBooking(booking)" aria-label="Undo booking" style="width:16px;height:16px;border:0;background:transparent;color:#626469;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
+                            </button>
+                          }
                         </div>
                       </div>
                     } @else {
                       <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
                         <span style="flex:1 1 0;color:var(--Text-text-helper,#6F6F6F);font-size:14px;line-height:18px;letter-spacing:.16px">{{ activity.resourceLabel }}</span>
-                        <span style="text-align:right;color:var(--Color-Secondary-70,#919396);font-size:12px;line-height:16px;letter-spacing:.32px">PENDING</span>
+                        @if (!isActivityCompleted(order, activity)) {
+                          <span style="text-align:right;color:var(--Color-Secondary-70,#919396);font-size:12px;line-height:16px;letter-spacing:.32px">PENDING</span>
+                        }
                       </div>
                     }
                     </div>

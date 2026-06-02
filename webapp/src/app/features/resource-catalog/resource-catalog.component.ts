@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { RESOURCE_CATALOG_GROUPS } from './data/resource-catalog.mock';
+import { ResourceViewsService } from '../service-planner/services/resource-views.service';
 
 @Component({
   selector: 'app-resource-catalog',
@@ -11,9 +12,20 @@ import { RESOURCE_CATALOG_GROUPS } from './data/resource-catalog.mock';
   styleUrl: './resource-catalog.component.scss',
 })
 export class ResourceCatalogComponent {
-  protected readonly catalogGroups = RESOURCE_CATALOG_GROUPS;
+  protected catalogGroups = RESOURCE_CATALOG_GROUPS;
 
-  constructor(private router: Router, private route: ActivatedRoute) {}
+  constructor(private router: Router, private route: ActivatedRoute, private resourceViewsService: ResourceViewsService) {
+    this.catalogGroups = this.getCatalogGroups();
+  }
+
+  private getCatalogGroups() {
+    const selectedViewValue = this.route.snapshot.queryParamMap.get('selectedViewValue');
+    const catalogGroupIds = this.resourceViewsService.getByValue(selectedViewValue)?.catalogGroupIds;
+    if (!catalogGroupIds?.length) return RESOURCE_CATALOG_GROUPS;
+
+    const allowedGroupIds = new Set(catalogGroupIds);
+    return RESOURCE_CATALOG_GROUPS.filter(group => allowedGroupIds.has(group.id));
+  }
 
   protected openGroup(groupId: string): void {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');

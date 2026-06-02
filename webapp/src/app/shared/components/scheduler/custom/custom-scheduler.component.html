@@ -280,6 +280,13 @@
                 </svg>
               </label>
               <span class="scheduler__resource-label">{{ resource.label }}</span>
+              @if (resource.displayTags?.length) {
+                <span class="scheduler__resource-tags" aria-label="Resource qualifications">
+                  @for (tag of resource.displayTags; track tag) {
+                    <span class="scheduler__resource-tag">{{ tag }}</span>
+                  }
+                </span>
+              }
             </div>
           </div>
           <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null">
@@ -601,6 +608,13 @@
               </svg>
             </label>
             <span class="scheduler__resource-label">{{ resource.label }}</span>
+            @if (resource.displayTags?.length) {
+              <span class="scheduler__resource-tags" aria-label="Resource qualifications">
+                @for (tag of resource.displayTags; track tag) {
+                  <span class="scheduler__resource-tag">{{ tag }}</span>
+                }
+              </span>
+            }
           </div>
         </div>
         <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null">

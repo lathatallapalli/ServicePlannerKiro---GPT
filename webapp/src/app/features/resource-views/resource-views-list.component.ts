@@ -87,11 +87,15 @@ export class ResourceViewsListComponent {
 
   protected onOpenView(event: { action: GenericListRowAction; row: ResourceViewRow }): void {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo') ?? '/service-planner';
+    const listReturnParams = new URLSearchParams({ returnTo });
+    const selectedViewValue = this.route.snapshot.queryParamMap.get('selectedViewValue');
+    if (selectedViewValue) listReturnParams.set('selectedViewValue', selectedViewValue);
+
     this.router.navigate(['/resource-views', event.row.value ?? event.row.id, 'edit'], {
       queryParams: {
-        returnTo: '/resource-views',
+        returnTo: `/resource-views?${listReturnParams.toString()}`,
         plannerReturnTo: returnTo,
-        selectedViewValue: this.route.snapshot.queryParamMap.get('selectedViewValue'),
+        selectedViewValue,
       },
       state: { resourceView: event.row },
     });

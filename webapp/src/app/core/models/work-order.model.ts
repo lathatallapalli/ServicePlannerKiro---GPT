@@ -37,4 +37,5 @@ export interface WorkOrder {
   appointmentStart?: Date;
   appointmentEnd?: Date;
   notes?: string;
+  demoLocationId?: string;
 }

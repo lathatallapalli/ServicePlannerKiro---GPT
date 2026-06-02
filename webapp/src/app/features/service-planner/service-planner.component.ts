@@ -194,6 +194,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   bookingModalAdditionalResourceIds: Record<string, string> = {};
   scrollToEventId: string | null = null;
   scrollToEventIds: string[] = [];
+  scrollToEventPulse = true;
   scrollToEventRequestId = 0;
   isOrderPanelOpen = false;
   orderPanelWidth = 342;
@@ -714,9 +715,13 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private getPanelBaseOrders(): any[] {
-    return this.plannerMode === 'order'
+    const orders = this.plannerMode === 'order'
       ? this.allOrders.filter(order => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId)
       : this.allOrders;
+    const demoLocationId = this.selectedResourceView?.demoLocationId;
+    return demoLocationId
+      ? orders.filter(order => order.demoLocationId === demoLocationId)
+      : orders.filter(order => !order.demoLocationId);
   }
 
   private getPanelSearchOrders(): any[] {
@@ -931,6 +936,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         label: r.name,
         groupId: r.groupId,
         groupLabel: groups.find(g => g.id === r.groupId)?.name,
+        displayTags: r.displayTags,
         meta: r,
       }));
       this.updatePlannerResourceContext();
@@ -1486,6 +1492,24 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return this.fullPlannerOrderOnlyId === order.id;
   }
 
+  isWorkflowOrderFocusActive(order: any): boolean {
+    return this.plannerMode === 'order' && (order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId);
+  }
+
+  isOrderFocusButtonActive(order: any): boolean {
+    return this.isWorkflowOrderFocusActive(order) || this.isFullPlannerOrderOnly(order);
+  }
+
+  isOrderFocusButtonDisabled(order: any): boolean {
+    return this.isWorkflowOrderFocusActive(order) || !this.canViewOnlyOrderOnPlanner(order);
+  }
+
+  getOrderFocusButtonLabel(order: any): string {
+    if (this.isWorkflowOrderFocusActive(order)) return 'Workflow planner is already focused on this order';
+    if (!this.canViewOnlyOrderOnPlanner(order)) return 'No bookings to show on planner';
+    return this.isFullPlannerOrderOnly(order) ? 'Show all orders on planner' : 'View only this order on planner';
+  }
+
   canViewOnlyOrderOnPlanner(order: any): boolean {
     return this.hasPlannerBookingsForOrder(order);
   }
@@ -1537,10 +1561,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.schedulingError = message;
   }
 
-  focusPlannerEvent(eventId: string, options: { openDetails?: boolean } = {}): void {
+  focusPlannerEvent(eventId: string, options: { openDetails?: boolean; pulse?: boolean } = {}): void {
     queueMicrotask(() => {
       this.scrollToEventId = eventId;
       this.scrollToEventIds = [];
+      this.scrollToEventPulse = options.pulse ?? true;
       this.scrollToEventRequestId++;
       if (options.openDetails) {
         this.onEventClicked({ eventId });
@@ -1548,18 +1573,23 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     });
   }
 
-  private focusPlannerEvents(eventIds: string[]): void {
+  private focusPlannerEvents(eventIds: string[], options: { pulse?: boolean } = {}): void {
     const uniqueEventIds = [...new Set(eventIds.filter(Boolean))];
     if (!uniqueEventIds.length) return;
     if (uniqueEventIds.length === 1) {
-      this.focusPlannerEvent(uniqueEventIds[0]);
+      this.focusPlannerEvent(uniqueEventIds[0], options);
       return;
     }
     queueMicrotask(() => {
       this.scrollToEventId = null;
       this.scrollToEventIds = uniqueEventIds;
+      this.scrollToEventPulse = options.pulse ?? true;
       this.scrollToEventRequestId++;
     });
+  }
+
+  private shouldSuppressAutoBookingFocusPulse(): boolean {
+    return this.plannerMode === 'order' || !!this.fullPlannerOrderOnlyId;
   }
 
   private showManualPlanValidationError(title: string, validation: ManualPlanValidationResult): void {
@@ -2163,7 +2193,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   isBookFirstDisabled(orderId: string): boolean {
     const order = this.allOrders.find(candidate => candidate.id === orderId);
-    return this.schedulingError === orderId || (!!order && this.isOrderFullyScheduled(order));
+    return this.schedulingError === orderId || (!!order && (this.isOrderFullyScheduled(order) || this.isOrderAutoBookingLocked(order)));
   }
 
   onBookFirstAvailabilityForOrder(order: any): void {
@@ -2175,6 +2205,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   hasPreviousForOrder(orderId: string): boolean {
+    const order = this.allOrders.find(candidate => candidate.id === orderId || candidate.referenceNumber === orderId);
+    if (order && this.isOrderAutoBookingLocked(order)) return false;
     return (this.proposalStateByOrder.get(orderId)?.index ?? -1) > 0;
   }
 
@@ -2187,9 +2219,14 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   canNavigateAvailability(orderId: string): boolean {
-    if ((this.proposalStateByOrder.get(orderId)?.index ?? -1) >= 0) return true;
     const order = this.allOrders.find(candidate => candidate.id === orderId || candidate.referenceNumber === orderId);
-    return !!order && this.getExistingScheduleEntriesForOrder(order).length > 0;
+    if (!order || this.isOrderAutoBookingLocked(order)) return false;
+    if ((this.proposalStateByOrder.get(orderId)?.index ?? -1) >= 0) return true;
+    return this.getExistingScheduleEntriesForOrder(order).length > 0;
+  }
+
+  private isOrderAutoBookingLocked(order: any): boolean {
+    return ['in-progress', 'completed', 'cancelled'].includes(this.getOrderPlanningState(order));
   }
 
   onBookNextForOrder(order: any): void {
@@ -2367,6 +2404,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   canUndoBooking(booking: JobBooking): boolean {
     return this.bookings.some(candidate => candidate.entryId === booking.entryId) || this.allScheduleEntries.some(entry => entry.id === booking.entryId);
+  }
+
+  isBookingCompleted(booking: JobBooking): boolean {
+    const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
+    return this.getCanonicalWorkOrderItemStatus(entry?.workorderItemStatus) === 'completed';
+  }
+
+  isActivityCompleted(order: any, activity: ActivityTile): boolean {
+    return this.getActivityExecutionStatus(order, activity) === 'completed';
   }
 
   getActivitiesForOrder(order: any): ActivityTile[] {
@@ -3469,7 +3515,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const focusInRangeProposal = (): void => {
       if (!shouldScrollToFirstEntry || this.autoBookingRangeNotice) return;
       if (proposalFocusIds.length !== expectedProposalFocusCount) return;
-      this.focusPlannerEvents(proposalFocusIds);
+      this.focusPlannerEvents(proposalFocusIds, { pulse: !this.shouldSuppressAutoBookingFocusPulse() });
     };
     result.entries.forEach(entry => {
       const persistedEntry = {
