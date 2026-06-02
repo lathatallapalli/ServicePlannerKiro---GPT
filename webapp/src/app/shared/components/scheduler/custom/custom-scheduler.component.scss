@@ -539,11 +539,42 @@ $month-bar-height: 60px;
 
   &__resource-label {
     min-width: 0;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    max-width: 128px;
     color:#161616;
     font-size: 14px;
     line-height: 18px;
     letter-spacing: 0.16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__resource-tags {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  &__resource-tag {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 104px;
+    height: 24px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    border: 0;
+    border-radius: 999px;
+    color: var(--Tag-tag-blue-text, #0043CE);
+    background: var(--Tag-tag-blue-background, #D0E2FF);
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: .16px;
+    font-weight: 400;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

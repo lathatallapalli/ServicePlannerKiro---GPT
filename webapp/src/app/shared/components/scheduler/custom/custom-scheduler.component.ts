@@ -118,6 +118,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input('rightPaneOpen') public rightPaneOpen = false;
   @Input() public scrollToEventId: string | null = null;
   @Input() public scrollToEventIds: string[] = [];
+  @Input() public scrollToEventPulse = true;
   @Input() public scrollToEventRequestId = 0;
   @Input() public invalidDropRanges: SchedulerInvalidDropRange[] = [];
   @Input() public resizeInvalidHint = '';
@@ -297,7 +298,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     }
     if (changes['scrollToEventId'] || changes['scrollToEventIds'] || changes['scrollToEventRequestId']) {
       const eventIds = this.scrollToEventIds.length ? this.scrollToEventIds : (this.scrollToEventId ? [this.scrollToEventId] : []);
-      if (eventIds.length) queueMicrotask(() => this.scrollToEvents(eventIds));
+      if (eventIds.length) queueMicrotask(() => this.scrollToEvents(eventIds, this.scrollToEventPulse));
     }
   }
 
@@ -1536,7 +1537,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.cdr.detectChanges();
   }
 
-  private scrollToEvents(eventIds: string[]): void {
+  private scrollToEvents(eventIds: string[], pulse = true): void {
     if (!eventIds.length || !this.bodyScrollRef) return;
     const requestedIds = this.normalizePulseEventIds(eventIds);
     const requestedIdSet = new Set(requestedIds);
@@ -1550,7 +1551,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const left = Math.max(0, minLeft + (maxRight - minLeft) / 2 - body.clientWidth / 2);
     const top = Math.max(0, minTop - GROUP_ROW_HEIGHT);
     const alreadyInView = Math.abs(body.scrollLeft - left) < 2 && Math.abs(body.scrollTop - top) < 2;
-    if (alreadyInView) {
+    if (!pulse) {
+      this.clearPulse();
+    } else if (alreadyInView) {
       this.activatePulseImmediately(requestedIds);
     } else {
       this.queuePulse(requestedIds);

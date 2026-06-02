@@ -11,6 +11,7 @@ export interface SchedulerResource {
   groupId?: string;
   groupLabel?: string;
   hasQualificationMatch?: boolean;
+  displayTags?: string[];
   meta?: Resource;
 }
 

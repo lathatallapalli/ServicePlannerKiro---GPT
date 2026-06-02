@@ -16,6 +16,8 @@ export interface Resource {
   name: string;
   type: ResourceType;
   qualifications: Qualification[];
+  displayTags?: string[];
+  demoLocationId?: string;
   groupId?: string;
   avatarUrl?: string;
 }

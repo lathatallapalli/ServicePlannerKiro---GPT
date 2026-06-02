@@ -7,6 +7,8 @@ export interface ResourceFavoriteView {
   resourceIds: string[];
   value?: string;
   groups?: Array<{ label: string; children: string[] }>;
+  demoLocationId?: string;
+  catalogGroupIds?: string[];
 }
 
 export interface PlannerResourceContext {
