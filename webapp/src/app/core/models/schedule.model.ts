@@ -13,6 +13,7 @@ export interface ScheduleEntry {
   workorderItemStatus?: WorkorderItemStatus;
   workorderItemCategory?: WorkorderItemCategory;
   bookingSetId?: string;
+  capacityOrderGroupId?: string;
   splitRootId?: string;
   splitParentBookingSetId?: string;
   splitSequence?: number;

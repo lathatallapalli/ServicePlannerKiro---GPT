@@ -890,7 +890,7 @@
       </div>
     }
 
-    @if (dropPreview) {
+    @if (dropPreview && getDropPreviewMode() !== 'day-capacity') {
       <div class="scheduler__drop-preview"
         [class.scheduler__drop-preview--capacity]="getDropPreviewMode() === 'day-capacity'"
         [class.scheduler__drop-preview--invalid]="isDropPreviewInvalid()"
