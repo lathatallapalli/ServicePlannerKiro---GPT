@@ -95,7 +95,7 @@ export class TransactionsOfferComponent {
           licensePlate: order.vehicle.licensePlate,
           brand: order.vehicle.make,
           model: order.vehicle.model,
-          checkInDriver: order.referenceNumber === '014826455' ? 'Frank Miller' : 'Ted Phillips',
+          checkInDriver: this.getCheckInDriver(order),
           billing: transaction.billing,
           appointmentDate: order.appointmentStart ? this.formatDate(order.appointmentStart) : this.getFallbackAppointmentDate(transaction.stage),
           vin: order.vehicle.vin ?? '',
@@ -147,6 +147,12 @@ export class TransactionsOfferComponent {
     if (order.demoLocationId === 'klagenfurt') return `${order.referenceNumber} (KLG)`;
     if (order.demoLocationId === 'vienna') return `${order.referenceNumber} (VIE)`;
     return order.referenceNumber;
+  }
+
+  private getCheckInDriver(order: (typeof MOCK_WORK_ORDERS)[number]): string {
+    if (order.demoLocationId === 'vienna') return 'Frank Reynold';
+    if (order.demoLocationId === 'klagenfurt') return 'Jeff';
+    return 'Ted Phillips';
   }
 
   private getFallbackAppointmentDate(stage: string): string {

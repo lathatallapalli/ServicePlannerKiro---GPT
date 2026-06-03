@@ -2130,7 +2130,17 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
           templateId,
           executionStatus: this.getCanonicalWorkOrderItemStatus(activity.workorderItemStatus ?? activity.status),
         };
-      });
+      })
+      .sort((first: NormalizedWorkOrderItem, second: NormalizedWorkOrderItem) =>
+        this.getActivityDisplayOrder(first.templateId) - this.getActivityDisplayOrder(second.templateId)
+      );
+  }
+
+  private getActivityDisplayOrder(templateId?: string): number {
+    if (templateId === 'act-checkin') return 0;
+    if (templateId === 'act-handover') return 1;
+    if (templateId === 'act-mobility') return 2;
+    return 3;
   }
 
   private isWorkOrderItemScheduled(order: any, item: NormalizedWorkOrderItem): boolean {

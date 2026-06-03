@@ -135,9 +135,9 @@ export class App implements OnInit {
       value: 'view-main-workshop',
       resourceIds: ['mech-scenario-flex', 'mech-mark-owen', 'mech-phil-parker', 'mech-greg-jackson', 'mech-jeff-goldberg', 'mech-kelly-hanson', 'advisor-scenario-lead', 'advisor-ted-phillips', 'advisor-frank-miller', 'bay-scenario-express', 'bay-pc-1', 'bay-pc-2', 'bay-pc-3'],
       groups: [
-        { label: 'Mechanics', children: ['Scenario Flex Mechanic', 'Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
-        { label: 'Service Advisors', children: ['Scenario Service Advisor', 'Ted Phillips', 'Frank Miller'] },
-        { label: 'Bays', children: ['Scenario Express Bay', 'PC Bay 1', 'PC Bay 2', 'PC Bay 3'] },
+        { label: 'Mechanics', children: ['Workshop Flex Mechanic', 'Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
+        { label: 'Service Advisors', children: ['Lead Service Advisor', 'Ted Phillips', 'Frank Miller'] },
+        { label: 'Bays', children: ['Express Bay', 'PC Bay 1', 'PC Bay 2', 'PC Bay 3'] },
       ],
     },
     {
@@ -145,9 +145,9 @@ export class App implements OnInit {
       value: 'view-mot-emissions',
       resourceIds: ['mech-scenario-flex', 'mech-greg-jackson', 'mech-jeff-goldberg', 'advisor-scenario-lead', 'advisor-frank-miller', 'bay-scenario-express', 'bay-pc-1', 'bay-pc-2', 'bay-pc-3', 'device-bea-950'],
       groups: [
-        { label: 'Mechanics', children: ['Scenario Flex Mechanic', 'Greg Jackson', 'Jeff Goldberg'] },
-        { label: 'Service Advisors', children: ['Scenario Service Advisor', 'Frank Miller'] },
-        { label: 'Bays', children: ['Scenario Express Bay', 'PC Bay 1', 'PC Bay 2', 'PC Bay 3'] },
+        { label: 'Mechanics', children: ['Workshop Flex Mechanic', 'Greg Jackson', 'Jeff Goldberg'] },
+        { label: 'Service Advisors', children: ['Lead Service Advisor', 'Frank Miller'] },
+        { label: 'Bays', children: ['Express Bay', 'PC Bay 1', 'PC Bay 2', 'PC Bay 3'] },
         { label: 'Devices', children: ['BEA 950 Emission Tester'] },
       ],
     },
@@ -156,8 +156,8 @@ export class App implements OnInit {
       value: 'view-mobility',
       resourceIds: ['advisor-scenario-lead', 'advisor-ted-phillips', 'advisor-frank-miller', 'car-scenario-courtesy', 'car-audi-a4-kl657og', 'car-audi-a3-kl643ju', 'car-bmw-320-mw112ab'],
       groups: [
-        { label: 'Service Advisors', children: ['Scenario Service Advisor', 'Ted Phillips', 'Frank Miller'] },
-        { label: 'Courtesy Car', children: ['Scenario Courtesy Car', 'Audi A4 KL 657 OG', 'Audi A3 KL 643 JU', 'BMW 320i MW 112 AB'] },
+        { label: 'Service Advisors', children: ['Lead Service Advisor', 'Ted Phillips', 'Frank Miller'] },
+        { label: 'Courtesy Car', children: ['Mobility Vehicle', 'Audi A4 KL 657 OG', 'Audi A3 KL 643 JU', 'BMW 320i MW 112 AB'] },
       ],
     },
     {
@@ -165,11 +165,11 @@ export class App implements OnInit {
       value: 'view-full',
       resourceIds: MOCK_WORK_ORDERS.length ? ['mech-scenario-flex', 'mech-mark-owen', 'mech-phil-parker', 'mech-greg-jackson', 'mech-jeff-goldberg', 'mech-kelly-hanson', 'advisor-scenario-lead', 'advisor-ted-phillips', 'advisor-frank-miller', 'bay-scenario-express', 'bay-pc-1', 'bay-pc-2', 'bay-pc-3', 'bay-lt-1', 'bay-pc-alignment', 'device-bea-950', 'device-eps-708', 'car-scenario-courtesy', 'car-audi-a4-kl657og', 'car-audi-a3-kl643ju', 'car-bmw-320-mw112ab'] : [],
       groups: [
-        { label: 'Mechanics', children: ['Scenario Flex Mechanic', 'Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
-        { label: 'Service Advisors', children: ['Scenario Service Advisor', 'Ted Phillips', 'Frank Miller'] },
-        { label: 'Bays', children: ['Scenario Express Bay', 'PC Bay 1', 'PC Bay 2', 'PC Bay 3', 'LT Bay 1', 'PC Alignment'] },
+        { label: 'Mechanics', children: ['Workshop Flex Mechanic', 'Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
+        { label: 'Service Advisors', children: ['Lead Service Advisor', 'Ted Phillips', 'Frank Miller'] },
+        { label: 'Bays', children: ['Express Bay', 'PC Bay 1', 'PC Bay 2', 'PC Bay 3', 'LT Bay 1', 'PC Alignment'] },
         { label: 'Devices', children: ['BEA 950 Emission Tester', 'EPS 708 Diesel Tester'] },
-        { label: 'Courtesy Car', children: ['Scenario Courtesy Car', 'Audi A4 KL 657 OG', 'Audi A3 KL 643 JU', 'BMW 320i MW 112 AB'] },
+        { label: 'Courtesy Car', children: ['Mobility Vehicle', 'Audi A4 KL 657 OG', 'Audi A3 KL 643 JU', 'BMW 320i MW 112 AB'] },
       ],
     },
   ];

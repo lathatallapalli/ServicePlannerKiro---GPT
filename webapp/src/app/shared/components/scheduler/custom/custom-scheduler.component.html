@@ -20,7 +20,7 @@
                   <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM3 13V3h10v10H3Z" fill="currentColor"/></svg>
                 }
               </span>
-              <span style="flex:1 1 0;min-width:0;height:18px;color:var(--Text-text-secondary,#525252);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:none">All resources</span>
+              <span style="flex:1 1 0;min-width:0;height:18px;color:var(--Text-text-secondary,#525252);font-size:14px;font-family:'IBM Plex Sans',sans-serif;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:none">Service Centre Munich</span>
             </button>
             @for (view of resourceViews; track view.label) {
               <button type="button" (click)="selectResourceView(view)" style="align-self:stretch;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;position:relative;display:inline-flex;align-items:center;gap:16px;text-align:left;cursor:pointer">
@@ -183,7 +183,7 @@
         <div
           class="scheduler__day-row"
           [class.scheduler__day-row--single]="isSingleDayView"
-          [style.width.px]="isSingleDayView ? navigationRowWidth : null"
+          [style.width.px]="isSingleDayView ? totalWidth : null"
           [style.height.px]="DATE_ROW_HEIGHT">
           @if (getActiveTimeRange(); as range) {
             <div class="scheduler__booking-window-chip"
@@ -204,7 +204,7 @@
             <div
               class="scheduler__day-cell"
               [class.scheduler__day-cell--single]="isSingleDayView"
-              [style.width.px]="isSingleDayView ? navigationRowWidth : getDayWidth()">
+              [style.width.px]="getDayWidth()">
               <span class="scheduler__day-label">
                 <span class="scheduler__day-num">{{ formatDay(day) }}</span>
                 <span class="scheduler__day-name">{{ formatWeekday(day) }}</span>

@@ -160,6 +160,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private timelineViewportWidth = 0;
   private resizeObserver: ResizeObserver | null = null;
   private removeBodyScrollListener: (() => void) | null = null;
+  private scrollSyncFrame: number | null = null;
+  private isSyncingHeaderScroll = false;
 
   // dynamic: one slot always = 60px, so hour width scales with slot duration
   get HOUR_WIDTH(): number {
@@ -258,13 +260,15 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.zone.runOutsideAngular(() => {
       if (this.bodyScrollRef) {
         const body = this.bodyScrollRef.nativeElement;
-        const syncScroll = () => this.syncHeaderScroll();
+        const syncScroll = () => this.scheduleHeaderScrollSync();
         body.addEventListener('scroll', syncScroll);
         this.removeBodyScrollListener = () => body.removeEventListener('scroll', syncScroll);
         this.updateTimelineViewportWidth();
+        this.scheduleHeaderScrollSync();
         if (typeof ResizeObserver !== 'undefined') {
           this.resizeObserver = new ResizeObserver(() => {
             this.updateTimelineViewportWidth();
+            this.scheduleHeaderScrollSync();
           });
           this.resizeObserver.observe(body);
         }
@@ -275,6 +279,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   ngOnDestroy(): void {
     this.removeBodyScrollListener?.();
     this.resizeObserver?.disconnect();
+    if (this.scrollSyncFrame !== null && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this.scrollSyncFrame);
+    }
+    this.scrollSyncFrame = null;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -1338,8 +1346,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (!this.currentTime || !this.bodyScrollRef) return;
     const body = this.bodyScrollRef.nativeElement;
     const left = Math.max(0, this.getCurrentTimeLeft() - body.clientWidth / 2);
-    body.scrollTo({ left, top: body.scrollTop, behavior: 'smooth' });
-    this.syncHeaderScroll();
+    this.scrollElementTo(body, left, body.scrollTop, 'smooth');
+    this.scheduleHeaderScrollSync();
   }
 
   onTimeRangePointerDown(event: PointerEvent): void {
@@ -1439,7 +1447,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   get selectedResourceViewLabel(): string {
-    return this.selectedResourceView?.label ?? 'All resources';
+    return this.selectedResourceView?.label ?? 'Service Centre Munich';
   }
 
   selectResourceView(view: ResourceFavoriteView | null): void {
@@ -1453,7 +1461,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   public onBodyScroll(): void {
-    this.syncHeaderScroll();
+    this.scheduleHeaderScrollSync();
     if (this.pendingPulseEventIds.size && this.programmaticScrollPulse) {
       this.schedulePulseAfterScrollSettles([...this.pendingPulseEventIds]);
       return;
@@ -1475,7 +1483,29 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   private syncHeaderScroll(): void {
     if (!this.headerScrollRef || !this.bodyScrollRef) return;
-    this.headerScrollRef.nativeElement.scrollLeft = this.bodyScrollRef.nativeElement.scrollLeft;
+    if (this.isSyncingHeaderScroll) return;
+    const header = this.headerScrollRef.nativeElement;
+    const body = this.bodyScrollRef.nativeElement;
+    if (Math.abs(header.scrollLeft - body.scrollLeft) < 1) return;
+    this.isSyncingHeaderScroll = true;
+    try {
+      header.scrollLeft = body.scrollLeft;
+    } finally {
+      this.isSyncingHeaderScroll = false;
+    }
+  }
+
+  private scheduleHeaderScrollSync(): void {
+    if (this.scrollSyncFrame !== null) return;
+    const sync = () => {
+      this.scrollSyncFrame = null;
+      this.syncHeaderScroll();
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      this.scrollSyncFrame = requestAnimationFrame(sync);
+      return;
+    }
+    sync();
   }
 
   private updateTimelineViewportWidth(): void {
@@ -1484,6 +1514,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (Math.abs(width - this.timelineViewportWidth) < 1) return;
     this.timelineViewportWidth = width;
     this.cdr.detectChanges();
+    this.scheduleHeaderScrollSync();
   }
 
   private scrollToEvents(eventIds: string[], pulse = true): void {
@@ -1507,8 +1538,17 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     } else {
       this.queuePulse(requestedIds);
     }
-    body.scrollTo({ left, top, behavior: 'smooth' });
-    this.syncHeaderScroll();
+    this.scrollElementTo(body, left, top, 'smooth');
+    this.scheduleHeaderScrollSync();
+  }
+
+  private scrollElementTo(element: HTMLElement, left: number, top: number, behavior: ScrollBehavior = 'auto'): void {
+    if (typeof element.scrollTo === 'function') {
+      element.scrollTo({ left, top, behavior });
+      return;
+    }
+    element.scrollLeft = left;
+    element.scrollTop = top;
   }
 
   private queuePulse(eventIds: string[]): void {
