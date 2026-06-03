@@ -4,6 +4,7 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
   {
     label: 'Main Workshop',
     value: 'view-main-workshop',
+    personalCalendarResourceId: 'advisor-ted-phillips',
     resourceIds: [
       'mech-mark-owen',
       'mech-phil-parker',
@@ -25,6 +26,7 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
   {
     label: 'MOT / Emissions',
     value: 'view-mot-emissions',
+    personalCalendarResourceId: 'advisor-frank-miller',
     resourceIds: [
       'mech-greg-jackson',
       'mech-jeff-goldberg',
@@ -44,6 +46,7 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
   {
     label: 'Mobility',
     value: 'view-mobility',
+    personalCalendarResourceId: 'advisor-ted-phillips',
     resourceIds: [
       'advisor-ted-phillips',
       'advisor-frank-miller',
@@ -58,6 +61,7 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
   {
     label: 'Full Planner',
     value: 'view-full',
+    personalCalendarResourceId: 'advisor-ted-phillips',
     resourceIds: [
       'mech-mark-owen',
       'mech-phil-parker',
@@ -88,6 +92,7 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
     label: 'Service Centre Klagenfurt',
     value: 'view-service-centre-klagenfurt',
     demoLocationId: 'klagenfurt',
+    personalCalendarResourceId: 'klg-advisor-jeff',
     catalogGroupIds: [
       'service-centre-klagenfurt-mechanics',
       'service-centre-klagenfurt-service-advisors',
@@ -113,6 +118,7 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
     label: 'Service Center Vienna',
     value: 'view-service-center-vienna',
     demoLocationId: 'vienna',
+    personalCalendarResourceId: 'vie-advisor-frank-reynold',
     catalogGroupIds: [
       'service-center-vienna-technicians',
       'service-center-vienna-painter',

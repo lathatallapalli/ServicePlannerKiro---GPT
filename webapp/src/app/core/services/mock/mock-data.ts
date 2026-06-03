@@ -69,14 +69,14 @@ export const MOCK_GROUPS: ResourceGroup[] = [
 export const MOCK_RESOURCES: Resource[] = [
   {
     id: 'mech-scenario-flex',
-    name: 'Workshop Flex Mechanic',
+    name: 'David Wilson',
     type: 'mechanic',
     groupId: 'group-mechanics',
     qualifications: [QUALIFICATIONS.generalService, QUALIFICATIONS.diagnostics, QUALIFICATIONS.tyres, QUALIFICATIONS.battery, QUALIFICATIONS.mot, QUALIFICATIONS.emissions, QUALIFICATIONS.brakes],
   },
-  { id: 'advisor-scenario-lead', name: 'Lead Service Advisor', type: 'advisor', groupId: 'group-advisors', qualifications: [] },
+  { id: 'advisor-scenario-lead', name: 'Chris Davis', type: 'advisor', groupId: 'group-advisors', qualifications: [] },
   { id: 'bay-scenario-express', name: 'Express Bay', type: 'bay', groupId: 'group-bays', qualifications: [] },
-  { id: 'car-scenario-courtesy', name: 'Mobility Vehicle', type: 'driver', groupId: 'group-courtesy-cars', qualifications: [] },
+  { id: 'car-scenario-courtesy', name: 'Audi A4 KL 657 OG', type: 'driver', groupId: 'group-courtesy-cars', qualifications: [] },
   {
     id: 'mech-mark-owen',
     name: 'Mark Owen',
@@ -1334,7 +1334,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
       {
         id: 'job-vie-2005-pc-service',
         workOrderId: 'wo-vie-2005',
-        title: 'PC Bay Service',
+        title: 'Tire Change incl. Balancing',
         description: 'Complete regular PC bay service inspection and document findings.',
         fru: 1,
         estimatedDurationMinutes: 60,

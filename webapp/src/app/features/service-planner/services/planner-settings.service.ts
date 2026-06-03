@@ -9,6 +9,7 @@ export interface ResourceFavoriteView {
   groups?: Array<{ label: string; children: string[] }>;
   demoLocationId?: string;
   catalogGroupIds?: string[];
+  personalCalendarResourceId?: string;
 }
 
 export interface PlannerResourceContext {
@@ -28,7 +29,7 @@ export class PlannerSettingsService {
   resourceContext = signal<PlannerResourceContext | null>(null);
   isSettingsModalOpen = signal<boolean>(false);
   viewPersonalCalendarOnTop = signal<boolean>(true);
-  optimizeAdvisorActivityBookingForPersonalCalendar = signal<boolean>(false);
+  optimizeAdvisorActivityBookingForPersonalCalendar = signal<boolean>(true);
 
   // Incremented each time the user triggers undo from the ribbon.
   // The service planner watches this and pops the last booking.

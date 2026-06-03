@@ -163,7 +163,22 @@ interface SelectedResourceConstraintContext {
   styleUrl: './service-planner.component.scss',
 })
 export class ServicePlannerComponent implements OnInit, OnDestroy {
-  private readonly loggedInAdvisorResourceId = 'advisor-ted-phillips';
+  private get loggedInAdvisorResourceId(): string {
+    return this.selectedResourceView?.personalCalendarResourceId
+      ?? this.getDefaultPersonalCalendarResourceId(this.selectedResourceView?.demoLocationId);
+  }
+
+  private getDefaultPersonalCalendarResourceId(demoLocationId?: string): string {
+    switch (demoLocationId) {
+      case 'klagenfurt':
+        return 'klg-advisor-jeff';
+      case 'vienna':
+        return 'vie-advisor-frank-reynold';
+      default:
+        return 'advisor-ted-phillips';
+    }
+  }
+
   private readonly monthCapacityPreferenceKey = 'service-planner.month-capacity-visible';
   private readonly personalCalendarGroup: SchedulerGroup = { id: 'group-personal-calendar', label: 'Calendar' };
 
@@ -738,6 +753,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return orders.filter(order => this.isOrderRelevantToRange(order, range.start, range.end));
   }
 
+  private filterOrdersBySearchScope(orders: any[]): any[] {
+    const range = this.getCurrentPlannerScopeRange();
+    if (!range) return orders;
+    return orders.filter(order => !this.isOrderPlanned(order) || this.isOrderRelevantToRange(order, range.start, range.end));
+  }
+
   private getCurrentPlannerScopeRange(): { start: Date; end: Date } | null {
     if (this.plannerViewMode === 'free' || this.plannerViewMode === 'month') return null;
     return { start: this.viewStart, end: this.viewEnd };
@@ -790,7 +811,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   get panelSearchMatches(): PanelSearchMatch[] {
     const query = this.bookingSearchQuery.trim().toLowerCase();
     if (!query) return [];
-    return this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders()).flatMap(order => this.getSearchMatchesForOrder(order, query));
+    return this.filterOrdersBySearchScope(this.getPanelBaseOrders()).flatMap(order => this.getSearchMatchesForOrder(order, query));
   }
 
   get searchMatchCount(): number {
@@ -3485,6 +3506,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       jobs: unscheduledJobs,
       resources: rawResources,
       preferredResourceIds: options.preferredResourceIds ?? [],
+      preferredActivityResourceIds: this.getPreferredAdvisorActivityResourceIds(rawResources),
       requiredResourceIds,
       existingEntries,
       unavailability: this.unavailability,
@@ -3636,6 +3658,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private getActiveWorkOrderId(): string | null {
     return this.selectedPanelOrderId || this.activeOrderId || this.jobTiles[0]?.workOrder.id || null;
+  }
+
+  private getPreferredAdvisorActivityResourceIds(resources: Resource[]): string[] {
+    if (!this.optimizeAdvisorActivityBookingForPersonalCalendar || !this.viewPersonalCalendarOnTop) return [];
+    const advisorId = this.loggedInAdvisorResourceId;
+    return resources.some(resource => resource.id === advisorId && resource.type === 'advisor') ? [advisorId] : [];
   }
 
   private setFocusedPlanningOrder(order: any | null | undefined): void {

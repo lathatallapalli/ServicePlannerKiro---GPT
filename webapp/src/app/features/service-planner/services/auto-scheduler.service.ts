@@ -28,7 +28,9 @@ export interface AutoScheduleRequest {
   jobs: Job[];
   resources: Resource[];
   preferredResourceIds?: string[];
+  preferredActivityResourceIds?: string[];
   requiredResourceIds?: string[];
+  preferConsecutiveResources?: boolean;
   requiresMobility?: boolean;
   existingEntries: ScheduleEntry[];       // already booked slots on the scheduler
   unavailability: UnavailabilityBlock[];  // known unavailability blocks
@@ -57,6 +59,7 @@ export class AutoSchedulerService {
     return this.findActivitySlots({
       resourceType: 'advisor',
       resources: req.resources,
+      preferredResourceIds: req.preferredActivityResourceIds ?? [],
       requiredResourceIds: req.requiredResourceIds ?? [],
       allEntries: [...req.existingEntries],
       unavailability: req.unavailability,
@@ -77,6 +80,7 @@ export class AutoSchedulerService {
     const result: ScheduleEntry[] = [];
     let workOrderCursor = new Date(req.checkin.end);
     let latestJobEnd: Date | null = null;
+    const consecutiveResourceIdsByType = new Map<string, string>();
 
     const jobsByWorkOrder = this.groupJobsByWorkOrder(this.getSchedulableJobs(req.jobs));
     const workOrderJobs = jobsByWorkOrder[0] ?? [];
@@ -87,6 +91,7 @@ export class AutoSchedulerService {
         resources: req.resources,
         preferredResourceIds: req.preferredResourceIds ?? [],
         requiredResourceIds: req.requiredResourceIds ?? [],
+        consecutiveResourceIdsByType,
         durationMs: this.getJobDurationMinutes(job) * 60000,
         allEntries,
         unavailability: req.unavailability,
@@ -111,6 +116,10 @@ export class AutoSchedulerService {
         };
         allEntries.push(entry);
         result.push(entry);
+      }
+
+      for (const { req: requirement, resource } of slot.assignments) {
+        if (req.preferConsecutiveResources !== false) consecutiveResourceIdsByType.set(requirement.resourceType, resource.id);
       }
 
       workOrderCursor = new Date(slot.end);
@@ -142,10 +151,11 @@ export class AutoSchedulerService {
     slotMinutes?: number;
     requiresMobility?: boolean;
     requiredResourceIds?: string[];
+    preferredActivityResourceIds?: string[];
   }): AutoHandoverOption[] {
     const allEntries = [...req.existingEntries, ...req.draftEntries];
     const requiresMobility = req.requiresMobility ?? true;
-    const advisors = this.getActivityCandidates(req.resources, 'advisor', req.requiredResourceIds ?? []);
+    const advisors = this.getActivityCandidates(req.resources, 'advisor', req.requiredResourceIds ?? [], req.preferredActivityResourceIds ?? []);
     const mobilityResources = this.getActivityCandidates(req.resources, 'driver', req.requiredResourceIds ?? []);
     if (!advisors.length || (requiresMobility && !mobilityResources.length)) return [];
 
@@ -201,11 +211,13 @@ export class AutoSchedulerService {
     let latestJobEnd: Date | null = null;
 
     const jobsByWorkOrder = this.groupJobsByWorkOrder(this.getSchedulableJobs(jobs));
+    const consecutiveResourceIdsByType = new Map<string, string>();
 
     for (const workOrderJobs of jobsByWorkOrder) {
       const checkinSlot = this.findActivitySlot({
         resourceType: 'advisor',
         resources,
+        preferredResourceIds: req.preferredActivityResourceIds ?? [],
         requiredResourceIds: requiredResourceIds ?? [],
         allEntries,
         unavailability,
@@ -230,6 +242,7 @@ export class AutoSchedulerService {
           resources,
           preferredResourceIds: preferredResourceIds ?? [],
           requiredResourceIds: requiredResourceIds ?? [],
+          consecutiveResourceIdsByType,
           durationMs,
           allEntries,
           unavailability,
@@ -260,6 +273,10 @@ export class AutoSchedulerService {
           result.push(entry);
         }
 
+        for (const { req: requirement, resource } of slot.assignments) {
+          if (req.preferConsecutiveResources !== false) consecutiveResourceIdsByType.set(requirement.resourceType, resource.id);
+        }
+
         workOrderCursor = new Date(slot.end);
 
         if (!earliestCheckinStart || checkinSlot.start < earliestCheckinStart) earliestCheckinStart = new Date(checkinSlot.start);
@@ -280,6 +297,7 @@ export class AutoSchedulerService {
         slotMinutes: SLOT_MINUTES,
         requiresMobility,
         searchUntil: bookingWindow?.end,
+        preferredResourceIds: req.preferredActivityResourceIds ?? [],
       });
       if (!handoverSlot) return null;
       if (bookingWindow && (checkinSlot.start < bookingWindow.start || handoverSlot.end > bookingWindow.end)) return null;
@@ -340,6 +358,7 @@ export class AutoSchedulerService {
     resources: Resource[];
     preferredResourceIds: string[];
     requiredResourceIds: string[];
+    consecutiveResourceIdsByType?: Map<string, string>;
     durationMs: number;
     allEntries: ScheduleEntry[];
     unavailability: UnavailabilityBlock[];
@@ -375,7 +394,12 @@ export class AutoSchedulerService {
         req,
         index,
         candidates: (shouldForceRequiredMatches ? requiredMatches : matchingResources)
-          .sort((a, b) => Number(preferredIds.has(b.id)) - Number(preferredIds.has(a.id))),
+          .sort((a, b) => {
+            const consecutiveId = params.consecutiveResourceIdsByType?.get(req.resourceType);
+            const consecutiveDelta = Number(b.id === consecutiveId) - Number(a.id === consecutiveId);
+            if (consecutiveDelta) return consecutiveDelta;
+            return Number(preferredIds.has(b.id)) - Number(preferredIds.has(a.id));
+          }),
       };
     });
 
@@ -452,6 +476,7 @@ export class AutoSchedulerService {
   private findActivitySlot(params: {
     resourceType: string;
     resources: Resource[];
+    preferredResourceIds?: string[];
     requiredResourceIds?: string[];
     allEntries: ScheduleEntry[];
     unavailability: UnavailabilityBlock[];
@@ -473,7 +498,7 @@ export class AutoSchedulerService {
       dayEndHour,
       slotMinutes,
     } = params;
-    const candidates = this.getActivityCandidates(resources, resourceType, params.requiredResourceIds ?? []);
+    const candidates = this.getActivityCandidates(resources, resourceType, params.requiredResourceIds ?? [], params.preferredResourceIds ?? []);
     if (!candidates.length) return null;
 
     let cursor = this.snapToSlot(searchFrom, slotMinutes, dayStartHour);
@@ -507,6 +532,7 @@ export class AutoSchedulerService {
   private findActivitySlots(params: {
     resourceType: string;
     resources: Resource[];
+    preferredResourceIds?: string[];
     requiredResourceIds?: string[];
     allEntries: ScheduleEntry[];
     unavailability: UnavailabilityBlock[];
@@ -517,7 +543,7 @@ export class AutoSchedulerService {
     dayEndHour: number;
     slotMinutes: number;
   }): { start: Date; end: Date; resource: Resource }[] {
-    const candidates = this.getActivityCandidates(params.resources, params.resourceType, params.requiredResourceIds ?? []);
+    const candidates = this.getActivityCandidates(params.resources, params.resourceType, params.requiredResourceIds ?? [], params.preferredResourceIds ?? []);
     if (!candidates.length) return [];
 
     const slots: { start: Date; end: Date; resource: Resource }[] = [];
@@ -554,11 +580,12 @@ export class AutoSchedulerService {
     dayEndHour: number;
     slotMinutes: number;
     requiresMobility?: boolean;
+    preferredResourceIds?: string[];
     searchUntil?: Date;
   }): { start: Date; end: Date; handoverResource: Resource; mobilityResource?: Resource } | null {
     const { resources, allEntries, unavailability, searchFrom, mobilityStart, dayStartHour, dayEndHour, slotMinutes } = params;
     const requiresMobility = params.requiresMobility ?? true;
-    const advisors = this.getActivityCandidates(resources, 'advisor', params.requiredResourceIds ?? []);
+    const advisors = this.getActivityCandidates(resources, 'advisor', params.requiredResourceIds ?? [], params.preferredResourceIds ?? []);
     const mobilityResources = this.getActivityCandidates(resources, 'driver', params.requiredResourceIds ?? []);
     if (!advisors.length || (requiresMobility && !mobilityResources.length)) return null;
 
@@ -612,11 +639,13 @@ export class AutoSchedulerService {
     return { start: new Date(window.start), end: new Date(window.end) };
   }
 
-  private getActivityCandidates(resources: Resource[], resourceType: string, requiredResourceIds: string[]): Resource[] {
+  private getActivityCandidates(resources: Resource[], resourceType: string, requiredResourceIds: string[], preferredResourceIds: string[] = []): Resource[] {
     const matchingResources = resources.filter(resource => resource.type === resourceType);
     const requiredIds = new Set(requiredResourceIds);
+    const preferredIds = new Set(preferredResourceIds);
     const requiredMatches = matchingResources.filter(resource => requiredIds.has(resource.id));
-    return requiredMatches.length ? requiredMatches : matchingResources;
+    return [...(requiredMatches.length ? requiredMatches : matchingResources)]
+      .sort((a, b) => Number(preferredIds.has(b.id)) - Number(preferredIds.has(a.id)));
   }
 
   private isResourceFree(
