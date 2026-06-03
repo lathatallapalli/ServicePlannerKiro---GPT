@@ -87,7 +87,7 @@ export class TransactionsOfferComponent {
         return {
           id: transaction.id,
           workOrderId: transaction.workOrderId,
-          orderNumber: order.referenceNumber,
+          orderNumber: this.formatOrderNumber(order),
           customerName: order.customer.name,
           transactionType: transaction.transactionType,
           stage: transaction.stage,
@@ -141,6 +141,12 @@ export class TransactionsOfferComponent {
       hour: '2-digit',
       minute: '2-digit',
     }).format(date);
+  }
+
+  private formatOrderNumber(order: (typeof MOCK_WORK_ORDERS)[number]): string {
+    if (order.demoLocationId === 'klagenfurt') return `${order.referenceNumber} (KLG)`;
+    if (order.demoLocationId === 'vienna') return `${order.referenceNumber} (VIE)`;
+    return order.referenceNumber;
   }
 
   private getFallbackAppointmentDate(stage: string): string {
