@@ -537,6 +537,28 @@ $month-bar-height: 60px;
     outline-offset: 2px;
   }
 
+  &__select-all-checkbox {
+    width: auto;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--Text-text-primary, #161616);
+    font: 400 14px/18px 'IBM Plex Sans', sans-serif;
+    letter-spacing: 0.16px;
+    white-space: nowrap;
+  }
+
+  &__select-all-checkbox &__resource-checkbox-input,
+  &__select-all-checkbox &__resource-checkbox-icon {
+    position: static;
+    flex: 0 0 auto;
+  }
+
+  &__select-all-checkbox &__resource-checkbox-input {
+    position: absolute;
+  }
+
   &__resource-label {
     min-width: 0;
     flex: 0 1 auto;
@@ -995,6 +1017,10 @@ $month-bar-height: 60px;
   &__event--started {
     --b:#d0e2ff;
     --a:#0043CE;
+  }
+
+  &__event--started &__event-job {
+    border-left-color: #0043CE;
   }
 
   &__event--completed {

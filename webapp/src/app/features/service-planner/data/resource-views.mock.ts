@@ -87,6 +87,12 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
   {
     label: 'Service Centre Klagenfurt',
     value: 'view-service-centre-klagenfurt',
+    demoLocationId: 'klagenfurt',
+    catalogGroupIds: [
+      'service-centre-klagenfurt-mechanics',
+      'service-centre-klagenfurt-service-advisors',
+      'service-centre-klagenfurt-courtesy-cars',
+    ],
     resourceIds: [
       'klg-mech-frank',
       'klg-mech-mike',

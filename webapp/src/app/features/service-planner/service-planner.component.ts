@@ -227,11 +227,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   scrollToEventPulse = true;
   scrollToEventRequestId = 0;
   isOrderPanelOpen = false;
-  orderPanelWidth = 342;
-  private readonly minOrderPanelWidth = 342;
+  orderPanelWidth = 378;
+  private readonly minOrderPanelWidth = 378;
   private readonly maxOrderPanelWidth = 640;
   private orderPanelResizeStartX = 0;
-  private orderPanelResizeStartWidth = 342;
+  private orderPanelResizeStartWidth = 378;
   private isResizingOrderPanel = false;
   isPlannerReady = false;
   orderPanelSearch = '';
@@ -826,7 +826,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   get panelSearchMatches(): PanelSearchMatch[] {
     const query = this.bookingSearchQuery.trim().toLowerCase();
     if (!query) return [];
-    return this.filterOrdersByCurrentPlannerScope(this.allOrders).flatMap(order => this.getSearchMatchesForOrder(order, query));
+    return this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders()).flatMap(order => this.getSearchMatchesForOrder(order, query));
   }
 
   get searchMatchCount(): number {
@@ -872,10 +872,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
   private get resourcesForSelectedView(): SchedulerResource[] {
     const activeView = this.plannerSettings.selectedResourceView();
-    if (!activeView) return this.resources;
+    if (!activeView) return this.resources.filter(resource => !(resource.meta as Resource | undefined)?.demoLocationId);
 
     const viewResourceIds = new Set(activeView.resourceIds);
-    return this.resources.filter(resource => viewResourceIds.has(resource.id));
+    const viewLocationId = activeView.demoLocationId;
+    return this.resources.filter(resource => {
+      if (!viewResourceIds.has(resource.id)) return false;
+      const resourceLocationId = (resource.meta as Resource | undefined)?.demoLocationId;
+      return viewLocationId ? resourceLocationId === viewLocationId : !resourceLocationId;
+    });
   }
 
   private get visibleResourcePool(): SchedulerResource[] {
@@ -907,7 +912,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
   ) {
-    // Watch the undo trigger Ã¢â‚¬â€ each increment means undo the last booking
+    // Watch the undo trigger - each increment means undo the last booking
     effect(() => {
       const trigger = this.plannerSettings.undoTrigger();
       if (trigger === 0) return; // skip initial value
@@ -947,6 +952,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.allOrders = orders;
       this.activeOrderId = this.resolveWorkOrderId(this.activeOrderId) ?? this.activeOrderId;
       const activeOrder = this.allOrders.find(order => order.id === this.activeOrderId || order.referenceNumber === this.activeOrderId);
+      this.applyDefaultResourceViewForOrder(activeOrder);
       this.alignViewWindowToOrder(activeOrder, this.plannerViewMode);
 
       this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(visibleEntries => {
@@ -988,6 +994,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.scrollToActiveOrderBooking();
       });
     });
+  }
+
+  private applyDefaultResourceViewForOrder(order: any | undefined): void {
+    if (this.plannerMode !== 'order' || !order?.demoLocationId) return;
+    const locationView = this.resourceViewsService.getAll().find(view => view.demoLocationId === order.demoLocationId);
+    if (locationView) this.plannerSettings.setResourceView(locationView);
   }
 
   onEventMoved(payload: EventMovePayload): void {
@@ -1557,6 +1569,17 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     }
   }
 
+  findOrderOnPlanner(order: any, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.canFindOrderOnPlanner(order)) return;
+    const focusIds = this.getPlannerFocusEntryIdsForOrder(order);
+    if (!focusIds.length) return;
+    this.selectedPanelOrderId = order.id;
+    this.setFocusedPlanningOrder(order);
+    this.expandedOrderIds = new Set([...this.expandedOrderIds, order.id]);
+    this.focusPlannerEvents(focusIds, { pulse: true });
+  }
+
   isFullPlannerOrderOnly(order: any): boolean {
     return this.fullPlannerOrderOnlyId === order.id;
   }
@@ -1581,6 +1604,29 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   canViewOnlyOrderOnPlanner(order: any): boolean {
     return this.hasPlannerBookingsForOrder(order);
+  }
+
+  canFindOrderOnPlanner(order: any): boolean {
+    return (!this.fullPlannerOrderOnlyId || this.fullPlannerOrderOnlyId === order.id) && this.hasPlannerBookingsForOrder(order);
+  }
+
+  getOrderFindButtonLabel(order: any): string {
+    if (this.fullPlannerOrderOnlyId && this.fullPlannerOrderOnlyId !== order.id) return 'Show all orders to find this order on planner';
+    if (!this.hasPlannerBookingsForOrder(order)) return 'No bookings to find on planner';
+    return 'Find order on planner';
+  }
+
+  private getPlannerFocusEntryIdsForOrder(order: any): string[] {
+    const visibleIds = this.events
+      .filter(event => this.isEventForOrder(event, order))
+      .sort((first, second) => first.start.getTime() - second.start.getTime())
+      .map(event => event.id);
+    if (visibleIds.length) return visibleIds;
+
+    return this.allScheduleEntries
+      .filter(entry => this.isEntryForOrder(entry, order))
+      .sort((first, second) => first.start.getTime() - second.start.getTime())
+      .map(entry => entry.id);
   }
 
   onBookingDetailsToggle(checked: boolean): void {
@@ -1939,7 +1985,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getBookingReferenceInfo(event: SchedulerEvent): string {
-    return `${this.getBookingOrder(event)} Ã¢â‚¬Â¢ ${event.title}`;
+    return `${this.getBookingOrder(event)} - ${event.title}`;
   }
 
   getBookingSegmentInfo(event: SchedulerEvent): string {
@@ -1949,7 +1995,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (relatedSegments.length <= 1) return segmentDuration;
     const segmentIndex = relatedSegments.findIndex(candidate => candidate.id === event.id);
     const segmentLabel = segmentIndex >= 0 ? `Segment ${segmentIndex + 1} of ${relatedSegments.length}` : 'Split segment';
-    return `${segmentLabel} Ã¢â‚¬Â¢ ${segmentDuration}`;
+    return `${segmentLabel} - ${segmentDuration}`;
   }
   getBookingVehicle(event: SchedulerEvent): string {
     return this.findOrderForEvent(event)?.vehicle?.licensePlate ?? 'NA';
@@ -3187,7 +3233,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         this.syncOrderAppointmentFromBookings(activeOrderId);
       }
 
-      // Business rule: when mobility is dropped, snap its span to check-in endÃ¢â€ â€™handover end if both booked
+      // Business rule: when mobility is dropped, snap its span to check-in end -> handover end if both booked
       if (activityTemplateId === 'act-mobility') {
         const span = this.getMobilitySpan(activeOrderId);
         if (span) {
@@ -5951,7 +5997,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         && !this.unavailability.some(u => u.resourceId === resourceId && overlaps(start, end, u.start, u.end));
   }
 
-  /** Called by the ribbon Undo button Ã¢â‚¬â€ removes the most recently added booking */
+  /** Called by the ribbon Undo button - removes the most recently added booking */
   private undoLastBooking(): void {
     if (this.bookings.length === 0) return;
 
@@ -6005,7 +6051,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     );
   }
 
-  /** Returns the span [check-in end Ã¢â€ â€™ handover end] if both are booked, else null */
+  /** Returns the span [check-in end -> handover end] if both are booked, else null */
   private getMobilitySpan(orderId?: string): { start: Date; end: Date } | null {
     const checkinActivityId = this.getOrderActivityId(orderId, 'act-checkin');
     const handoverActivityId = this.getOrderActivityId(orderId, 'act-handover');

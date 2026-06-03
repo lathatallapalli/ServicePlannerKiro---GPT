@@ -36,7 +36,7 @@ export interface AutoScheduleRequest {
   dayStartHour: number;                   // e.g. 9
   dayEndHour: number;                     // e.g. 21
   bookingWindow?: { start: Date; end: Date };
-  vehicleGroups?: string[][];             // jobs grouped by vehicle â€” jobs in same group cannot overlap
+  vehicleGroups?: string[][];             // jobs grouped by vehicle - jobs in same group cannot overlap
 }
 
 export interface AutoScheduleResult {
@@ -306,7 +306,7 @@ export class AutoSchedulerService {
     return null;
   }
 
-  // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Private helpers
 
   private getRequirements(job: Job): JobResourceRequirement[] {
     if (job.resourceRequirements?.length) return job.resourceRequirements;

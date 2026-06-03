@@ -1381,6 +1381,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return this.currentTime ? this.getLeftFromDate(this.currentTime) : 0;
   }
 
+  getCurrentTimeMarkerLeft(): number {
+    return RESOURCE_COL_WIDTH + this.getCurrentTimeLeft();
+  }
+
   getCurrentTimeLabel(): string {
     return this.currentTime ? this.formatSlot(this.currentTime) : '';
   }
@@ -1854,11 +1858,27 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return this.resources.some(resource => this.isResourceSelected(resource.id));
   }
 
-  deselectAllResources(): void {
-    for (const resourceId of this.selectedResourceIds) {
-      this.resourceSelectionChange.emit({ resourceId, selected: false });
+  hasVisibleResources(): boolean {
+    return this.resources.length > 0;
+  }
+
+  areAllVisibleResourcesSelected(): boolean {
+    return this.resources.length > 0 && this.resources.every(resource => this.isResourceSelected(resource.id));
+  }
+
+  areSomeVisibleResourcesSelected(): boolean {
+    return this.resources.some(resource => this.isResourceSelected(resource.id));
+  }
+
+  onAllVisibleResourceSelectionChange(event: Event): void {
+    event.stopPropagation();
+    const selected = !this.areAllVisibleResourcesSelected();
+    for (const resource of this.resources) {
+      if (this.isResourceSelected(resource.id) !== selected) {
+        this.resourceSelectionChange.emit({ resourceId: resource.id, selected });
+      }
     }
-    this.showSelectedOnlyResources = false;
+    if (!selected) this.showSelectedOnlyResources = false;
   }
 
   isResourceSelected(resourceId: string): boolean {
