@@ -69,14 +69,13 @@ export const MOCK_GROUPS: ResourceGroup[] = [
 export const MOCK_RESOURCES: Resource[] = [
   {
     id: 'mech-scenario-flex',
-    name: 'David Wilson',
+    name: 'Flex Walker',
     type: 'mechanic',
     groupId: 'group-mechanics',
     qualifications: [QUALIFICATIONS.generalService, QUALIFICATIONS.diagnostics, QUALIFICATIONS.tyres, QUALIFICATIONS.battery, QUALIFICATIONS.mot, QUALIFICATIONS.emissions, QUALIFICATIONS.brakes],
   },
-  { id: 'advisor-scenario-lead', name: 'Chris Davis', type: 'advisor', groupId: 'group-advisors', qualifications: [] },
-  { id: 'bay-scenario-express', name: 'Express Bay', type: 'bay', groupId: 'group-bays', qualifications: [] },
-  { id: 'car-scenario-courtesy', name: 'Audi A4 KL 657 OG', type: 'driver', groupId: 'group-courtesy-cars', qualifications: [] },
+  { id: 'advisor-scenario-lead', name: 'Marco Bianchi', type: 'advisor', groupId: 'group-advisors', qualifications: [] },
+  { id: 'car-scenario-courtesy', name: 'BMW 118i AB 4827 MJ', type: 'driver', groupId: 'group-courtesy-cars', qualifications: [] },
   {
     id: 'mech-mark-owen',
     name: 'Mark Owen',
@@ -118,6 +117,7 @@ export const MOCK_RESOURCES: Resource[] = [
   { id: 'bay-pc-2', name: 'PC Bay 2', type: 'bay', groupId: 'group-bays', qualifications: [] },
   { id: 'bay-pc-3', name: 'PC Bay 3', type: 'bay', groupId: 'group-bays', qualifications: [] },
   { id: 'bay-lt-1', name: 'LT Bay 1', type: 'bay', groupId: 'group-bays', qualifications: [] },
+  { id: 'bay-scenario-express', name: 'LT Bay 2', type: 'bay', groupId: 'group-bays', qualifications: [] },
   { id: 'bay-pc-alignment', name: 'PC Alignment', type: 'bay', groupId: 'group-bays', qualifications: [] },
   { id: 'device-bea-950', name: 'BEA 950 Emission Tester', type: 'device', groupId: 'group-devices', qualifications: [QUALIFICATIONS.emissions] },
   { id: 'device-eps-708', name: 'EPS 708 Diesel Tester', type: 'device', groupId: 'group-devices', qualifications: [QUALIFICATIONS.diagnostics] },
