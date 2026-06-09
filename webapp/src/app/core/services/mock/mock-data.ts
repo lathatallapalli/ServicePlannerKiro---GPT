@@ -883,7 +883,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         id: 'job-014826617-brake-check',
         workOrderId: 'wo-014826617',
         title: 'Battery Replacement',
-        description: 'Inspect brake pads, discs and fluid before confirming the customer offer.',
+        description: 'Test battery and charging system, replace battery if failed, register battery change, and verify start/stop operation.',
         fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic',
@@ -1039,7 +1039,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
       {
         id: 'job-vie-2006-electric-check',
         workOrderId: 'wo-vie-2006',
-        title: 'Electrical Diagnosis',
+        title: 'Control Unit Programming',
         description: 'Diagnose charging warning and confirm electrical system condition before offer approval.',
         fru: 1,
         estimatedDurationMinutes: 60,
@@ -1054,7 +1054,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
       {
         id: 'job-vie-2006-final-scan',
         workOrderId: 'wo-vie-2006',
-        title: 'Final Diagnostic Scan',
+        title: 'Diesel Injector Bench Test',
         description: 'Run final diagnostic scan and attach report for the customer offer.',
         fru: 0.5,
         estimatedDurationMinutes: 30,
