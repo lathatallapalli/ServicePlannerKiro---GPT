@@ -1,9 +1,9 @@
 <app-menu-bar />
-@if (!isHomePage() && !isTransactionsPage() && !isQuickViewPage()) {
+@if (!isHomePage() && !isTransactionsPage() && !isQuickViewPage() && !isBookingCategoriesPage()) {
   <app-action-ribbon [items]="visibleActionRibbonItems()" />
 }
 <div class="app-body">
-  <app-stepper [hidden]="isHomePage() || isTransactionsPage() || isTransactionSummaryPage() || isServicePlannerPage() || isQuickViewPage() || isResourceEditorPage() || isResourceCatalogPage()" />
+  <app-stepper [hidden]="isHomePage() || isTransactionsPage() || isTransactionSummaryPage() || isServicePlannerPage() || isQuickViewPage() || isResourceEditorPage() || isResourceCatalogPage() || isBookingCategoriesPage()" />
   <div class="app-content">
     @if (!isHomePage() && !isTransactionsPage() && !isTransactionSummaryPage()) {
       <div class="app-content__header">
@@ -12,7 +12,7 @@
           [referenceInfo]="shellReference()"
           [breadcrumbs]="shellBreadcrumbs()"
         />
-        <app-top-panel [hidden]="isFullServicePlannerPage() || isResourceEditorPage() || isResourceCatalogPage()" [tiles]="topPanelTiles" />
+        <app-top-panel [hidden]="isFullServicePlannerPage() || isResourceEditorPage() || isResourceCatalogPage() || isBookingCategoriesPage()" [tiles]="topPanelTiles" />
       </div>
     }
     <router-outlet />
@@ -20,7 +20,7 @@
 </div>
 @if (!isHomePage()) {
   <app-footer
-    [subpageMode]="isTransactionsPage() || isServicePlannerPage() || isQuickViewPage() || isResourceEditorPage() || isResourceCatalogPage()"
+    [subpageMode]="isTransactionsPage() || isServicePlannerPage() || isQuickViewPage() || isResourceEditorPage() || isResourceCatalogPage() || isBookingCategoriesPage()"
     [hideSubpagePrimaryAction]="isTransactionsOfferPage() || isServicePlannerPage()"
     (pauseWorkflow)="onPause()"
     (previousTask)="onPrevious()"

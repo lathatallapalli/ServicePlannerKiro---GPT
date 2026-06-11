@@ -1,5 +1,16 @@
 import { WorkorderItemCategory, WorkorderItemStatus } from './job.model';
 
+export type BookingCategoryApplyScope = 'entry' | 'booking-set' | 'order';
+
+export interface BookingCategory {
+  id: string;
+  label: string;
+  color: string;
+  appliesTo: BookingCategoryApplyScope;
+  description?: string;
+  isSystem?: boolean;
+}
+
 export interface ScheduleEntry {
   id: string;
   jobId: string;
@@ -7,8 +18,10 @@ export interface ScheduleEntry {
   start: Date;
   end: Date;
   title?: string;
+  description?: string;
   color?: string;
-  kind?: 'tentative' | 'blocked-order' | 'scheduled' | 'day-capacity';
+  kind?: 'tentative' | 'blocked-order' | 'scheduled' | 'day-capacity' | 'resource-block';
+  categoryIds?: string[];
   workOrderReference?: string;
   workorderItemStatus?: WorkorderItemStatus;
   workorderItemCategory?: WorkorderItemCategory;

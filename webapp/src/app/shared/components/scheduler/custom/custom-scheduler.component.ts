@@ -7,12 +7,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UnavailabilityBlock } from '../../../../core/models/availability.model';
 import { WorkorderItemStatus } from '../../../../core/models/job.model';
+import { BookingCategory } from '../../../../core/models/schedule.model';
 import {
   SchedulerResource, SchedulerEvent, SchedulerGroup,
   SchedulerCapacityBlock,
   EventMovePayload, EventResizePayload, EventResizeDragPayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload,
   ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerInvalidCapacityResource, SchedulerDropVisualContext, SchedulerTimeRangePayload,
-  EventDragPayload
+  EventDragPayload, SchedulerBookedResourceFilterContext, SchedulerResourceSlotContextMenuPayload
 } from '../scheduler.interface';
 import { ResourceFavoriteView } from '../../../../features/service-planner/services/planner-settings.service';
 
@@ -104,6 +105,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public detailedOrderIds: string[] = [];
   @Input() public selectedResourceIds: string[] = [];
   @Input() public selectedResourceTypeGroupIds: string[] = [];
+  @Input() public bookedResourceFilterContext: SchedulerBookedResourceFilterContext | null = null;
+  @Input() public bookingCategories: BookingCategory[] = [];
   @Input() public resourceViews: ResourceFavoriteView[] = [];
   @Input() public selectedResourceView: ResourceFavoriteView | null = null;
   @Input('rightPaneOpen') public rightPaneOpen = false;
@@ -139,6 +142,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Output() public rightPaneToggle = new EventEmitter<void>();
   @Output() public timeRangeSelected = new EventEmitter<SchedulerTimeRangePayload>();
   @Output() public timeRangeCleared = new EventEmitter<void>();
+  @Output() public resourceSlotContextMenu = new EventEmitter<SchedulerResourceSlotContextMenuPayload>();
   @Output() public previousPeriod = new EventEmitter<void>();
   @Output() public nextPeriod = new EventEmitter<void>();
 
@@ -205,8 +209,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   isGroupDropdownOpen = false;
   isResourceViewDropdownOpen = false;
   showSelectedOnlyResources = false;
+  showBookedOnlyResources = false;
   collapsedGroupIds = new Set<string>();
   copiedContactKey: string | null = null;
+  private derivedBookedResourceIds = new Set<string>();
+  private lastBookedContextKey: string | null = null;
+  private restoreBookedOnlyAfterContext: boolean | null = null;
   private copiedContactResetId: ReturnType<typeof setTimeout> | null = null;
   private expandedCapacityLane: { resourceId: string; dayKey: string } | null = null;
 
@@ -234,13 +242,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private resizing: { event: SchedulerEvent; edge: 'left' | 'right'; startX: number; originalStart: Date; originalEnd: Date } | null = null;
   resizePreview: { event: SchedulerEvent; left: number; top: number; width: number } | null = null;
   hoverTooltip: EventHoverTooltip | null = null;
+  private hoverTooltipTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private suppressHoverTooltipUntil = 0;
   capacityOverflowPreview: CapacityOverflowPreview | null = null;
   dropPreview: DropPreview | null = null;
   dropTargetResourceId: string | null = null;
   private lastValidDropPreview: DropPreview | null = null;
   private nativeDraggedEventId: string | null = null;
   private nativeDropHandled = false;
-  private timeRangeSelection: { anchor: Date; current: Date } | null = null;
+  private timeRangeSelection: { anchor: Date; current: Date; resourceId?: string } | null = null;
+  private resourceTimeRangeSelection: SchedulerTimeRangePayload | null = null;
   private timeRangeMove: { durationMinutes: number; pointerOffsetMinutes: number } | null = null;
   private timeRangeResize: { edge: 'left' | 'right'; fixedTimelineMinutes: number } | null = null;
   private activePulseEventIds = new Set<string>();
@@ -293,6 +304,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     }
     if (changes['capacityBlocks'] || changes['resources'] || changes['viewStart'] || changes['viewEnd']) {
       this.reconcileExpandedCapacityLane();
+    }
+    if (changes['events'] || changes['capacityBlocks']) {
+      this.rebuildDerivedBookedResourceIds();
+    }
+    if (changes['bookedResourceFilterContext']) {
+      this.syncBookedFilterWithContext();
     }
     if (changes['scrollToEventId'] || changes['scrollToEventIds'] || changes['scrollToEventRequestId']) {
       const eventIds = this.scrollToEventIds.length ? this.scrollToEventIds : (this.scrollToEventId ? [this.scrollToEventId] : []);
@@ -377,6 +394,18 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getEventsForResource(resourceId: string): SchedulerEvent[] {
     return this.events.filter(e => e.resourceId === resourceId);
+  }
+
+  getEventCategories(event: SchedulerEvent): BookingCategory[] {
+    const ids = event.meta?.entry?.categoryIds ?? [];
+    if (!ids.length) return [];
+    return ids
+      .map(id => this.bookingCategories.find(category => category.id === id))
+      .filter((category): category is BookingCategory => !!category);
+  }
+
+  getVisibleEventCategories(event: SchedulerEvent): BookingCategory[] {
+    return this.getEventCategories(event).slice(0, 2);
   }
 
   getRenderedEventsForResource(resourceId: string): SchedulerEvent[] {
@@ -1068,6 +1097,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return event.meta?.entry?.kind === 'blocked-order';
   }
 
+  isResourceBlockEvent(event: SchedulerEvent): boolean {
+    return event.meta?.entry?.kind === 'resource-block';
+  }
+
   getEventDetail(event: SchedulerEvent): string {
     return `${this.formatEventTimeRange(event)} | ${this.getEventDuration(event)}`;
   }
@@ -1110,6 +1143,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getEventCustomerVehicleDetail(event: SchedulerEvent): string {
+    if (this.isResourceBlockEvent(event)) return event.meta?.entry?.description || 'Resource blocked';
     return `${this.getEventCustomerName(event)} | ${this.getEventLicensePlate(event)}`;
   }
 
@@ -1141,15 +1175,21 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   showEventTooltip(event: SchedulerEvent, mouseEvent: MouseEvent): void {
     if (this.isResizePreviewInvalid()) return;
-    this.hoverTooltip = {
-      event,
-      x: mouseEvent.clientX + 12,
-      y: mouseEvent.clientY + 12,
-    };
+    if (Date.now() < this.suppressHoverTooltipUntil) return;
+    this.clearHoverTooltipTimeout();
+    const x = mouseEvent.clientX + 12;
+    const y = mouseEvent.clientY + 12;
+    this.hoverTooltipTimeoutId = setTimeout(() => {
+      if (Date.now() < this.suppressHoverTooltipUntil) return;
+      this.hoverTooltip = { event, x, y };
+      this.cdr.detectChanges();
+    }, 180);
   }
 
   moveEventTooltip(event: SchedulerEvent, mouseEvent: MouseEvent): void {
     if (this.isResizePreviewInvalid()) return;
+    if (Date.now() < this.suppressHoverTooltipUntil) return;
+    if (!this.hoverTooltip) return;
     this.hoverTooltip = {
       event,
       x: mouseEvent.clientX + 12,
@@ -1158,7 +1198,19 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   hideEventTooltip(): void {
+    this.clearHoverTooltipTimeout();
     this.hoverTooltip = null;
+  }
+
+  private suppressEventTooltip(durationMs = 800): void {
+    this.suppressHoverTooltipUntil = Date.now() + durationMs;
+    this.hideEventTooltip();
+  }
+
+  private clearHoverTooltipTimeout(): void {
+    if (!this.hoverTooltipTimeoutId) return;
+    clearTimeout(this.hoverTooltipTimeoutId);
+    this.hoverTooltipTimeoutId = null;
   }
 
   shouldShowEventContacts(event: SchedulerEvent): boolean {
@@ -1232,6 +1284,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return order?.id ?? order?.referenceNumber ?? reference ?? activityOrderId ?? null;
   }
   getEventOrderReference(event: SchedulerEvent): string {
+    if (this.isResourceBlockEvent(event)) return 'Block';
     const entryReference = event.meta?.entry?.workOrderReference;
     const order = (event.meta as any)?.order;
     const reference = entryReference ?? order?.referenceNumber ?? order?.orderNumber ?? order?.id;
@@ -1312,10 +1365,17 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getActiveTimeRange(): SchedulerTimeRangePayload | null {
-    if (this.timeRangeSelection) {
+    if (this.timeRangeSelection && !this.timeRangeSelection.resourceId) {
       return this.normalizeTimeRange(this.timeRangeSelection.anchor, this.timeRangeSelection.current);
     }
     return this.selectedTimeRange;
+  }
+
+  getResourceActiveTimeRange(resourceId: string): SchedulerTimeRangePayload | null {
+    if (this.timeRangeSelection?.resourceId === resourceId) {
+      return { ...this.normalizeTimeRange(this.timeRangeSelection.anchor, this.timeRangeSelection.current), resourceId };
+    }
+    return this.resourceTimeRangeSelection?.resourceId === resourceId ? this.resourceTimeRangeSelection : null;
   }
 
   getTimeRangeLeft(range: SchedulerTimeRangePayload): number {
@@ -1365,10 +1425,44 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     window.addEventListener('pointerup', this.onTimeRangePointerUp, { once: true });
   }
 
+  onResourceTimeRangePointerDown(event: PointerEvent, resourceId: string): void {
+    if (event.button !== 0 || this.readonly) return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest('button, a, input, select, textarea, [data-scheduler-action], .scheduler__event, .scheduler__capacity-lane, .scheduler__unavailable')) return;
+
+    const date = this.getDateFromTimelinePointer(event);
+    if (!date) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const snapped = this.snapDateToSelection(date);
+    this.resourceTimeRangeSelection = null;
+    this.timeRangeSelection = { anchor: snapped, current: snapped, resourceId };
+    window.addEventListener('pointermove', this.onTimeRangePointerMove);
+    window.addEventListener('pointerup', this.onTimeRangePointerUp, { once: true });
+  }
+
   clearSelectedTimeRange(event?: MouseEvent): void {
     event?.stopPropagation();
     this.timeRangeSelection = null;
+    this.resourceTimeRangeSelection = null;
     this.timeRangeCleared.emit();
+  }
+
+  onResourceSlotContextMenu(event: MouseEvent, resourceId: string): void {
+    if ((event.target as HTMLElement).closest('.scheduler__event, .scheduler__capacity-lane, .scheduler__unavailable')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const pointerDate = this.getDateFromTimelinePointer(event);
+    if (!pointerDate) return;
+    const selectedRange = this.resourceTimeRangeSelection?.resourceId === resourceId &&
+      pointerDate >= this.resourceTimeRangeSelection.start &&
+      pointerDate <= this.resourceTimeRangeSelection.end
+        ? this.resourceTimeRangeSelection
+        : null;
+    const start = selectedRange?.start ?? this.snapDateToSelection(pointerDate);
+    const end = selectedRange?.end ?? new Date(start.getTime() + this.effectiveDropSnapMinutes * 60000);
+    this.resourceSlotContextMenu.emit({ resourceId, start, end, x: event.clientX, y: event.clientY, source: selectedRange ? 'selection' : 'slot' });
   }
 
   onBookingWindowMovePointerDown(event: PointerEvent): void {
@@ -1396,13 +1490,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getResourcesForGroup(groupId: string): SchedulerResource[] {
-    const query = this.resourceSearch.trim().toLowerCase();
     return this.resources.filter(resource => {
       if (resource.groupId !== groupId) return false;
       if (!this.selectedResourceTypeGroupIds.includes(groupId)) return false;
-      if (this.showSelectedOnlyResources && !this.isResourceSelected(resource.id)) return false;
-      if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
-      return true;
+      return this.matchesResourceDisplayFilters(resource);
     });
   }
 
@@ -1412,12 +1503,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getUngroupedResources(): SchedulerResource[] {
     const visibleGroupIds = new Set(this.visibleGroups.map(group => group.id));
-    const query = this.resourceSearch.trim().toLowerCase();
     return this.resources.filter(resource => {
       if (resource.groupId && visibleGroupIds.has(resource.groupId)) return false;
-      if (this.showSelectedOnlyResources && !this.isResourceSelected(resource.id)) return false;
-      if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
-      return true;
+      return this.matchesResourceDisplayFilters(resource);
     });
   }
 
@@ -1429,12 +1517,51 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   private hasResourcesForGroup(groupId: string): boolean {
-    const query = this.resourceSearch.trim().toLowerCase();
     return this.resources.some(resource => {
       if (resource.groupId !== groupId) return false;
-      if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
-      return true;
+      return this.matchesResourceDisplayFilters(resource);
     });
+  }
+
+  private matchesResourceDisplayFilters(resource: SchedulerResource): boolean {
+    const query = this.resourceSearch.trim().toLowerCase();
+    if (this.showSelectedOnlyResources && !this.isResourceSelected(resource.id)) return false;
+    if (this.showBookedOnlyResources && !this.isResourceBooked(resource.id)) return false;
+    if (query && !`${resource.label} ${resource.groupLabel ?? ''}`.toLowerCase().includes(query)) return false;
+    return true;
+  }
+
+  private rebuildDerivedBookedResourceIds(): void {
+    this.derivedBookedResourceIds = new Set([
+      ...this.events.map(event => event.resourceId),
+      ...this.capacityBlocks.map(block => block.resourceId),
+    ]);
+  }
+
+  private syncBookedFilterWithContext(): void {
+    const activeContextKey = this.bookedResourceFilterContext?.active ? this.bookedResourceFilterContext.contextKey : null;
+    if (activeContextKey === this.lastBookedContextKey) return;
+
+    if (activeContextKey) {
+      if (!this.lastBookedContextKey) {
+        this.restoreBookedOnlyAfterContext = this.showBookedOnlyResources;
+      }
+      this.showBookedOnlyResources = true;
+      this.lastBookedContextKey = activeContextKey;
+      return;
+    }
+
+    if (this.lastBookedContextKey) {
+      this.showBookedOnlyResources = this.restoreBookedOnlyAfterContext ?? false;
+      this.restoreBookedOnlyAfterContext = null;
+    }
+    this.lastBookedContextKey = null;
+  }
+
+  private getEffectiveBookedResourceIds(): Set<string> {
+    return this.bookedResourceFilterContext?.active
+      ? new Set(this.bookedResourceFilterContext.resourceIds)
+      : this.derivedBookedResourceIds;
   }
 
   get selectedGroupLabel(): string {
@@ -1643,9 +1770,14 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (!this.timeRangeSelection) return;
 
     const range = this.normalizeTimeRange(this.timeRangeSelection.anchor, this.timeRangeSelection.current);
+    const resourceId = this.timeRangeSelection.resourceId;
     this.timeRangeSelection = null;
     if (range.end.getTime() - range.start.getTime() >= this.effectiveDropSnapMinutes * 60000) {
-      this.timeRangeSelected.emit(range);
+      if (resourceId) {
+        this.resourceTimeRangeSelection = { ...range, resourceId };
+      } else {
+        this.timeRangeSelected.emit(range);
+      }
     }
     this.cdr.detectChanges();
   };
@@ -1690,7 +1822,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.cdr.detectChanges();
   };
 
-  private getDateFromTimelinePointer(event: PointerEvent): Date | null {
+  private getDateFromTimelinePointer(event: MouseEvent | PointerEvent): Date | null {
     const header = this.headerScrollRef?.nativeElement;
     if (!header || !this.daySlots.length) return null;
     const rect = header.getBoundingClientRect();
@@ -1839,8 +1971,25 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     this.showSelectedOnlyResources = true;
   }
 
+  toggleBookedOnlyResources(): void {
+    if (this.showBookedOnlyResources) {
+      this.showBookedOnlyResources = false;
+      return;
+    }
+    if (!this.hasBookedResources()) return;
+    this.showBookedOnlyResources = true;
+  }
+
   hasSelectedResources(): boolean {
     return this.resources.some(resource => this.isResourceSelected(resource.id));
+  }
+
+  hasBookedResources(): boolean {
+    return this.getEffectiveBookedResourceIds().size > 0;
+  }
+
+  isResourceBooked(resourceId: string): boolean {
+    return this.getEffectiveBookedResourceIds().has(resourceId);
   }
 
   hasVisibleResources(): boolean {
@@ -2116,7 +2265,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   onEventContextMenu(e: MouseEvent, event: SchedulerEvent): void {
     e.preventDefault();
     e.stopPropagation();
-    this.hideEventTooltip();
+    this.suppressEventTooltip();
     this.eventContextMenu.emit({ eventId: this.getSourceEventId(event), x: e.clientX, y: e.clientY });
   }
 

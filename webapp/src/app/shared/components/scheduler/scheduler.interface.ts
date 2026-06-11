@@ -59,6 +59,14 @@ export interface SchedulerDropVisualContext {
   pointerOffsetMinutes?: number;
 }
 
+export interface SchedulerBookedResourceFilterContext {
+  contextKey: string;
+  active: boolean;
+  resourceIds: string[];
+  label?: string;
+  source?: 'auto-proposal' | 'focused-order' | 'global';
+}
+
 // ── What the scheduler emits ─────────────────────────────────────────────────
 
 export interface EventMovePayload {
@@ -119,6 +127,14 @@ export interface EventDragPayload {
 export interface SchedulerTimeRangePayload {
   start: Date;
   end: Date;
+  resourceId?: string;
+}
+
+export interface SchedulerResourceSlotContextMenuPayload extends SchedulerTimeRangePayload {
+  resourceId: string;
+  x: number;
+  y: number;
+  source?: 'slot' | 'selection';
 }
 
 export interface ResourceSelectionChangePayload {

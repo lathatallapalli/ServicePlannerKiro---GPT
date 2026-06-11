@@ -1,0 +1,22 @@
+<section class="booking-categories-page">
+  <div class="booking-categories-page__content">
+    <app-generic-list
+      [columns]="columns"
+      [rows]="rows"
+      rowIdKey="id"
+      searchPlaceholder="Search categories"
+      addButtonLabel="Add category"
+      [rowActions]="[]"
+      [toolbarActions]="toolbarActions"
+      [inlineEditEnabled]="inlineEditEnabled"
+      [editableCell]="editingCell"
+      (add)="addCategory()"
+      (selectionChange)="onSelectionChange($event)"
+      (toolbarAction)="onToolbarAction($event)"
+      (rowAction)="onRowAction($event)"
+      (editableCellValueChange)="onEditValueChange($event)"
+    >
+      <span generic-list-meta>{{ rows.length }} categories configured</span>
+    </app-generic-list>
+  </div>
+</section>

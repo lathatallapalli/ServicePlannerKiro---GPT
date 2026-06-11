@@ -69,7 +69,7 @@ export const MOCK_GROUPS: ResourceGroup[] = [
 export const MOCK_RESOURCES: Resource[] = [
   {
     id: 'mech-scenario-flex',
-    name: 'Flex Walker',
+    name: 'Dave Walker',
     type: 'mechanic',
     groupId: 'group-mechanics',
     qualifications: [QUALIFICATIONS.generalService, QUALIFICATIONS.diagnostics, QUALIFICATIONS.tyres, QUALIFICATIONS.battery, QUALIFICATIONS.mot, QUALIFICATIONS.emissions, QUALIFICATIONS.brakes],

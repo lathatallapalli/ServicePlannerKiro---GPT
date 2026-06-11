@@ -26,6 +26,10 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Prerender,
   },
   {
+    path: 'booking-categories',
+    renderMode: RenderMode.Server,
+  },
+  {
     path: 'resource-views/:viewId/edit',
     renderMode: RenderMode.Server,
   },
