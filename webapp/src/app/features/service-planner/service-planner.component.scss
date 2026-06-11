@@ -741,6 +741,7 @@
   inline-size: 240px;
   min-inline-size: 240px;
   max-inline-size: none;
+  overflow: visible;
 }
 
 :host ::ng-deep .service-planner-context-menu--submenu {
@@ -754,22 +755,30 @@
   box-sizing: border-box;
 }
 
-:host ::ng-deep .service-planner-context-menu .service-planner-category-menu-item .cds--menu-item__icon {
-  display: flex;
+:host ::ng-deep .service-planner-context-menu--static .cds--menu-item {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+}
+
+:host ::ng-deep .service-planner-context-menu--static .cds--menu-item:disabled {
+  pointer-events: none;
+}
+
+:host ::ng-deep .service-planner-context-menu .cds--menu-item__shortcut {
   align-items: center;
-  justify-content: center;
+  gap: 4px;
+  min-width: 20px;
+  justify-content: flex-end;
 }
 
-:host ::ng-deep .service-planner-context-menu .service-planner-category-menu-item .cds--menu-item__icon::before {
-  content: '';
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  background: var(--category-color, #8d8d8d);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18);
+:host ::ng-deep .service-planner-context-menu .cds--menu-item__shortcut svg {
+  flex: 0 0 auto;
+  color: currentColor;
 }
 
-:host ::ng-deep .service-planner-context-menu .service-planner-category-menu-item .cds--menu-item__shortcut {
+:host ::ng-deep .service-planner-context-menu--submenu .cds--menu-item__shortcut {
   color: var(--Support-support-success, #24a148);
   font-weight: 600;
 }

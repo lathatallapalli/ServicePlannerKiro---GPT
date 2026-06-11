@@ -575,25 +575,55 @@
   }
 
   @if (eventContextMenu) {
-    <cds-context-menu class="service-planner-context-menu" [open]="true" [position]="{ left: eventContextMenu.x, top: eventContextMenu.y }" size="md" style="position:fixed;z-index:1001" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()">
+    <div class="cds--menu cds--menu--open cds--menu--shown cds--menu--md service-planner-context-menu service-planner-context-menu--static" role="menu" tabindex="-1" [style.left.px]="eventContextMenu.x" [style.top.px]="eventContextMenu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()">
       @if (canSplitContextEvent()) {
-        <cds-menu-item label="Split" icon="cut" (itemClick)="splitContextEvent()" />
+        <button class="cds--menu-item" type="button" role="menuitem" (click)="splitContextEvent()">
+          <span class="cds--menu-item__label">Split</span>
+          <span class="cds--menu-item__shortcut" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 16 16"><path d="M12 6.5C12.5304 6.5 13.0391 6.28929 13.4142 5.91421C13.7893 5.53914 14 5.03043 14 4.5V4C14 3.46957 13.7893 2.96086 13.4142 2.58579C13.0391 2.21071 12.5304 2 12 2H11.5C10.9696 2 10.4609 2.21071 10.0858 2.58579C9.71071 2.96086 9.5 3.46957 9.5 4V5.5H6.5V4C6.5 3.46957 6.28929 2.96086 5.91421 2.58579C5.53914 2.21071 5.03043 2 4.5 2H4C3.46957 2 2.96086 2.21071 2.58579 2.58579C2.21071 2.96086 2 3.46957 2 4V4.5C2 5.03043 2.21071 5.53914 2.58579 5.91421C2.96086 6.28929 3.46957 6.5 4 6.5H5.5V9.5H4C3.46957 9.5 2.96086 9.71071 2.58579 10.0858C2.21071 10.4609 2 10.9696 2 11.5V12C2 12.5304 2.21071 13.0391 2.58579 13.4142C2.96086 13.7893 3.46957 14 4 14H4.5C5.03043 14 5.53914 13.7893 5.91421 13.4142C6.28929 13.0391 6.5 12.5304 6.5 12V10.5H9.5V12C9.5 12.5304 9.71071 13.0391 10.0858 13.4142C10.4609 13.7893 10.9696 14 11.5 14H12C12.5304 14 13.0391 13.7893 13.4142 13.4142C13.7893 13.0391 14 12.5304 14 12V11.5C14 10.9696 13.7893 10.4609 13.4142 10.0858C13.0391 9.71071 12.5304 9.5 12 9.5H10.5V6.5H12ZM9.5 9.5H6.5V6.5H9.5V9.5Z" fill="currentColor"/></svg>
+          </span>
+        </button>
       }
-      <cds-menu-item label="Categorize" icon="tag">
-        <cds-context-menu class="service-planner-context-menu service-planner-context-menu--submenu" style="position:fixed;z-index:1002">
+      <button class="cds--menu-item" type="button" role="menuitem" aria-haspopup="true" [attr.aria-expanded]="isCategoryFlyoutOpen" (click)="toggleCategoryFlyout($event)">
+        <span class="cds--menu-item__label">Categorize</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 16 16"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 3.5 10.5 8 6 12.5l-.7-.7L9.1 8 5.3 4.2l.7-.7Z" fill="currentColor"/></svg>
+        </span>
+      </button>
+      @if (isCategoryFlyoutOpen) {
+        <div class="cds--menu cds--menu--open cds--menu--shown cds--menu--md service-planner-context-menu service-planner-context-menu--submenu service-planner-context-menu--static" role="menu" [style.left.px]="eventContextMenu.x + 240" [style.top.px]="eventContextMenu.y + (canSplitContextEvent() ? 40 : 0)" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()">
           @for (category of bookingCategories; track category.id) {
-            <cds-menu-item class="service-planner-category-menu-item" [style.--category-color]="category.color" [label]="category.label" [info]="isContextCategoryApplied(category) ? '✓' : ''" (itemClick)="toggleContextCategory(category)" />
+            <button class="cds--menu-item" type="button" role="menuitemcheckbox" [attr.aria-checked]="isContextCategoryApplied(category)" (click)="toggleContextCategory(category, $event)">
+              <span class="cds--menu-item__label">{{ category.label }}</span>
+              <span class="cds--menu-item__shortcut">{{ isContextCategoryApplied(category) ? '✓' : '' }}</span>
+            </button>
           }
-          <cds-menu-divider />
-          <cds-menu-item label="Manage categories" icon="settings" (itemClick)="openCategoryManagement()" />
-        </cds-context-menu>
-      </cds-menu-item>
-      <cds-menu-item label="Copy customer mail" icon="email" [disabled]="!getContextEventCustomerEmail()" (itemClick)="copyContextCustomerEmail()" />
-      <cds-menu-item label="Copy customer phone" icon="phone" [disabled]="!getContextEventCustomerPhone()" (itemClick)="copyContextCustomerPhone()" />
-      <cds-menu-item label="See details" icon="launch" (itemClick)="openContextEventDetails()" />
-      <cds-menu-divider />
-      <cds-menu-item label="Cancel" icon="close" [danger]="true" (itemClick)="deleteContextEvent()" />
-    </cds-context-menu>
+          <div class="cds--menu-item-divider" role="separator"></div>
+          <button class="cds--menu-item" type="button" role="menuitem" (click)="openCategoryManagement()">
+            <span class="cds--menu-item__label">Manage categories</span>
+            <span class="cds--menu-item__shortcut" aria-hidden="true">⚙</span>
+          </button>
+        </div>
+      }
+      <button class="cds--menu-item" type="button" role="menuitem" [disabled]="!getContextEventCustomerEmail()" [class.cds--menu-item--disabled]="!getContextEventCustomerEmail()" (click)="copyContextCustomerEmail()">
+        <span class="cds--menu-item__label">Copy customer mail</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true">✉</span>
+      </button>
+      <button class="cds--menu-item" type="button" role="menuitem" [disabled]="!getContextEventCustomerPhone()" [class.cds--menu-item--disabled]="!getContextEventCustomerPhone()" (click)="copyContextCustomerPhone()">
+        <span class="cds--menu-item__label">Copy customer phone</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true">☎</span>
+      </button>
+      <button class="cds--menu-item" type="button" role="menuitem" (click)="openContextEventDetails()">
+        <span class="cds--menu-item__label">See details</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true">↗</span>
+      </button>
+      <div class="cds--menu-item-divider" role="separator"></div>
+      <button class="cds--menu-item cds--menu-item--danger" type="button" role="menuitem" (click)="deleteContextEvent()">
+        <span class="cds--menu-item__label">Cancel</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true">×</span>
+      </button>
+    </div>
   }
 
   @if (resourceSlotContextMenu) {

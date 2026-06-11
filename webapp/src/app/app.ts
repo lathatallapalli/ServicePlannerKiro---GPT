@@ -208,11 +208,6 @@ export class App implements OnInit {
 
   actionRibbonItems: ActionRibbonItem[] = [
     {
-      label: 'Undo Booking', type: 'link' as const,
-      icon: 'M15 7.5H5.86117L8.55172 4.81058L7.5 3.75L3 8.25L7.5 12.75L8.55172 11.689L5.86343 9H15C16.1935 9 17.3381 9.47411 18.182 10.318C19.0259 11.1619 19.5 12.3065 19.5 13.5C19.5 14.6935 19.0259 15.8381 18.182 16.682C17.3381 17.5259 16.1935 18 15 18H9V19.5H15C16.5913 19.5 18.1174 18.8679 19.2426 17.7426C20.3679 16.6174 21 15.0913 21 13.5C21 11.9087 20.3679 10.3826 19.2426 9.25736C18.1174 8.13214 16.5913 7.5 15 7.5Z',
-      action: () => this.plannerSettings.triggerUndo(),
-    },
-    {
       label: 'View', type: 'dropdown' as const,
       options: [
         { label: 'Free', value: 'free' },

@@ -405,7 +405,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getVisibleEventCategories(event: SchedulerEvent): BookingCategory[] {
-    return this.getEventCategories(event).slice(0, 2);
+    return this.getEventWidth(event) >= EVENT_ICON_TAG_MIN_WIDTH ? this.getEventCategories(event).slice(0, 2) : [];
   }
 
   getRenderedEventsForResource(resourceId: string): SchedulerEvent[] {
@@ -776,12 +776,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   shouldShowEventTag(event: SchedulerEvent): boolean {
-    return this.getEventWidth(event) >= EVENT_ICON_TAG_MIN_WIDTH;
+    return true;
   }
 
   shouldShowEventTagIconOnly(event: SchedulerEvent): boolean {
     const width = this.getEventWidth(event);
-    return width >= EVENT_ICON_TAG_MIN_WIDTH && width < EVENT_FULL_TAG_MIN_WIDTH;
+    return width < EVENT_FULL_TAG_MIN_WIDTH;
+  }
+
+  shouldShowEventCategoryLabels(event: SchedulerEvent): boolean {
+    return this.getEventWidth(event) >= EVENT_FULL_TAG_MIN_WIDTH;
   }
 
   getRenderedEventLeft(event: SchedulerEvent): number {
