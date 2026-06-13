@@ -218,7 +218,6 @@
       [events]="visibleSchedulerEvents"
       [capacityBlocks]="visibleSchedulerCapacityBlocks"
       [bookedResourceFilterContext]="schedulerBookedResourceFilterContext"
-      [bookingCategories]="bookingCategories"
       [showDayCapacityLane]="true"
       [groups]="visibleSchedulerGroups"
       [selectedResourceIds]="selectedResourceIds"
@@ -580,15 +579,14 @@
         <button class="cds--menu-item" type="button" role="menuitem" (click)="splitContextEvent()">
           <span class="cds--menu-item__label">Split</span>
           <span class="cds--menu-item__shortcut" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 16 16"><path d="M12 6.5C12.5304 6.5 13.0391 6.28929 13.4142 5.91421C13.7893 5.53914 14 5.03043 14 4.5V4C14 3.46957 13.7893 2.96086 13.4142 2.58579C13.0391 2.21071 12.5304 2 12 2H11.5C10.9696 2 10.4609 2.21071 10.0858 2.58579C9.71071 2.96086 9.5 3.46957 9.5 4V5.5H6.5V4C6.5 3.46957 6.28929 2.96086 5.91421 2.58579C5.53914 2.21071 5.03043 2 4.5 2H4C3.46957 2 2.96086 2.21071 2.58579 2.58579C2.21071 2.96086 2 3.46957 2 4V4.5C2 5.03043 2.21071 5.53914 2.58579 5.91421C2.96086 6.28929 3.46957 6.5 4 6.5H5.5V9.5H4C3.46957 9.5 2.96086 9.71071 2.58579 10.0858C2.21071 10.4609 2 10.9696 2 11.5V12C2 12.5304 2.21071 13.0391 2.58579 13.4142C2.96086 13.7893 3.46957 14 4 14H4.5C5.03043 14 5.53914 13.7893 5.91421 13.4142C6.28929 13.0391 6.5 12.5304 6.5 12V10.5H9.5V12C9.5 12.5304 9.71071 13.0391 10.0858 13.4142C10.4609 13.7893 10.9696 14 11.5 14H12C12.5304 14 13.0391 13.7893 13.4142 13.4142C13.7893 13.0391 14 12.5304 14 12V11.5C14 10.9696 13.7893 10.4609 13.4142 10.0858C13.0391 9.71071 12.5304 9.5 12 9.5H10.5V6.5H12ZM9.5 9.5H6.5V6.5H9.5V9.5Z" fill="currentColor"/></svg>
+            <svg width="16" height="16" viewBox="0 0 32 32"><path d="M26.5,19.63,20.24,16l6.26-3.63a5,5,0,0,0-1.21-9.2A5.19,5.19,0,0,0,24,3a5,5,0,0,0-4.33,7.53,5,5,0,0,0,2.39,2.1l-3.82,2.21L4,6.6,3,8.34,16.24,16,3,23.68l1,1.74,14.24-8.26,3.82,2.21a5,5,0,0,0-2.39,2.1A5,5,0,0,0,24,29a5.19,5.19,0,0,0,1.29-.17,5,5,0,0,0,1.21-9.2ZM21.4,9.53a3,3,0,0,1,1.1-4.12,3,3,0,0,1,4.1,1.11,3,3,0,0,1-1.1,4.11h0A3,3,0,0,1,21.4,9.53Zm5.2,16a3,3,0,0,1-4.1,1.11,3,3,0,0,1-1.1-4.12,3,3,0,0,1,4.1-1.1h0A3,3,0,0,1,26.6,25.48Z" fill="currentColor"/></svg>
           </span>
         </button>
       }
       <button class="cds--menu-item" type="button" role="menuitem" aria-haspopup="true" [attr.aria-expanded]="isCategoryFlyoutOpen" (click)="toggleCategoryFlyout($event)">
         <span class="cds--menu-item__label">Categorize</span>
         <span class="cds--menu-item__shortcut" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 16 16"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
-          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 3.5 10.5 8 6 12.5l-.7-.7L9.1 8 5.3 4.2l.7-.7Z" fill="currentColor"/></svg>
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M11 8 6 13 5.3 12.3 9.6 8 5.3 3.7 6 3z" fill="currentColor"/></svg>
         </span>
       </button>
       @if (isCategoryFlyoutOpen) {
@@ -596,32 +594,36 @@
           @for (category of bookingCategories; track category.id) {
             <button class="cds--menu-item" type="button" role="menuitemcheckbox" [attr.aria-checked]="isContextCategoryApplied(category)" (click)="toggleContextCategory(category, $event)">
               <span class="cds--menu-item__label">{{ category.label }}</span>
-              <span class="cds--menu-item__shortcut">{{ isContextCategoryApplied(category) ? '✓' : '' }}</span>
+              <span class="cds--menu-item__shortcut service-planner-context-menu__check" aria-hidden="true">
+                @if (isContextCategoryApplied(category)) {
+                  <svg width="16" height="16" viewBox="0 0 16 16"><path d="M6.5 11.5 3 8l.7-.7 2.8 2.8 5.8-5.8.7.7-6.5 6.5Z" fill="currentColor"/></svg>
+                }
+              </span>
             </button>
           }
           <div class="cds--menu-item-divider" role="separator"></div>
           <button class="cds--menu-item" type="button" role="menuitem" (click)="openCategoryManagement()">
             <span class="cds--menu-item__label">Manage categories</span>
-            <span class="cds--menu-item__shortcut" aria-hidden="true">⚙</span>
+            <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 32 32"><path d="M27,16.76c0-.25,0-.5,0-.76s0-.51,0-.77l1.92-1.68A2,2,0,0,0,29.3,11L26.94,7a2,2,0,0,0-1.73-1,2,2,0,0,0-.64.1l-2.43.82a11.35,11.35,0,0,0-1.31-.75l-.51-2.52a2,2,0,0,0-2-1.61H13.64a2,2,0,0,0-2,1.61l-.51,2.52a11.48,11.48,0,0,0-1.32.75L7.43,6.06A2,2,0,0,0,6.79,6,2,2,0,0,0,5.06,7L2.7,11a2,2,0,0,0,.41,2.51L5,15.24c0,.25,0,.5,0,.76s0,.51,0,.77L3.11,18.45A2,2,0,0,0,2.7,21L5.06,25a2,2,0,0,0,1.73,1,2,2,0,0,0,.64-.1l2.43-.82a11.35,11.35,0,0,0,1.31.75l.51,2.52a2,2,0,0,0,2,1.61h4.72a2,2,0,0,0,2-1.61l.51-2.52a11.48,11.48,0,0,0,1.32-.75l2.42.82a2,2,0,0,0,.64.1,2,2,0,0,0,1.73-1L29.3,21a2,2,0,0,0-.41-2.51ZM25.21,24l-3.43-1.16a8.86,8.86,0,0,1-2.71,1.57L18.36,28H13.64l-.71-3.55a9.36,9.36,0,0,1-2.7-1.57L6.79,24,4.43,20l2.72-2.4a8.9,8.9,0,0,1,0-3.13L4.43,12,6.79,8l3.43,1.16a8.86,8.86,0,0,1,2.71-1.57L13.64,4h4.72l.71,3.55a9.36,9.36,0,0,1,2.7,1.57L25.21,8,27.57,12l-2.72,2.4a8.9,8.9,0,0,1,0,3.13L27.57,20Z" fill="currentColor"/><path d="M16,22a6,6,0,1,1,6-6A5.94,5.94,0,0,1,16,22Zm0-10a3.91,3.91,0,0,0-4,4,3.91,3.91,0,0,0,4,4,3.91,3.91,0,0,0,4-4A3.91,3.91,0,0,0,16,12Z" fill="currentColor"/></svg></span>
           </button>
         </div>
       }
       <button class="cds--menu-item" type="button" role="menuitem" [disabled]="!getContextEventCustomerEmail()" [class.cds--menu-item--disabled]="!getContextEventCustomerEmail()" (click)="copyContextCustomerEmail()">
         <span class="cds--menu-item__label">Copy customer mail</span>
-        <span class="cds--menu-item__shortcut" aria-hidden="true">✉</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M14 3H2c-.6 0-1 .4-1 1v8c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V4c0-.6-.4-1-1-1ZM2 4h12v.2L8 8.1 2 4.2V4Zm0 8V5.4l5.7 3.7c.2.1.4.1.6 0L14 5.4V12H2Z" fill="currentColor"/></svg></span>
       </button>
       <button class="cds--menu-item" type="button" role="menuitem" [disabled]="!getContextEventCustomerPhone()" [class.cds--menu-item--disabled]="!getContextEventCustomerPhone()" (click)="copyContextCustomerPhone()">
         <span class="cds--menu-item__label">Copy customer phone</span>
-        <span class="cds--menu-item__shortcut" aria-hidden="true">☎</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M11.5 15A10.5 10.5 0 0 1 1 4.5 3.5 3.5 0 0 1 4.5 1c.2 0 .4.1.5.3l1.6 3.8c.1.2 0 .5-.2.7L4.9 7a7.6 7.6 0 0 0 4.1 4.1l1.2-1.5c.2-.2.4-.3.7-.2l3.8 1.6c.2.1.3.3.3.5A3.5 3.5 0 0 1 11.5 15ZM4.2 2A2.5 2.5 0 0 0 2 4.5 9.5 9.5 0 0 0 11.5 14a2.5 2.5 0 0 0 2.5-2.2l-3.4-1.4-1.2 1.5c-.1.2-.4.3-.6.2A8.6 8.6 0 0 1 3.9 7.2c-.1-.2 0-.5.2-.6l1.5-1.2L4.2 2Z" fill="currentColor"/></svg></span>
       </button>
       <button class="cds--menu-item" type="button" role="menuitem" (click)="openContextEventDetails()">
         <span class="cds--menu-item__label">See details</span>
-        <span class="cds--menu-item__shortcut" aria-hidden="true">↗</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M13 14H3c-.6 0-1-.4-1-1V3c0-.6.4-1 1-1h5v1H3v10h10V8h1v5c0 .6-.4 1-1 1ZM10 1v1h3.3L9 6.3l.7.7L14 2.7V6h1V1h-5Z" fill="currentColor"/></svg></span>
       </button>
       <div class="cds--menu-item-divider" role="separator"></div>
       <button class="cds--menu-item cds--menu-item--danger" type="button" role="menuitem" (click)="deleteContextEvent()">
         <span class="cds--menu-item__label">Cancel</span>
-        <span class="cds--menu-item__shortcut" aria-hidden="true">×</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M12 4.7 11.3 4 8 7.3 4.7 4 4 4.7 7.3 8 4 11.3l.7.7L8 8.7l3.3 3.3.7-.7L8.7 8 12 4.7Z" fill="currentColor"/></svg></span>
       </button>
     </div>
   }

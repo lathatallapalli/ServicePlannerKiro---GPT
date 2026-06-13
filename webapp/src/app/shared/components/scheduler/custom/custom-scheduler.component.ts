@@ -7,7 +7,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UnavailabilityBlock } from '../../../../core/models/availability.model';
 import { WorkorderItemStatus } from '../../../../core/models/job.model';
-import { BookingCategory } from '../../../../core/models/schedule.model';
 import {
   SchedulerResource, SchedulerEvent, SchedulerGroup,
   SchedulerCapacityBlock,
@@ -106,7 +105,6 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public selectedResourceIds: string[] = [];
   @Input() public selectedResourceTypeGroupIds: string[] = [];
   @Input() public bookedResourceFilterContext: SchedulerBookedResourceFilterContext | null = null;
-  @Input() public bookingCategories: BookingCategory[] = [];
   @Input() public resourceViews: ResourceFavoriteView[] = [];
   @Input() public selectedResourceView: ResourceFavoriteView | null = null;
   @Input('rightPaneOpen') public rightPaneOpen = false;
@@ -394,18 +392,6 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getEventsForResource(resourceId: string): SchedulerEvent[] {
     return this.events.filter(e => e.resourceId === resourceId);
-  }
-
-  getEventCategories(event: SchedulerEvent): BookingCategory[] {
-    const ids = event.meta?.entry?.categoryIds ?? [];
-    if (!ids.length) return [];
-    return ids
-      .map(id => this.bookingCategories.find(category => category.id === id))
-      .filter((category): category is BookingCategory => !!category);
-  }
-
-  getVisibleEventCategories(event: SchedulerEvent): BookingCategory[] {
-    return this.getEventWidth(event) >= EVENT_ICON_TAG_MIN_WIDTH ? this.getEventCategories(event).slice(0, 2) : [];
   }
 
   getRenderedEventsForResource(resourceId: string): SchedulerEvent[] {
@@ -776,16 +762,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   shouldShowEventTag(event: SchedulerEvent): boolean {
-    return true;
+    return this.getEventWidth(event) >= EVENT_ICON_TAG_MIN_WIDTH;
   }
 
   shouldShowEventTagIconOnly(event: SchedulerEvent): boolean {
     const width = this.getEventWidth(event);
-    return width < EVENT_FULL_TAG_MIN_WIDTH;
-  }
-
-  shouldShowEventCategoryLabels(event: SchedulerEvent): boolean {
-    return this.getEventWidth(event) >= EVENT_FULL_TAG_MIN_WIDTH;
+    return width >= EVENT_ICON_TAG_MIN_WIDTH && width < EVENT_FULL_TAG_MIN_WIDTH;
   }
 
   getRenderedEventLeft(event: SchedulerEvent): number {

@@ -496,16 +496,6 @@
                             <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
                           </span>
                         }
-                        @for (category of getVisibleEventCategories(event); track category.id) {
-                          <span class="scheduler__event-category-tag" [style.--category-color]="category.color" [attr.title]="category.label">
-                            <span class="scheduler__event-tag-icon" aria-hidden="true">
-                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
-                            </span>
-                            @if (shouldShowEventCategoryLabels(event)) {
-                              <span class="scheduler__event-category-tag-label">{{ category.label }}</span>
-                            }
-                          </span>
-                        }
                         @if (shouldShowEventContacts(event)) {
                           <span class="scheduler__event-contact-list" aria-live="polite">
                             @if (getEventCustomerEmail(event); as email) {
@@ -831,16 +821,6 @@
                               <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
                             </span>
                             <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
-                          </span>
-                        }
-                        @for (category of getVisibleEventCategories(event); track category.id) {
-                          <span class="scheduler__event-category-tag" [style.--category-color]="category.color" [attr.title]="category.label">
-                            <span class="scheduler__event-tag-icon" aria-hidden="true">
-                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
-                            </span>
-                            @if (shouldShowEventCategoryLabels(event)) {
-                              <span class="scheduler__event-category-tag-label">{{ category.label }}</span>
-                            }
                           </span>
                         }
                         @if (shouldShowEventContacts(event)) {

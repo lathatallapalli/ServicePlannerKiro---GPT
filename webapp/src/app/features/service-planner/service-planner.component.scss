@@ -774,12 +774,14 @@
 }
 
 :host ::ng-deep .service-planner-context-menu .cds--menu-item__shortcut svg {
-  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
   color: currentColor;
 }
 
-:host ::ng-deep .service-planner-context-menu--submenu .cds--menu-item__shortcut {
-  color: var(--Support-support-success, #24a148);
+:host ::ng-deep .service-planner-context-menu--submenu .service-planner-context-menu__check {
+  color: currentColor;
   font-weight: 600;
 }
 
