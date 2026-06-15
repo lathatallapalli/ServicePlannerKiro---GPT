@@ -218,6 +218,7 @@
       [events]="visibleSchedulerEvents"
       [capacityBlocks]="visibleSchedulerCapacityBlocks"
       [bookedResourceFilterContext]="schedulerBookedResourceFilterContext"
+      [bookingCategories]="bookingCategories"
       [showDayCapacityLane]="true"
       [groups]="visibleSchedulerGroups"
       [selectedResourceIds]="selectedResourceIds"
@@ -780,7 +781,19 @@
       <header class="booking-modal__header">
         <div class="booking-modal__heading">
           <div class="booking-modal__reference">{{ getBookingReferenceInfo(bookingEvent) }}</div>
-          <h2 id="booking-modal-title">Resource Booking</h2>
+          <div class="booking-modal__title-row">
+            <h2 id="booking-modal-title">Resource Booking</h2>
+            @if (getBookingEventCategories(bookingEvent).length) {
+              <span class="booking-modal__category-tags" aria-label="Booking categories">
+                @for (category of getBookingEventCategories(bookingEvent); track category.id) {
+                  <span class="booking-modal__category-tag" [style.--category-color]="category.color">
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                    <span>{{ category.label }}</span>
+                  </span>
+                }
+              </span>
+            }
+          </div>
         </div>
         <button class="booking-modal__icon-button" type="button" aria-label="Close" (click)="closeBookingModal()">
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">

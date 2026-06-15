@@ -7,6 +7,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UnavailabilityBlock } from '../../../../core/models/availability.model';
 import { WorkorderItemStatus } from '../../../../core/models/job.model';
+import { BookingCategory } from '../../../../core/models/schedule.model';
 import {
   SchedulerResource, SchedulerEvent, SchedulerGroup,
   SchedulerCapacityBlock,
@@ -35,7 +36,7 @@ const CAPACITY_BLOCK_HEIGHT = 36;
 const CAPACITY_OVERFLOW_BUTTON_HEIGHT = 12;
 const CAPACITY_LANE_PADDING_Y = 8;
 const CAPACITY_LANE_GAP = 4;
-const EVENT_FULL_TAG_MIN_WIDTH = 220;
+const EVENT_FULL_TAG_MIN_WIDTH = 360;
 const EVENT_ICON_TAG_MIN_WIDTH = 150;
 const EVENT_CONTACT_MIN_WIDTH = 300;
 
@@ -105,6 +106,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public selectedResourceIds: string[] = [];
   @Input() public selectedResourceTypeGroupIds: string[] = [];
   @Input() public bookedResourceFilterContext: SchedulerBookedResourceFilterContext | null = null;
+  @Input() public bookingCategories: BookingCategory[] = [];
   @Input() public resourceViews: ResourceFavoriteView[] = [];
   @Input() public selectedResourceView: ResourceFavoriteView | null = null;
   @Input('rightPaneOpen') public rightPaneOpen = false;
@@ -392,6 +394,50 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getEventsForResource(resourceId: string): SchedulerEvent[] {
     return this.events.filter(e => e.resourceId === resourceId);
+  }
+
+  private getCategoryTagWidth(category: BookingCategory, withLabel: boolean): number {
+    const iconWidth = 16;
+    const padding = 4; // left + right
+    const gap = withLabel ? 4 : 0;
+    const labelWidth = withLabel ? this.estimateTextWidth(category.label) : 0;
+    return Math.max(24, iconWidth + padding + gap + labelWidth);
+  }
+
+  private estimateTextWidth(text: string): number {
+    return Math.max(0, Math.round(text.length * 7.25));
+  }
+
+  private getEventActionAreaWidth(event: SchedulerEvent): number {
+    const available = this.getEventWidth(event) - 120;
+    return Math.min(180, Math.max(0, available));
+  }
+
+  getEventCategories(event: SchedulerEvent): BookingCategory[] {
+    const ids = event.meta?.entry?.categoryIds ?? [];
+    if (!ids.length) return [];
+    return ids
+      .map(id => this.bookingCategories.find(category => category.id === id))
+      .filter((category): category is BookingCategory => !!category);
+  }
+
+  getVisibleEventCategories(event: SchedulerEvent): BookingCategory[] {
+    const categories = this.getEventCategories(event).slice(0, 2);
+    const actionAreaWidth = this.getEventActionAreaWidth(event);
+    if (actionAreaWidth < EVENT_ICON_TAG_MIN_WIDTH) return [];
+
+    const maxIconTags = Math.floor((actionAreaWidth + 2) / EVENT_ICON_TAG_MIN_WIDTH);
+    return categories.slice(0, Math.max(1, Math.min(categories.length, maxIconTags)));
+  }
+
+  private canShowEventCategoryLabels(event: SchedulerEvent, categories: BookingCategory[]): boolean {
+    if (!categories.length) return false;
+    const actionAreaWidth = this.getEventActionAreaWidth(event);
+    const totalWidth = categories.reduce((width, category, index) => {
+      const spacing = index > 0 ? 2 : 0;
+      return width + this.getCategoryTagWidth(category, true) + spacing;
+    }, 0);
+    return totalWidth <= actionAreaWidth;
   }
 
   getRenderedEventsForResource(resourceId: string): SchedulerEvent[] {
@@ -768,6 +814,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   shouldShowEventTagIconOnly(event: SchedulerEvent): boolean {
     const width = this.getEventWidth(event);
     return width >= EVENT_ICON_TAG_MIN_WIDTH && width < EVENT_FULL_TAG_MIN_WIDTH;
+  }
+
+  shouldShowEventCategoryLabels(event: SchedulerEvent): boolean {
+    return this.canShowEventCategoryLabels(event, this.getVisibleEventCategories(event));
   }
 
   getRenderedEventLeft(event: SchedulerEvent): number {

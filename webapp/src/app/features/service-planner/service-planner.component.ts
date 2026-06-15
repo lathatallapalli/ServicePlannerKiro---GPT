@@ -680,6 +680,14 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return this.bookingCategoriesService.getAll();
   }
 
+  getBookingEventCategories(event: SchedulerEvent): BookingCategory[] {
+    const ids = event.meta?.entry?.categoryIds ?? [];
+    if (!ids.length) return [];
+    return ids
+      .map(id => this.bookingCategoriesService.getById(id))
+      .filter((category): category is BookingCategory => !!category);
+  }
+
   get visibleSchedulerUnavailability(): UnavailabilityBlock[] {
     return this.unavailability;
   }

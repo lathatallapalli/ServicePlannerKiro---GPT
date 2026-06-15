@@ -580,6 +580,50 @@
   line-height: 28px;
 }
 
+.booking-modal__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.booking-modal__category-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.booking-modal__category-tag {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 0;
+  outline: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--category-color, #8d8d8d) 14%, white);
+  color: var(--category-color, #525252);
+  box-shadow: none;
+  box-sizing: border-box;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: .32px;
+}
+
+.booking-modal__category-tag svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.booking-modal__category-tag span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 16px;
+}
+
 .booking-modal__icon-button {
   position: absolute;
   top: 0;
