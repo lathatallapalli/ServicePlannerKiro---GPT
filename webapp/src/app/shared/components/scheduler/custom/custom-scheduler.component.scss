@@ -899,7 +899,6 @@ $month-bar-height: 60px;
   &__event-actions {
     flex: 0 0 auto;
     min-width: 0;
-    max-width: 180px;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -948,19 +947,27 @@ $month-bar-height: 60px;
     color: var(--Text-text-secondary, #525252);
   }
 
-  &__event-tag {
-    flex: 0 0 auto;
-    display: none;
+  &__event-tag,
+  &__event-category-tag {
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-height: 20px;
+    height: 20px;
     gap: 4px;
-    padding: 2px 8px;
+    padding: 0 6px;
     border-radius: 1000px;
-    background:var(--b);
-    color:var(--a);
     font-size: 12px;
     font-weight: 400;
     line-height: 16px;
     letter-spacing: 0.32px;
+  }
+
+  &__event-tag {
+    flex: 0 0 auto;
+    display: none;
+    background: var(--b);
+    color: var(--a);
     pointer-events: none;
   }
 
@@ -1041,12 +1048,11 @@ $month-bar-height: 60px;
   &__event-category-tag {
     flex: 0 1 auto;
     min-width: 24px;
-    min-height: 24px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 4px;
-    padding: 2px;
+    padding: 0 6px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--category-color, #8d8d8d) 14%, white);
     color: var(--category-color, #525252);
@@ -1065,6 +1071,11 @@ $month-bar-height: 60px;
 
   &__event-tag-label {
     white-space:nowrap;
+  }
+
+  &__event--icon-tag &__event-tag-label,
+  &__event--icon-tag &__event-category-tag-label {
+    display: none;
   }
 
   &__event--scheduled {
@@ -1114,23 +1125,7 @@ $month-bar-height: 60px;
   }
 
   &__event--icon-tag &__event-actions {
-    max-width: 24px;
-  }
-
-  &__event--icon-tag &__event-contact-list {
-    display: none;
-  }
-
-  &__event--icon-tag &__event-category-tag {
-    display: none;
-  }
-
-  &__event--icon-tag &__event-tag-label {
-    display: none;
-  }
-
-  &__event--icon-tag &__event-category-tag-label {
-    display: none;
+    display: flex;
   }
 
   &__event-handle {

@@ -39,6 +39,9 @@ const CAPACITY_LANE_GAP = 4;
 const EVENT_FULL_TAG_MIN_WIDTH = 360;
 const EVENT_ICON_TAG_MIN_WIDTH = 150;
 const EVENT_CONTACT_MIN_WIDTH = 300;
+const EVENT_CONTENT_MAX_WIDTH = 120;
+const EVENT_CONTENT_PADDING = 40;
+const EVENT_CONTENT_MAX_RESERVE = EVENT_CONTENT_MAX_WIDTH + EVENT_CONTENT_PADDING;
 
 interface EventHoverTooltip {
   event: SchedulerEvent;
@@ -398,19 +401,55 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   private getCategoryTagWidth(category: BookingCategory, withLabel: boolean): number {
     const iconWidth = 16;
-    const padding = 4; // left + right
+    const horizontalPadding = 16; // 8px left + 8px right
     const gap = withLabel ? 4 : 0;
     const labelWidth = withLabel ? this.estimateTextWidth(category.label) : 0;
-    return Math.max(24, iconWidth + padding + gap + labelWidth);
+    return Math.max(24, iconWidth + horizontalPadding + gap + labelWidth);
   }
 
   private estimateTextWidth(text: string): number {
     return Math.max(0, Math.round(text.length * 7.25));
   }
 
-  private getEventActionAreaWidth(event: SchedulerEvent): number {
-    const available = this.getEventWidth(event) - 120;
-    return Math.min(180, Math.max(0, available));
+  private getEventContentReserveWidth(event: SchedulerEvent): number {
+    const eventWidth = this.getEventWidth(event);
+    const titleWidth = this.estimateTextWidth(this.getEventJobDescription(event));
+    const detailWidth = this.estimateTextWidth(this.getEventDetail(event));
+    const customerWidth = this.estimateTextWidth(this.getEventCustomerVehicleDetail(event));
+    const maxLineWidth = Math.max(titleWidth, detailWidth, customerWidth);
+
+    const contentNeeded = maxLineWidth + EVENT_CONTENT_PADDING;
+    const contentMaxReserve = Math.min(EVENT_CONTENT_MAX_RESERVE, eventWidth);
+    const reserved = Math.max(contentNeeded, contentMaxReserve, 120);
+
+    return Math.min(reserved, Math.max(eventWidth - 60, 60));
+  }
+
+  private getEventAvailableTagWidth(event: SchedulerEvent): number {
+    return Math.max(0, this.getEventWidth(event) - this.getEventContentReserveWidth(event));
+  }
+
+  private getStatusTagWidth(event: SchedulerEvent, withLabel: boolean): number {
+    const iconWidth = 16;
+    const horizontalPadding = 16;
+    const gap = withLabel ? 4 : 0;
+    const labelWidth = withLabel ? this.estimateTextWidth(this.getEventTagLabel(event)) : 0;
+    return Math.max(32, iconWidth + horizontalPadding + gap + labelWidth);
+  }
+
+  private getMaxFittingCategoryCount(categories: BookingCategory[], availableWidth: number, withLabel: boolean): number {
+    let used = 0;
+    let count = 0;
+
+    for (const category of categories) {
+      const tagWidth = this.getCategoryTagWidth(category, withLabel);
+      const spacing = count > 0 ? 2 : 0;
+      if (used + spacing + tagWidth > availableWidth) break;
+      used += spacing + tagWidth;
+      count += 1;
+    }
+
+    return count;
   }
 
   getEventCategories(event: SchedulerEvent): BookingCategory[] {
@@ -422,22 +461,39 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getVisibleEventCategories(event: SchedulerEvent): BookingCategory[] {
-    const categories = this.getEventCategories(event).slice(0, 2);
-    const actionAreaWidth = this.getEventActionAreaWidth(event);
-    if (actionAreaWidth < EVENT_ICON_TAG_MIN_WIDTH) return [];
+    const categories = this.getEventCategories(event);
+    if (!categories.length) return [];
 
-    const maxIconTags = Math.floor((actionAreaWidth + 2) / EVENT_ICON_TAG_MIN_WIDTH);
-    return categories.slice(0, Math.max(1, Math.min(categories.length, maxIconTags)));
+    const available = this.getEventAvailableTagWidth(event);
+    const statusFullWidth = this.getStatusTagWidth(event, true);
+    const statusIconWidth = this.getStatusTagWidth(event, false);
+    const statusFitsFull = available >= statusFullWidth;
+    const iconOnlyStatus = this.shouldShowEventTagIconOnly(event);
+    const statusWidth = iconOnlyStatus ? statusIconWidth : statusFitsFull ? statusFullWidth : statusIconWidth;
+    const leftover = available - statusWidth;
+
+    if (leftover < this.getCategoryTagWidth(categories[0], false)) return [];
+
+    const iconCount = this.getMaxFittingCategoryCount(categories, leftover, false);
+    if (iconCount <= 0) return [];
+
+    if (!iconOnlyStatus && statusFitsFull) {
+      const fullLabelCount = this.getMaxFittingCategoryCount(categories, leftover, true);
+      if (fullLabelCount === categories.length) return categories;
+      if (iconCount > fullLabelCount) return categories.slice(0, iconCount);
+      return categories.slice(0, fullLabelCount);
+    }
+
+    return categories.slice(0, iconCount);
   }
 
   private canShowEventCategoryLabels(event: SchedulerEvent, categories: BookingCategory[]): boolean {
     if (!categories.length) return false;
-    const actionAreaWidth = this.getEventActionAreaWidth(event);
-    const totalWidth = categories.reduce((width, category, index) => {
-      const spacing = index > 0 ? 2 : 0;
-      return width + this.getCategoryTagWidth(category, true) + spacing;
-    }, 0);
-    return totalWidth <= actionAreaWidth;
+    if (this.shouldShowEventTagIconOnly(event)) return false;
+
+    const available = this.getEventAvailableTagWidth(event) - this.getStatusTagWidth(event, true);
+    const fullLabelCount = this.getMaxFittingCategoryCount(categories, available, true);
+    return fullLabelCount >= categories.length;
   }
 
   getRenderedEventsForResource(resourceId: string): SchedulerEvent[] {
@@ -808,12 +864,23 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   shouldShowEventTag(event: SchedulerEvent): boolean {
-    return this.getEventWidth(event) >= EVENT_ICON_TAG_MIN_WIDTH;
+    const available = this.getEventAvailableTagWidth(event);
+    return available >= this.getStatusTagWidth(event, false);
   }
 
   shouldShowEventTagIconOnly(event: SchedulerEvent): boolean {
-    const width = this.getEventWidth(event);
-    return width >= EVENT_ICON_TAG_MIN_WIDTH && width < EVENT_FULL_TAG_MIN_WIDTH;
+    const available = this.getEventAvailableTagWidth(event);
+    const fullStatusWidth = this.getStatusTagWidth(event, true);
+    const iconOnlyWidth = this.getStatusTagWidth(event, false);
+    if (available < iconOnlyWidth) return false;
+
+    const categories = this.getEventCategories(event);
+    if (!categories.length) {
+      return available < fullStatusWidth;
+    }
+
+    const firstCategoryIconWidth = this.getCategoryTagWidth(categories[0], false);
+    return available < fullStatusWidth + firstCategoryIconWidth;
   }
 
   shouldShowEventCategoryLabels(event: SchedulerEvent): boolean {
