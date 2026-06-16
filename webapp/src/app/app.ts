@@ -490,7 +490,7 @@ export class App implements OnInit {
     const isResourceViewsList = cleanUrl === '/resource-views';
     const isResourceEditor = cleanUrl.startsWith('/resource-views/');
     const isResourceCatalog = cleanUrl.startsWith('/resource-catalog');
-    const isBookingCategories = cleanUrl === '/booking-categories';
+    const isBookingCategories = cleanUrl.startsWith('/booking-categories');
     this.isHomePage.set(isHome);
     this.isTransactionsPage.set(isTransactions);
     this.isTransactionsOfferPage.set(isTransactionsOffer);
@@ -517,7 +517,7 @@ export class App implements OnInit {
     }
 
     if (isBookingCategories) {
-      this.shellTitle.set('Booking categories');
+      this.shellTitle.set(cleanUrl === '/booking-categories' ? 'Booking categories' : 'Category');
       this.shellReference.set('Service Planner');
       this.shellBreadcrumbs.set([{ label: 'Service Planner' }]);
       return;
@@ -617,6 +617,11 @@ export class App implements OnInit {
       return;
     }
 
+    if (cleanUrl.startsWith('/booking-categories/')) {
+      this.router.navigate(['/booking-categories']);
+      return;
+    }
+
     if (cleanUrl.startsWith('/resource-views/')) {
       this.router.navigateByUrl(this.getResourceEditorReturnTarget());
       return;
@@ -661,6 +666,11 @@ export class App implements OnInit {
 
     if (cleanUrl === '/booking-categories') {
       this.router.navigate(['/service-planner']);
+      return;
+    }
+
+    if (cleanUrl.startsWith('/booking-categories/')) {
+      this.router.navigate(['/booking-categories']);
       return;
     }
 

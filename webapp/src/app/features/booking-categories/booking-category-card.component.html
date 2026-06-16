@@ -1,0 +1,185 @@
+<section class="category-card-page">
+  @if (category) {
+    <div class="category-card-page__body">
+      <header class="category-card-page__header">
+        <form class="category-card-page__search" role="search" (submit)="$event.preventDefault()">
+          <span aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M14.5 13.793 10.724 10.017A5.5 5.5 0 1 0 10.017 10.724L13.793 14.5 14.5 13.793ZM2 6.5A4.5 4.5 0 1 1 6.5 11 4.505 4.505 0 0 1 2 6.5Z" fill="currentColor"/></svg>
+          </span>
+          <input type="search" name="categoryCardSearch" placeholder="Search input text" [(ngModel)]="searchTerm" />
+          <button type="submit">Search <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.793 10.724 10.017A5.5 5.5 0 1 0 10.017 10.724L13.793 14.5 14.5 13.793ZM2 6.5A4.5 4.5 0 1 1 6.5 11 4.505 4.505 0 0 1 2 6.5Z" fill="currentColor"/></svg></button>
+        </form>
+      </header>
+
+      <section class="category-card-section" [class.category-card-section--closed]="!isSectionOpen('category')">
+        <button class="category-card-section__title" type="button" [attr.aria-expanded]="isSectionOpen('category')" (click)="toggleSection('category')">
+          <span class="category-card-section__leading">
+            <span class="category-card-section__heading">Category</span>
+            <span class="category-card-section__chevron" [class.category-card-section__chevron--closed]="!isSectionOpen('category')" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" fill="currentColor"/>
+              </svg>
+            </span>
+          </span>
+          <span class="category-card-section__trailing" aria-hidden="true"></span>
+        </button>
+        @if (isSectionOpen('category')) {
+        <div class="category-card-grid category-card-grid--general">
+          <label class="category-card-field">
+            <span>Category</span>
+            <input type="text" [(ngModel)]="category.label" name="categoryLabel" />
+          </label>
+          <label class="category-card-field">
+            <span>Apply scope</span>
+            <select [(ngModel)]="category.appliesTo" name="categoryScope">
+              @for (scope of scopes; track scope.value) {
+                <option [value]="scope.value">{{ scope.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="category-card-field category-card-field--textarea">
+            <span>Description <small>{{ (category.description ?? '').length }}/100</small></span>
+            <textarea maxlength="100" [(ngModel)]="category.description" name="categoryDescription" placeholder="Placeholder text"></textarea>
+          </label>
+        </div>
+        }
+      </section>
+
+      <section class="category-card-section" [class.category-card-section--closed]="!isSectionOpen('tag-settings')">
+        <button class="category-card-section__title" type="button" [attr.aria-expanded]="isSectionOpen('tag-settings')" (click)="toggleSection('tag-settings')">
+          <span class="category-card-section__leading">
+            <span class="category-card-section__heading">Tag Settings</span>
+            <span class="category-card-section__chevron" [class.category-card-section__chevron--closed]="!isSectionOpen('tag-settings')" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" fill="currentColor"/>
+              </svg>
+            </span>
+          </span>
+          <span class="category-card-section__trailing" aria-hidden="true"></span>
+        </button>
+        @if (isSectionOpen('tag-settings')) {
+        <div class="category-card-grid category-card-grid--settings">
+          @if (showContrastWarning) {
+            <div class="category-card-warning" role="alert">
+              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.875 1.875 16.25h16.25L10 1.875Zm0 3.75 5.775 9.375H4.225L10 5.625ZM9.375 8.125h1.25v3.75h-1.25v-3.75Zm0 5h1.25v1.25h-1.25v-1.25Z" fill="currentColor"/></svg>
+              <span>Contrast warning: selected tag colors have a {{ contrastRatioLabel }}:1 contrast ratio and do not meet WCAG AA/AAA contrast standards.</span>
+            </div>
+          }
+          <div class="category-card-settings-group">
+            <div class="category-card-field category-card-field--preview">
+              <span>Tag Preview</span>
+              <span class="category-card-preview" [style.background]="previewBackground" [style.color]="previewColor">Tag</span>
+            </div>
+            <div class="category-card-field category-card-dropdown" [class.category-card-dropdown--open]="isTagColorDropdownOpen">
+              <span>Tag Color</span>
+              <div class="category-card-dropdown__input">
+                <button
+                  class="category-card-dropdown__trigger"
+                  type="button"
+                  [attr.aria-expanded]="isTagColorDropdownOpen"
+                  aria-haspopup="listbox"
+                  (click)="toggleTagColorDropdown()">
+                  <span class="category-card-dropdown__text">{{ selectedColorLabel }}</span>
+                  <span class="category-card-dropdown__icons" aria-hidden="true">
+                    <span class="category-card-dropdown__chevron">
+                      @if (isTagColorDropdownOpen) {
+                        <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M8 5L13 10L12.3 10.7L8 6.4L3.7 10.7L3 10L8 5Z" fill="currentColor"/></svg>
+                      } @else {
+                        <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M8 10.9998L3 5.9998L3.7 5.2998L8 9.5998L12.3 5.2998L13 5.9998L8 10.9998Z" fill="currentColor"/></svg>
+                      }
+                    </span>
+                  </span>
+                </button>
+                @if (isTagColorDropdownOpen) {
+                  <div class="category-card-dropdown__menu" role="listbox" aria-label="Tag Color">
+                    @for (color of colors; track color.value; let first = $first) {
+                      <button
+                        class="category-card-dropdown__item"
+                        [class.category-card-dropdown__item--with-divider]="!first"
+                        type="button"
+                        role="option"
+                        [attr.aria-selected]="category.color === color.value"
+                        (click)="selectColor(color.value)">
+                        <span class="category-card-dropdown__value">{{ color.label }}</span>
+                        <span class="category-card-dropdown__tag" [style.background]="color.tagBackground">
+                          <span [style.color]="color.tagColor">Preview</span>
+                        </span>
+                      </button>
+                    }
+                    <button
+                      class="category-card-dropdown__item category-card-dropdown__item--with-divider"
+                      type="button"
+                      role="option"
+                      [attr.aria-selected]="isCustomTagColor"
+                      (click)="selectCustomColor()">
+                      <span class="category-card-dropdown__value">Custom</span>
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+          <div class="category-card-settings-group category-card-settings-group--offset">
+            <label class="category-card-field">
+              <span>Tag Background Color</span>
+              @if (isCustomTagColor) {
+                <input type="color" [ngModel]="customTagBackgroundColor" name="tagBackgroundColor" (ngModelChange)="updateCustomTagBackground($event)" />
+              } @else {
+                <input type="text" [ngModel]="tagBackgroundFieldValue" name="tagBackgroundColorReadonly" readonly />
+              }
+            </label>
+          </div>
+          <div class="category-card-settings-group category-card-settings-group--offset">
+            <label class="category-card-field">
+              <span>Tag Text and Icon Color</span>
+              @if (isCustomTagColor) {
+                <input type="color" [ngModel]="customTagTextColor" name="tagTextColor" (ngModelChange)="updateCustomTagText($event)" />
+              } @else {
+                <input type="text" [ngModel]="tagTextFieldValue" name="tagTextColorReadonly" readonly />
+              }
+            </label>
+          </div>
+        </div>
+        }
+      </section>
+
+      <section class="category-card-section category-card-section--icons" [class.category-card-section--closed]="!isSectionOpen('tag-icon')">
+        <button class="category-card-section__title" type="button" [attr.aria-expanded]="isSectionOpen('tag-icon')" (click)="toggleSection('tag-icon')">
+          <span class="category-card-section__leading">
+            <span class="category-card-section__heading">Tag Icon</span>
+            <span class="category-card-section__chevron" [class.category-card-section__chevron--closed]="!isSectionOpen('tag-icon')" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 6.25L16.25 12.5L15.375 13.375L10 8L4.625 13.375L3.75 12.5L10 6.25Z" fill="currentColor"/>
+              </svg>
+            </span>
+          </span>
+          <span class="category-card-section__trailing" aria-hidden="true"></span>
+        </button>
+        @if (isSectionOpen('tag-icon')) {
+        <div class="category-card-icon-toolbar">
+          <form class="category-card-page__search category-card-page__search--compact" role="search" (submit)="$event.preventDefault()">
+            <input type="search" name="iconSearch" placeholder="Search" />
+            <button type="submit">Search <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M14.5 13.793 10.724 10.017A5.5 5.5 0 1 0 10.017 10.724L13.793 14.5 14.5 13.793ZM2 6.5A4.5 4.5 0 1 1 6.5 11 4.505 4.505 0 0 1 2 6.5Z" fill="currentColor"/></svg></button>
+          </form>
+          <select [(ngModel)]="iconFilter" name="iconFilter">
+            <option>All icons</option>
+          </select>
+        </div>
+        <div class="category-card-icon-grid" role="radiogroup" aria-label="Tag icon">
+          @for (icon of icons; track icon.id) {
+            <label class="category-card-icon-tile">
+              <span>{{ icon.label }}</span>
+              <input type="radio" name="tagIcon" [value]="icon.id" [(ngModel)]="selectedIcon" />
+              <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+                @for (path of getIconPaths(icon.icon); track path) {
+                  <path [attr.d]="path" fill="currentColor" />
+                }
+              </svg>
+            </label>
+          }
+        </div>
+        }
+      </section>
+    </div>
+  }
+</section>

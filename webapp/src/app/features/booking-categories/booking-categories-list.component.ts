@@ -3,7 +3,7 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { BookingCategory, BookingCategoryApplyScope } from '../../core/models/schedule.model';
-import { GenericListColumn, GenericListComponent, GenericListToolbarAction } from '../../shared/components/generic-list/generic-list.component';
+import { GenericListColumn, GenericListComponent, GenericListRowAction, GenericListToolbarAction } from '../../shared/components/generic-list/generic-list.component';
 import { BookingCategoriesService } from './booking-categories.service';
 
 interface BookingCategoryRow extends Record<string, unknown>, BookingCategory {
@@ -31,7 +31,9 @@ export class BookingCategoriesListComponent {
     { key: 'description', label: 'Description', cellType: 'input', sortable: true, filterable: true, minWidth: '360px' },
   ];
 
-  readonly rowActions = [];
+  readonly rowActions: GenericListRowAction[] = [
+    { id: 'launch', label: 'Open category card', icon: 'launch' },
+  ];
 
   get toolbarActions(): GenericListToolbarAction[] {
     return [
@@ -93,6 +95,10 @@ export class BookingCategoriesListComponent {
   }
 
   onRowAction(event: { action: { id: string }; row: BookingCategoryRow }): void {
+    if (event.action.id === 'launch') {
+      this.router.navigate(['/booking-categories', event.row.id]);
+      return;
+    }
     if (event.action.id === 'edit') {
       this.selectedRows = [event.row];
       this.editingCell = { rowId: event.row.id, columnKey: 'label' };

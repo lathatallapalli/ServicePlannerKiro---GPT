@@ -6,6 +6,8 @@ export interface BookingCategory {
   id: string;
   label: string;
   color: string;
+  tagBackgroundColor?: string;
+  tagTextColor?: string;
   appliesTo: BookingCategoryApplyScope;
   description?: string;
   isSystem?: boolean;

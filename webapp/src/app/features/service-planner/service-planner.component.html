@@ -328,12 +328,19 @@
             <article class="order-panel__order-card" [attr.id]="'order-panel-card-' + order.id" draggable="true" (dragstart)="onOrderDragStart($event, order)" [style.outline]="isPanelOrderFocused(order) ? '2px solid #4C68B1' : null" style="align-self:stretch;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab;outline-offset:-2px">
               <div style="align-self:stretch;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
                 <div style="align-self:stretch;display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                  <strong style="min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                  <strong style="flex:1 1 0;min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                     @for (part of getSearchHighlightParts(getOrderLabel(order)); track $index) {
                       @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                     }
                   </strong>
-                  <span [style.background]="getOrderPlanningStateBackground(order)" [style.color]="getOrderPlanningStateColor(order)" [style.outline]="getOrderPlanningStateOutline(order)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getOrderPlanningStateLabel(order) }}</span>
+                  <span style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:flex-end;gap:4px">
+                    @for (category of getOrderCategories(order); track category.id) {
+                      <span class="service-planner__booking-category-tag" [style.--category-color]="category.color" [attr.aria-label]="category.label" [attr.title]="category.label">
+                        <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                      </span>
+                    }
+                    <span [style.background]="getOrderPlanningStateBackground(order)" [style.color]="getOrderPlanningStateColor(order)" [style.outline]="getOrderPlanningStateOutline(order)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getOrderPlanningStateLabel(order) }}</span>
+                  </span>
                 </div>
                 <div style="align-self:stretch;min-width:0;position:relative;display:flex;flex-direction:column;gap:2px">
                   <span style="display:block;width:calc(100% - 176px);max-width:calc(100% - 176px);min-width:0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
@@ -365,17 +372,26 @@
                     @if (shouldShowJobForSearch(order, job)) {
                     <div draggable="true" (dragstart)="onJobDragStart($event, job, order)" style="align-self:stretch;background:var(--Layer-layer-02,white);display:flex;flex-direction:column;gap:8px;padding:12px;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);cursor:grab">
                     <div style="width:100%;min-width:0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                      <strong style="display:block;flex:1 1 0;min-width:0;max-width:100%;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                        @for (part of getSearchHighlightParts(job.title); track $index) {
-                          @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                      <span style="flex:1 1 0;min-width:0;display:inline-flex;align-items:center">
+                        <strong style="display:block;min-width:0;max-width:100%;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                          @for (part of getSearchHighlightParts(job.title); track $index) {
+                            @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                          }
+                        </strong>
+                      </span>
+                      <span style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:flex-end;gap:4px">
+                        @for (category of getJobBookingSetCategories(job, order); track category.id) {
+                          <span class="service-planner__booking-category-tag" [style.--category-color]="category.color" [attr.aria-label]="category.label" [attr.title]="category.label">
+                            <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                          </span>
                         }
-                      </strong>
-                      <span [style.background]="getJobExecutionStatusBackground(order, job)" [style.color]="getJobExecutionStatusColor(order, job)" [style.outline]="getJobExecutionStatusOutline(order, job)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getJobExecutionStatusLabel(order, job) }}</span>
+                        <span [style.background]="getJobExecutionStatusBackground(order, job)" [style.color]="getJobExecutionStatusColor(order, job)" [style.outline]="getJobExecutionStatusOutline(order, job)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getJobExecutionStatusLabel(order, job) }}</span>
+                      </span>
                     </div>
                     @if (getJobBookingSets(job, order); as bookingSets) {
                       @for (bookingSet of bookingSets; track bookingSet.id) {
                         <div style="display:flex;flex-direction:column;gap:2px">
-                          <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px">@for (part of getSearchHighlightParts(bookingSet.summary); track $index) { @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}} }</div>
+                          <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@for (part of getSearchHighlightParts(bookingSet.summary); track $index) { @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}} }</div>
                           @for (booking of bookingSet.bookings; track booking.entryId) {
                             <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
                               <button type="button" aria-label="Show booking on planner" (click)="scrollToBookingInAvailabilityView(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
@@ -386,7 +402,18 @@
                                   @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                                 }
                               </span>
-                              <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                              @for (category of getEntryCategoriesForBooking(booking); track category.id) {
+                                <span
+                                  class="service-planner__booking-category-tag"
+                                  [style.--category-color]="category.color"
+                                  [attr.aria-label]="category.label"
+                                  [attr.title]="category.label">
+                                  <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                                    <path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/>
+                                  </svg>
+                                </span>
+                              }
+                              <span class="service-planner__block-tile-booked">BOOKED</span>
                               <button type="button" aria-label="Open booking details" (click)="openBookingFromSearch(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2Zm0 1a5 5 0 1 0 0 10A5 5 0 0 0 8 3Zm-.5 4h1v4h-1V7Zm0-2h1v1h-1V5Z" fill="currentColor"/></svg>
                               </button>
@@ -437,6 +464,11 @@
                               @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                             }
                           </span>
+                          @for (category of getEntryCategoriesForBooking(booking); track category.id) {
+                            <span class="service-planner__booking-category-tag" [style.--category-color]="category.color" [attr.aria-label]="category.label" [attr.title]="category.label">
+                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                            </span>
+                          }
                           @if (!isBookingCompleted(booking)) {
                             <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
                           }
@@ -520,6 +552,11 @@
                             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M6 1V2H10V1H11V2H13C13.2652 2 13.5195 2.10543 13.707 2.29297C13.8946 2.48051 14 2.73478 14 3V6H13V3H11V4H10V3H6V4H5V3H3V13H5V14H3C2.73478 14 2.48051 13.8946 2.29297 13.707C2.10543 13.5195 2 13.2652 2 13V3C2 2.73478 2.10543 2.48051 2.29297 2.29297C2.48051 2.10543 2.73478 2 3 2H5V1H6ZM10.5 8.5L8.5 10.7002H14.2002V11.6602L8.5 11.5L10.5 13.5L10 14L7 11L10 8L10.5 8.5Z" fill="currentColor"/></svg>
                           </button>
                           <span>{{ getResourceLabel(block.resourceId) }}</span>
+                          @for (category of getEntryCategories(block); track category.id) {
+                            <span class="service-planner__booking-category-tag" [style.--category-color]="category.color" [attr.aria-label]="category.label" [attr.title]="category.label">
+                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                            </span>
+                          }
                           <span class="service-planner__block-tile-booked">BOOKED</span>
                           <button type="button" class="service-planner__block-tile-find" aria-label="Undo block booking" (click)="undoBlockBooking(block); $event.stopPropagation()">
                             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>

@@ -30,6 +30,10 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Server,
   },
   {
+    path: 'booking-categories/:categoryId',
+    renderMode: RenderMode.Server,
+  },
+  {
     path: 'resource-views/:viewId/edit',
     renderMode: RenderMode.Server,
   },

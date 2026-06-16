@@ -2831,6 +2831,55 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return `${this.formatOrderScheduleDateTime(entry.start)} | ${this.formatDuration(entry.start, entry.end)}`;
   }
 
+  getOrderCategories(order: any): BookingCategory[] {
+    const entries = this.allScheduleEntries.filter(entry => this.isEntryForOrder(entry, order));
+    return this.getCategoriesForEntriesByScope(entries, 'order');
+  }
+
+  getBookingSetCategories(bookingSet: BookingSet): BookingCategory[] {
+    const bookingEntryIds = new Set(bookingSet.bookings.map(booking => booking.entryId));
+    const entries = this.allScheduleEntries.filter(entry =>
+      bookingEntryIds.has(entry.id) || this.getEntryBookingSetId(entry) === bookingSet.id
+    );
+    return this.getCategoriesForEntriesByScope(entries, 'booking-set');
+  }
+
+  getJobBookingSetCategories(job: any, order: any): BookingCategory[] {
+    const categoriesById = new Map<string, BookingCategory>();
+    for (const bookingSet of this.getJobBookingSets(job, order)) {
+      for (const category of this.getBookingSetCategories(bookingSet)) {
+        categoriesById.set(category.id, category);
+      }
+    }
+    return [...categoriesById.values()];
+  }
+
+  getEntryCategoriesForBooking(booking: JobBooking): BookingCategory[] {
+    const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
+    return entry ? this.getEntryCategories(entry) : [];
+  }
+
+  getEntryCategories(entry: ScheduleEntry): BookingCategory[] {
+    if (!entry.categoryIds?.length) return [];
+    return this.getCategoriesForEntriesByScope([entry], 'entry');
+  }
+
+  getBookingCategoriesForBooking(booking: JobBooking): BookingCategory[] {
+    return this.getEntryCategoriesForBooking(booking);
+  }
+
+  private getCategoriesForEntriesByScope(entries: ScheduleEntry[], scope: BookingCategory['appliesTo']): BookingCategory[] {
+    const categoriesById = new Map<string, BookingCategory>();
+    for (const entry of entries) {
+      for (const categoryId of entry.categoryIds ?? []) {
+        if (categoriesById.has(categoryId)) continue;
+        const category = this.bookingCategoriesService.getById(categoryId);
+        if (category?.appliesTo === scope) categoriesById.set(category.id, category);
+      }
+    }
+    return [...categoriesById.values()];
+  }
+
   scrollToBookingInAvailabilityView(order: any, booking: JobBooking): void {
     this.selectedPanelOrderId = order.id;
     this.setFocusedPlanningOrder(order);

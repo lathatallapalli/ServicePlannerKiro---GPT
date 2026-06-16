@@ -624,6 +624,26 @@
   line-height: 16px;
 }
 
+.service-planner__booking-category-tag {
+  width: 20px;
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--category-color, #8d8d8d) 14%, white);
+  color: var(--category-color, #525252);
+  box-sizing: border-box;
+  flex: 0 0 auto;
+}
+
+.service-planner__booking-category-tag svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
 .booking-modal__icon-button {
   position: absolute;
   top: 0;
