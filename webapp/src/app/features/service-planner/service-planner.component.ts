@@ -214,6 +214,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   blockTimeTitle = '';
   blockTimeDescription = '';
   blockTimeEditingEntryId: string | null = null;
+  blockTimeCategoryIds: string[] = [];
   bookingModalStartDate = '';
   bookingModalStartTime = '';
   bookingModalEndDate = '';
@@ -1388,12 +1389,28 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.blockTimeTitle = entry?.title ?? 'Blocked time';
     this.blockTimeDescription = entry?.description ?? '';
     this.blockTimeEditingEntryId = entry?.id ?? null;
+    this.blockTimeCategoryIds = entry?.categoryIds ? [...entry.categoryIds] : [];
     this.blockTimeModalOpen = true;
   }
 
   closeBlockTimeModal(): void {
     this.blockTimeModalOpen = false;
     this.blockTimeEditingEntryId = null;
+    this.blockTimeCategoryIds = [];
+  }
+
+  toggleBlockTimeCategory(categoryId: string): void {
+    const ids = new Set(this.blockTimeCategoryIds);
+    if (ids.has(categoryId)) {
+      ids.delete(categoryId);
+    } else {
+      ids.add(categoryId);
+    }
+    this.blockTimeCategoryIds = [...ids];
+  }
+
+  isBlockTimeCategorySelected(categoryId: string): boolean {
+    return this.blockTimeCategoryIds.includes(categoryId);
   }
 
   saveBlockTime(): void {
@@ -1416,6 +1433,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       kind: 'resource-block',
       color: '#6F6F6F',
       workorderItemStatus: 'scheduled',
+      categoryIds: this.blockTimeCategoryIds.length ? [...this.blockTimeCategoryIds] : undefined,
     };
 
     if (this.blockTimeEditingEntryId) {

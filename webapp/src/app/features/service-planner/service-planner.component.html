@@ -711,6 +711,45 @@
 
           <section class="booking-accordion">
             <button class="booking-accordion__header" type="button">
+              <span>Category</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" /></svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid">
+              <div class="booking-modal__field-column">
+                @if (bookingCategories.length) {
+                  <fieldset class="block-time-categories">
+                    <legend class="block-time-categories__legend">Categories</legend>
+                    @for (category of bookingCategories; track category.id) {
+                      <label class="block-time-categories__item">
+                        <input
+                          type="checkbox"
+                          class="block-time-categories__checkbox"
+                          [checked]="isBlockTimeCategorySelected(category.id)"
+                          (change)="toggleBlockTimeCategory(category.id)"
+                          [attr.aria-label]="category.label"
+                        />
+                        <span
+                          class="service-planner__booking-category-tag"
+                          [style.--category-color]="category.color"
+                          aria-hidden="true">
+                          <svg width="16" height="16" viewBox="0 0 16 16" focusable="false">
+                            <path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/>
+                          </svg>
+                        </span>
+                        <span class="block-time-categories__label">{{ category.label }}</span>
+                      </label>
+                    }
+                  </fieldset>
+                } @else {
+                  <p class="block-time-categories__empty">No categories defined.</p>
+                }
+              </div>
+            </div>
+          </section>
+
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
               <span>Resource</span>
               <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" /></svg>
             </button>
