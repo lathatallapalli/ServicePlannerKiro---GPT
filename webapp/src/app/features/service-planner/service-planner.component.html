@@ -217,6 +217,8 @@
       [resources]="visibleSchedulerResources"
       [events]="visibleSchedulerEvents"
       [capacityBlocks]="visibleSchedulerCapacityBlocks"
+      [bookedResourceFilterContext]="schedulerBookedResourceFilterContext"
+      [bookingCategories]="bookingCategories"
       [showDayCapacityLane]="true"
       [groups]="visibleSchedulerGroups"
       [selectedResourceIds]="selectedResourceIds"
@@ -258,6 +260,7 @@
       (orderFocusRequested)="onOrderFocusRequested($event)"
       (eventContextMenu)="onEventContextMenu($event)"
       (eventDropped)="onEventDropped($event)"
+      (resourceSlotContextMenu)="onResourceSlotContextMenu($event)"
       (resourceSelectionChange)="onResourceSelectionChange($event)"
       (resourceTypeSelectionChange)="onResourceTypeSelectionChange($event)"
       (resourceViewChange)="onResourceViewChange($event)"
@@ -325,12 +328,19 @@
             <article class="order-panel__order-card" [attr.id]="'order-panel-card-' + order.id" draggable="true" (dragstart)="onOrderDragStart($event, order)" [style.outline]="isPanelOrderFocused(order) ? '2px solid #4C68B1' : null" style="align-self:stretch;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:flex-start;background:var(--Layer-layer-01,#F4F4F4);cursor:grab;outline-offset:-2px">
               <div style="align-self:stretch;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
                 <div style="align-self:stretch;display:inline-flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                  <strong style="min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                  <strong style="flex:1 1 0;min-width:0;color:var(--Text-text-primary,#161616);font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                     @for (part of getSearchHighlightParts(getOrderLabel(order)); track $index) {
                       @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                     }
                   </strong>
-                  <span [style.background]="getOrderPlanningStateBackground(order)" [style.color]="getOrderPlanningStateColor(order)" [style.outline]="getOrderPlanningStateOutline(order)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getOrderPlanningStateLabel(order) }}</span>
+                  <span style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:flex-end;gap:4px">
+                    @for (category of getOrderCategories(order); track category.id) {
+                      <span class="service-planner__booking-category-tag" [style.--category-color]="category.color" [attr.aria-label]="category.label" [attr.title]="category.label">
+                        <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                      </span>
+                    }
+                    <span [style.background]="getOrderPlanningStateBackground(order)" [style.color]="getOrderPlanningStateColor(order)" [style.outline]="getOrderPlanningStateOutline(order)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getOrderPlanningStateLabel(order) }}</span>
+                  </span>
                 </div>
                 <div style="align-self:stretch;min-width:0;position:relative;display:flex;flex-direction:column;gap:2px">
                   <span style="display:block;width:calc(100% - 176px);max-width:calc(100% - 176px);min-width:0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
@@ -362,17 +372,26 @@
                     @if (shouldShowJobForSearch(order, job)) {
                     <div draggable="true" (dragstart)="onJobDragStart($event, job, order)" style="align-self:stretch;background:var(--Layer-layer-02,white);display:flex;flex-direction:column;gap:8px;padding:12px;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);cursor:grab">
                     <div style="width:100%;min-width:0;display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                      <strong style="display:block;flex:1 1 0;min-width:0;max-width:100%;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                        @for (part of getSearchHighlightParts(job.title); track $index) {
-                          @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                      <span style="flex:1 1 0;min-width:0;display:inline-flex;align-items:center">
+                        <strong style="display:block;min-width:0;max-width:100%;color:#161616;font-size:16px;font-weight:600;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                          @for (part of getSearchHighlightParts(job.title); track $index) {
+                            @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
+                          }
+                        </strong>
+                      </span>
+                      <span style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:flex-end;gap:4px">
+                        @for (category of getJobBookingSetCategories(job, order); track category.id) {
+                          <span class="service-planner__booking-category-tag" [style.--category-color]="category.color" [attr.aria-label]="category.label" [attr.title]="category.label">
+                            <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                          </span>
                         }
-                      </strong>
-                      <span [style.background]="getJobExecutionStatusBackground(order, job)" [style.color]="getJobExecutionStatusColor(order, job)" [style.outline]="getJobExecutionStatusOutline(order, job)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getJobExecutionStatusLabel(order, job) }}</span>
+                        <span [style.background]="getJobExecutionStatusBackground(order, job)" [style.color]="getJobExecutionStatusColor(order, job)" [style.outline]="getJobExecutionStatusOutline(order, job)" style="flex:0 0 auto;border-radius:1000px;outline-offset:-1px;padding:4px 10px;font-size:12px;line-height:16px;letter-spacing:.32px">{{ getJobExecutionStatusLabel(order, job) }}</span>
+                      </span>
                     </div>
                     @if (getJobBookingSets(job, order); as bookingSets) {
                       @for (bookingSet of bookingSets; track bookingSet.id) {
                         <div style="display:flex;flex-direction:column;gap:2px">
-                          <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px">@for (part of getSearchHighlightParts(bookingSet.summary); track $index) { @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}} }</div>
+                          <div style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@for (part of getSearchHighlightParts(bookingSet.summary); track $index) { @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}} }</div>
                           @for (booking of bookingSet.bookings; track booking.entryId) {
                             <div style="display:inline-flex;justify-content:center;align-items:center;gap:4px">
                               <button type="button" aria-label="Show booking on planner" (click)="scrollToBookingInAvailabilityView(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
@@ -383,7 +402,18 @@
                                   @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                                 }
                               </span>
-                              <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
+                              @for (category of getEntryCategoriesForBooking(booking); track category.id) {
+                                <span
+                                  class="service-planner__booking-category-tag"
+                                  [style.--category-color]="category.color"
+                                  [attr.aria-label]="category.label"
+                                  [attr.title]="category.label">
+                                  <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                                    <path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/>
+                                  </svg>
+                                </span>
+                              }
+                              <span class="service-planner__block-tile-booked">BOOKED</span>
                               <button type="button" aria-label="Open booking details" (click)="openBookingFromSearch(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2Zm0 1a5 5 0 1 0 0 10A5 5 0 0 0 8 3Zm-.5 4h1v4h-1V7Zm0-2h1v1h-1V5Z" fill="currentColor"/></svg>
                               </button>
@@ -434,6 +464,11 @@
                               @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                             }
                           </span>
+                          @for (category of getEntryCategoriesForBooking(booking); track category.id) {
+                            <span class="service-planner__booking-category-tag" [style.--category-color]="category.color" [attr.aria-label]="category.label" [attr.title]="category.label">
+                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                            </span>
+                          }
                           @if (!isBookingCompleted(booking)) {
                             <span style="text-align:right;color:#32523B;font-size:12px;line-height:16px;letter-spacing:.32px">BOOKED</span>
                           }
@@ -495,13 +530,43 @@
             <button type="button" aria-controls="scheduled-orders" [attr.aria-expanded]="!isOrderGroupCollapsed('scheduled')" (click)="toggleOrderGroup('scheduled')" style="align-self:stretch;width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Background-background,white);padding:8px 12px 8px 6px;display:flex;align-items:center;gap:2px;cursor:pointer;text-align:left;color:#161616">
               <span style="font-size:16px;font-weight:600;line-height:22px;letter-spacing:0">Scheduled</span>
               <span style="width:32px;height:32px;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderGroupCollapsed('scheduled') ? 'rotate(180deg)' : 'none'"><path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/></svg></span>
-              <span style="margin-left:auto;min-height:24px;padding:4px 8px;background:var(--Tag-tag-background-gray,#E0E0E0);color:var(--Tag-tag-color-gray,#161616);border-radius:999px;font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">{{ visibleScheduledOrders.length }} {{ isSearchActive ? 'Results' : 'Orders' }}</span>
+              <span style="margin-left:auto;min-height:24px;padding:4px 8px;background:var(--Tag-tag-background-gray,#E0E0E0);color:var(--Tag-tag-color-gray,#161616);border-radius:999px;font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">{{ scheduledSectionCount }} {{ scheduledSectionCountLabel }}</span>
             </button>
             @if (!isOrderGroupCollapsed('scheduled')) {
               <div id="scheduled-orders" style="align-self:stretch;display:flex;flex-direction:column;gap:16px">
                 @for (order of visibleScheduledOrders; track order.id) {
                   <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
-                } @empty {
+                }
+                @for (block of visibleScheduledBlocks; track block.id) {
+                  <article class="service-planner__block-tile" [attr.id]="'order-panel-block-' + block.id">
+                    <div class="service-planner__block-tile-details">
+                      <div class="service-planner__block-tile-header">
+                        <div class="service-planner__block-tile-title">{{ block.title || 'Blocked time' }}</div>
+                        <div class="service-planner__block-tile-status">Scheduled</div>
+                      </div>
+                      <div class="service-planner__block-tile-note">{{ getBlockNotesLabel(block) }}</div>
+                      <div class="service-planner__block-tile-meta">
+                        <div class="service-planner__block-tile-time">{{ getBlockScheduleSummary(block) }}</div>
+                        <div class="service-planner__block-tile-resource-row">
+                          <button type="button" aria-label="Show block on planner" (click)="findBlockOnPlanner(block); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M6 1V2H10V1H11V2H13C13.2652 2 13.5195 2.10543 13.707 2.29297C13.8946 2.48051 14 2.73478 14 3V6H13V3H11V4H10V3H6V4H5V3H3V13H5V14H3C2.73478 14 2.48051 13.8946 2.29297 13.707C2.10543 13.5195 2 13.2652 2 13V3C2 2.73478 2.10543 2.48051 2.29297 2.29297C2.48051 2.10543 2.73478 2 3 2H5V1H6ZM10.5 8.5L8.5 10.7002H14.2002V11.6602L8.5 11.5L10.5 13.5L10 14L7 11L10 8L10.5 8.5Z" fill="currentColor"/></svg>
+                          </button>
+                          <span>{{ getResourceLabel(block.resourceId) }}</span>
+                          @for (category of getEntryCategories(block); track category.id) {
+                            <span class="service-planner__booking-category-tag" [style.--category-color]="category.color" [attr.aria-label]="category.label" [attr.title]="category.label">
+                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                            </span>
+                          }
+                          <span class="service-planner__block-tile-booked">BOOKED</span>
+                          <button type="button" class="service-planner__block-tile-find" aria-label="Undo block booking" (click)="undoBlockBooking(block); $event.stopPropagation()">
+                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M10 5H3.90745L5.70115 3.20705L5 2.5L2 5.5L5 8.5L5.70115 7.7927L3.90895 6H10C10.7956 6 11.5587 6.31607 12.1213 6.87868C12.6839 7.44129 13 8.20435 13 9C13 9.79565 12.6839 10.5587 12.1213 11.1213C11.5587 11.6839 10.7956 12 10 12H6V13H10C11.0609 13 12.0783 12.5786 12.8284 11.8284C13.5786 11.0783 14 10.0609 14 9C14 7.93913 13.5786 6.92172 12.8284 6.17157C12.0783 5.42143 11.0609 5 10 5Z" fill="currentColor"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                }
+                @if (scheduledSectionCount === 0) {
                   <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">{{ emptyOrderSectionMessage }}</div>
                 }
               </div>
@@ -547,34 +612,238 @@
   }
 
   @if (eventContextMenu) {
-    <div role="menu" [style.left.px]="eventContextMenu.x" [style.top.px]="eventContextMenu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()" style="position:fixed;z-index:1001;min-width:160px;max-width:288px;box-shadow:0 2px 6px rgba(0,0,0,.30);display:inline-flex;flex-direction:column;background:var(--Layer-layer-01,#F4F4F4);font-family:'IBM Plex Sans',sans-serif">
+    <div class="cds--menu cds--menu--open cds--menu--shown cds--menu--md service-planner-context-menu service-planner-context-menu--static" role="menu" tabindex="-1" [style.left.px]="eventContextMenu.x" [style.top.px]="eventContextMenu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()">
       @if (canSplitContextEvent()) {
-      <button type="button" role="menuitem" (click)="splitContextEvent()" style="width:100%;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:15px 16px 11px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
-        <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Split</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M12 6.5C12.5304 6.5 13.0391 6.28929 13.4142 5.91421C13.7893 5.53914 14 5.03043 14 4.5V4C14 3.46957 13.7893 2.96086 13.4142 2.58579C13.0391 2.21071 12.5304 2 12 2H11.5C10.9696 2 10.4609 2.21071 10.0858 2.58579C9.71071 2.96086 9.5 3.46957 9.5 4V5.5H6.5V4C6.5 3.46957 6.28929 2.96086 5.91421 2.58579C5.53914 2.21071 5.03043 2 4.5 2H4C3.46957 2 2.96086 2.21071 2.58579 2.58579C2.21071 2.96086 2 3.46957 2 4V4.5C2 5.03043 2.21071 5.53914 2.58579 5.91421C2.96086 6.28929 3.46957 6.5 4 6.5H5.5V9.5H4C3.46957 9.5 2.96086 9.71071 2.58579 10.0858C2.21071 10.4609 2 10.9696 2 11.5V12C2 12.5304 2.21071 13.0391 2.58579 13.4142C2.96086 13.7893 3.46957 14 4 14H4.5C5.03043 14 5.53914 13.7893 5.91421 13.4142C6.28929 13.0391 6.5 12.5304 6.5 12V10.5H9.5V12C9.5 12.5304 9.71071 13.0391 10.0858 13.4142C10.4609 13.7893 10.9696 14 11.5 14H12C12.5304 14 13.0391 13.7893 13.4142 13.4142C13.7893 13.0391 14 12.5304 14 12V11.5C14 10.9696 13.7893 10.4609 13.4142 10.0858C13.0391 9.71071 12.5304 9.5 12 9.5H10.5V6.5H12ZM9.5 9.5H6.5V6.5H9.5V9.5Z" fill="currentColor"/></svg>
-      </button>
+        <button class="cds--menu-item" type="button" role="menuitem" (click)="splitContextEvent()">
+          <span class="cds--menu-item__label">Split</span>
+          <span class="cds--menu-item__shortcut" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 32 32"><path d="M26.5,19.63,20.24,16l6.26-3.63a5,5,0,0,0-1.21-9.2A5.19,5.19,0,0,0,24,3a5,5,0,0,0-4.33,7.53,5,5,0,0,0,2.39,2.1l-3.82,2.21L4,6.6,3,8.34,16.24,16,3,23.68l1,1.74,14.24-8.26,3.82,2.21a5,5,0,0,0-2.39,2.1A5,5,0,0,0,24,29a5.19,5.19,0,0,0,1.29-.17,5,5,0,0,0,1.21-9.2ZM21.4,9.53a3,3,0,0,1,1.1-4.12,3,3,0,0,1,4.1,1.11,3,3,0,0,1-1.1,4.11h0A3,3,0,0,1,21.4,9.53Zm5.2,16a3,3,0,0,1-4.1,1.11,3,3,0,0,1-1.1-4.12,3,3,0,0,1,4.1-1.1h0A3,3,0,0,1,26.6,25.48Z" fill="currentColor"/></svg>
+          </span>
+        </button>
       }
-      <button type="button" role="menuitem" [disabled]="!getContextEventCustomerEmail()" (click)="copyContextCustomerEmail()" style="width:100%;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
-        <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Copy customer mail</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" fill-opacity="0.01" style="mix-blend-mode:multiply"/><path d="M14 3H2C1.73488 3.0003 1.48059 3.10576 1.29312 3.29324C1.10565 3.48071 1.00028 3.73488 1 4V12C1.00028 12.2651 1.10565 12.5193 1.29312 12.7068C1.48059 12.8942 1.73488 12.9997 2 13H14C14.2651 12.9997 14.5194 12.8942 14.7069 12.7068C14.8943 12.5193 14.9997 12.2651 15 12V4C14.9997 3.73488 14.8943 3.48071 14.7069 3.29324C14.5194 3.10576 14.2651 3.0003 14 3ZM12.8995 4L8 7.7675L3.1005 4H12.8995ZM2 12V4.455L7.695 8.835C7.78257 8.90231 7.8899 8.93882 8.00033 8.93882C8.11076 8.93882 8.21809 8.90231 8.30567 8.835L14 4.455V12H2Z" fill="currentColor"/></svg>
+      <button class="cds--menu-item" type="button" role="menuitem" aria-haspopup="true" [attr.aria-expanded]="isCategoryFlyoutOpen" (click)="toggleCategoryFlyout($event)">
+        <span class="cds--menu-item__label">Categorize</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M11 8 6 13 5.3 12.3 9.6 8 5.3 3.7 6 3z" fill="currentColor"/></svg>
+        </span>
       </button>
-      <button type="button" role="menuitem" [disabled]="!getContextEventCustomerPhone()" (click)="copyContextCustomerPhone()" style="width:100%;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
-        <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Copy customer phone</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" fill-opacity="0.01" style="mix-blend-mode:multiply"/><path d="M11.5 15C8.71523 14.9968 6.04547 13.8892 4.07646 11.9202C2.10745 9.95119 0.999868 7.28143 0.996666 4.49667C0.997592 3.56947 1.36634 2.68053 2.02199 2.02489C2.67763 1.36925 3.56657 1.0005 4.49377 0.999573C4.60423 0.999559 4.71218 1.03243 4.80386 1.09401C4.89554 1.15559 4.96678 1.24309 5.00849 1.34537L6.57769 5.18777C6.6184 5.28751 6.62582 5.39774 6.59879 5.50208C6.57177 5.60643 6.51178 5.69934 6.42772 5.76677L4.88345 7.00217C5.61952 8.50078 6.83089 9.71214 8.3295 10.4482L9.5649 8.90395C9.63234 8.81989 9.72525 8.7599 9.82959 8.73288C9.93394 8.70585 10.0442 8.71327 10.1439 8.75398L13.9863 10.3232C14.0886 10.3649 14.1761 10.4361 14.2377 10.5278C14.2992 10.6195 14.3321 10.7274 14.3321 10.8379C14.3312 11.7651 13.9624 12.654 13.3068 13.3097C12.6511 13.9653 11.7622 14.3341 10.835 14.335H11.5V15ZM4.15223 2.11599C3.56514 2.2002 3.02691 2.48931 2.6325 2.93234C2.2381 3.37538 2.01285 3.94389 1.99667 4.53667C1.99954 7.05717 3.00164 9.47356 4.78383 11.2557C6.56601 13.0379 8.9824 14.04 11.5029 14.0429C12.0957 14.0267 12.6642 13.8015 13.1072 13.4071C13.5503 13.0127 13.8394 12.4744 13.9236 11.8874L10.1605 10.3505L8.9003 11.9257C8.83203 12.0111 8.73759 12.0718 8.63136 12.0987C8.52513 12.1256 8.41292 12.1172 8.3119 12.0748C6.23586 11.2056 4.57213 9.54188 3.7029 7.46585C3.6605 7.36483 3.65211 7.25262 3.67902 7.14639C3.70594 7.04016 3.76664 6.94572 3.85203 6.87745L5.42722 5.61722L3.89036 1.85411C3.97676 1.83827 4.06442 1.83065 4.15223 1.83133V2.11599Z" fill="currentColor"/></svg>
+      @if (isCategoryFlyoutOpen) {
+        <div class="cds--menu cds--menu--open cds--menu--shown cds--menu--md service-planner-context-menu service-planner-context-menu--submenu service-planner-context-menu--static" role="menu" [style.left.px]="eventContextMenu.x + 240" [style.top.px]="eventContextMenu.y + (canSplitContextEvent() ? 40 : 0)" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()">
+          @for (category of bookingCategories; track category.id) {
+            <button class="cds--menu-item" type="button" role="menuitemcheckbox" [attr.aria-checked]="isContextCategoryApplied(category)" (click)="toggleContextCategory(category, $event)">
+              <span class="cds--menu-item__label">{{ category.label }}</span>
+              <span class="cds--menu-item__shortcut service-planner-context-menu__check" aria-hidden="true">
+                @if (isContextCategoryApplied(category)) {
+                  <svg width="16" height="16" viewBox="0 0 16 16"><path d="M6.5 11.5 3 8l.7-.7 2.8 2.8 5.8-5.8.7.7-6.5 6.5Z" fill="currentColor"/></svg>
+                }
+              </span>
+            </button>
+          }
+          <div class="cds--menu-item-divider" role="separator"></div>
+          <button class="cds--menu-item" type="button" role="menuitem" (click)="openCategoryManagement()">
+            <span class="cds--menu-item__label">Manage categories</span>
+            <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 32 32"><path d="M27,16.76c0-.25,0-.5,0-.76s0-.51,0-.77l1.92-1.68A2,2,0,0,0,29.3,11L26.94,7a2,2,0,0,0-1.73-1,2,2,0,0,0-.64.1l-2.43.82a11.35,11.35,0,0,0-1.31-.75l-.51-2.52a2,2,0,0,0-2-1.61H13.64a2,2,0,0,0-2,1.61l-.51,2.52a11.48,11.48,0,0,0-1.32.75L7.43,6.06A2,2,0,0,0,6.79,6,2,2,0,0,0,5.06,7L2.7,11a2,2,0,0,0,.41,2.51L5,15.24c0,.25,0,.5,0,.76s0,.51,0,.77L3.11,18.45A2,2,0,0,0,2.7,21L5.06,25a2,2,0,0,0,1.73,1,2,2,0,0,0,.64-.1l2.43-.82a11.35,11.35,0,0,0,1.31.75l.51,2.52a2,2,0,0,0,2,1.61h4.72a2,2,0,0,0,2-1.61l.51-2.52a11.48,11.48,0,0,0,1.32-.75l2.42.82a2,2,0,0,0,.64.1,2,2,0,0,0,1.73-1L29.3,21a2,2,0,0,0-.41-2.51ZM25.21,24l-3.43-1.16a8.86,8.86,0,0,1-2.71,1.57L18.36,28H13.64l-.71-3.55a9.36,9.36,0,0,1-2.7-1.57L6.79,24,4.43,20l2.72-2.4a8.9,8.9,0,0,1,0-3.13L4.43,12,6.79,8l3.43,1.16a8.86,8.86,0,0,1,2.71-1.57L13.64,4h4.72l.71,3.55a9.36,9.36,0,0,1,2.7,1.57L25.21,8,27.57,12l-2.72,2.4a8.9,8.9,0,0,1,0,3.13L27.57,20Z" fill="currentColor"/><path d="M16,22a6,6,0,1,1,6-6A5.94,5.94,0,0,1,16,22Zm0-10a3.91,3.91,0,0,0-4,4,3.91,3.91,0,0,0,4,4,3.91,3.91,0,0,0,4-4A3.91,3.91,0,0,0,16,12Z" fill="currentColor"/></svg></span>
+          </button>
+        </div>
+      }
+      <button class="cds--menu-item" type="button" role="menuitem" [disabled]="!getContextEventCustomerEmail()" [class.cds--menu-item--disabled]="!getContextEventCustomerEmail()" (click)="copyContextCustomerEmail()">
+        <span class="cds--menu-item__label">Copy customer mail</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M14 3H2c-.6 0-1 .4-1 1v8c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V4c0-.6-.4-1-1-1ZM2 4h12v.2L8 8.1 2 4.2V4Zm0 8V5.4l5.7 3.7c.2.1.4.1.6 0L14 5.4V12H2Z" fill="currentColor"/></svg></span>
       </button>
-      <button type="button" role="menuitem" (click)="openContextEventDetails()" style="width:100%;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
-        <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">See details</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M13 14H3C2.73489 13.9996 2.48075 13.8942 2.29329 13.7067C2.10583 13.5193 2.00036 13.2651 2 13V3C2.00036 2.73489 2.10583 2.48075 2.29329 2.29329C2.48075 2.10583 2.73489 2.00036 3 2H8V3H3V13H13V8H14V13C13.9996 13.2651 13.8942 13.5193 13.7067 13.7067C13.5193 13.8942 13.2651 13.9996 13 14Z" fill="currentColor"/><path d="M10 1V2H13.293L9 6.293L9.707 7L14 2.707V6H15V1H10Z" fill="currentColor"/></svg>
+      <button class="cds--menu-item" type="button" role="menuitem" [disabled]="!getContextEventCustomerPhone()" [class.cds--menu-item--disabled]="!getContextEventCustomerPhone()" (click)="copyContextCustomerPhone()">
+        <span class="cds--menu-item__label">Copy customer phone</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M11.5 15A10.5 10.5 0 0 1 1 4.5 3.5 3.5 0 0 1 4.5 1c.2 0 .4.1.5.3l1.6 3.8c.1.2 0 .5-.2.7L4.9 7a7.6 7.6 0 0 0 4.1 4.1l1.2-1.5c.2-.2.4-.3.7-.2l3.8 1.6c.2.1.3.3.3.5A3.5 3.5 0 0 1 11.5 15ZM4.2 2A2.5 2.5 0 0 0 2 4.5 9.5 9.5 0 0 0 11.5 14a2.5 2.5 0 0 0 2.5-2.2l-3.4-1.4-1.2 1.5c-.1.2-.4.3-.6.2A8.6 8.6 0 0 1 3.9 7.2c-.1-.2 0-.5.2-.6l1.5-1.2L4.2 2Z" fill="currentColor"/></svg></span>
       </button>
-      <button type="button" role="menuitem" (click)="deleteContextEvent()" style="width:100%;border:0;border-top:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Layer-layer-01,#F4F4F4);padding:15px 16px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
-        <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cancel</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="white" fill-opacity="0.01" style="mix-blend-mode:multiply"/><path fill-rule="evenodd" clip-rule="evenodd" d="M14.5 3C14.7761 3.00001 15 3.22391 15 3.5V12.5C15 12.7761 14.7761 13 14.5 13H5.99997C5.86742 13 5.7402 12.9473 5.64645 12.8535L1.14645 8.35352C0.951192 8.15822 0.951175 7.84177 1.14645 7.64648L5.64645 3.14648C5.7402 3.05273 5.86742 3 5.99997 3H14.5ZM2.207 8L6.207 12H14V4H6.207L2.207 8ZM12.5 5.70703L10.207 8L12.5 10.293L11.7929 11L9.49997 8.70703L7.207 11L6.49997 10.293L8.79293 8L6.49997 5.70703L7.207 5L9.49997 7.29297L11.7929 5L12.5 5.70703Z" fill="currentColor"/></svg>
+      <button class="cds--menu-item" type="button" role="menuitem" (click)="openContextEventDetails()">
+        <span class="cds--menu-item__label">See details</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M13 14H3c-.6 0-1-.4-1-1V3c0-.6.4-1 1-1h5v1H3v10h10V8h1v5c0 .6-.4 1-1 1ZM10 1v1h3.3L9 6.3l.7.7L14 2.7V6h1V1h-5Z" fill="currentColor"/></svg></span>
+      </button>
+      <div class="cds--menu-item-divider" role="separator"></div>
+      <button class="cds--menu-item cds--menu-item--danger" type="button" role="menuitem" (click)="deleteContextEvent()">
+        <span class="cds--menu-item__label">Cancel</span>
+        <span class="cds--menu-item__shortcut" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M12 4.7 11.3 4 8 7.3 4.7 4 4 4.7 7.3 8 4 11.3l.7.7L8 8.7l3.3 3.3.7-.7L8.7 8 12 4.7Z" fill="currentColor"/></svg></span>
+      </button>
+    </div>
+  }
+
+  @if (resourceSlotContextMenu) {
+    <div role="menu" [style.left.px]="resourceSlotContextMenu.x" [style.top.px]="resourceSlotContextMenu.y" (click)="$event.stopPropagation()" (contextmenu)="$event.preventDefault(); $event.stopPropagation()" style="position:fixed;z-index:1001;min-width:248px;box-shadow:0 2px 6px rgba(0,0,0,.30);display:inline-flex;flex-direction:column;background:var(--Layer-layer-01,#F4F4F4);font-family:'IBM Plex Sans',sans-serif">
+      <div style="padding:10px 16px 6px;color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6)">{{ getResourceSlotContextMenuDetail() }}</div>
+      <button type="button" role="menuitem" (click)="openBlockTimeFromContext()" style="width:100%;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:13px 16px;display:inline-flex;align-items:center;gap:16px;text-align:left;color:var(--Text-text-secondary,#525252);font-size:14px;line-height:18px;letter-spacing:.16px;cursor:pointer">
+        <span style="flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getResourceSlotContextMenuTitle() }}</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1Zm0 13A6 6 0 1 1 8 2a6 6 0 0 1 0 12Zm.5-10h-1v4.2l3 3 .7-.7-2.7-2.7V4Z" fill="currentColor"/></svg>
       </button>
     </div>
   }
 
   </div>
 </div>
+
+@if (blockTimeModalOpen) {
+  <div class="booking-modal-overlay" role="presentation" (click)="closeBlockTimeModal()">
+    <section class="booking-modal" role="dialog" aria-modal="true" aria-labelledby="block-time-modal-title" (click)="$event.stopPropagation()">
+      <header class="booking-modal__header">
+        <div class="booking-modal__heading">
+          <div class="booking-modal__reference">Resource block</div>
+          <h2 id="block-time-modal-title">Block time</h2>
+        </div>
+        <button class="booking-modal__icon-button" type="button" aria-label="Close" (click)="closeBlockTimeModal()">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M12 4.7L11.3 4L8 7.3L4.7 4L4 4.7L7.3 8L4 11.3L4.7 12L8 8.7L11.3 12L12 11.3L8.7 8L12 4.7Z" /></svg>
+        </button>
+      </header>
+      <div class="booking-modal__content">
+        <div class="booking-modal__inner">
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
+              <span>Title</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" /></svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid">
+              <div class="booking-modal__field-column">
+                <ibm-text-label class="booking-carbon-field" size="md">
+                  Title
+                  <input ibmText type="text" [(ngModel)]="blockTimeTitle" />
+                </ibm-text-label>
+              </div>
+            </div>
+          </section>
+
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
+              <span>Category</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" /></svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid">
+              <div class="booking-modal__field-column">
+                @if (bookingCategories.length) {
+                  <fieldset class="block-time-categories">
+                    <legend class="block-time-categories__legend">Categories</legend>
+                    @for (category of bookingCategories; track category.id) {
+                      <label class="block-time-categories__item">
+                        <input
+                          type="checkbox"
+                          class="block-time-categories__checkbox"
+                          [checked]="isBlockTimeCategorySelected(category.id)"
+                          (change)="toggleBlockTimeCategory(category.id)"
+                          [attr.aria-label]="category.label"
+                        />
+                        <span
+                          class="service-planner__booking-category-tag"
+                          [style.--category-color]="category.color"
+                          aria-hidden="true">
+                          <svg width="16" height="16" viewBox="0 0 16 16" focusable="false">
+                            <path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/>
+                          </svg>
+                        </span>
+                        <span class="block-time-categories__label">{{ category.label }}</span>
+                      </label>
+                    }
+                  </fieldset>
+                } @else {
+                  <p class="block-time-categories__empty">No categories defined.</p>
+                }
+              </div>
+            </div>
+          </section>
+
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
+              <span>Resource</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" /></svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid">
+              <div class="booking-modal__field-column">
+                <ibm-select
+                  class="booking-carbon-field"
+                  id="block-time-resource"
+                  label="Resource"
+                  size="md"
+                  [(ngModel)]="blockTimeResourceId">
+                  @for (resource of visibleSchedulerResources; track resource.id) {
+                    <option [value]="resource.id">{{ resource.label }}</option>
+                  }
+                </ibm-select>
+              </div>
+            </div>
+          </section>
+
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
+              <span>Time</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" /></svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid booking-modal__field-grid--time">
+              <div class="booking-modal__field-column">
+                <ibm-date-picker
+                  class="booking-carbon-field booking-carbon-date-picker"
+                  id="block-time-start-date"
+                  label="Start date"
+                  placeholder="dd/mm/yyyy"
+                  dateFormat="d/m/Y"
+                  size="sm"
+                  [value]="getBookingModalDateValue(blockTimeStartDate)"
+                  (valueChange)="onBlockTimeDateChange('start', $event)"
+                />
+                <ibm-timepicker
+                  class="booking-carbon-field booking-carbon-time-picker"
+                  id="block-time-start-time"
+                  label="Start time"
+                  placeholder="hh:mm"
+                  size="sm"
+                  [value]="blockTimeStartTime"
+                  (valueChange)="onBlockTimeChange('start', $event)"
+                />
+              </div>
+              <div class="booking-modal__field-column">
+                <ibm-date-picker
+                  class="booking-carbon-field booking-carbon-date-picker"
+                  id="block-time-end-date"
+                  label="End date"
+                  placeholder="dd/mm/yyyy"
+                  dateFormat="d/m/Y"
+                  size="sm"
+                  [value]="getBookingModalDateValue(blockTimeEndDate)"
+                  (valueChange)="onBlockTimeDateChange('end', $event)"
+                />
+                <ibm-timepicker
+                  class="booking-carbon-field booking-carbon-time-picker"
+                  id="block-time-end-time"
+                  label="End time"
+                  placeholder="hh:mm"
+                  size="sm"
+                  [value]="blockTimeEndTime"
+                  (valueChange)="onBlockTimeChange('end', $event)"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section class="booking-accordion">
+            <button class="booking-accordion__header" type="button">
+              <span>Notes</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.5L19.5 15L18.45 16.05L12 9.6L5.55 16.05L4.5 15L12 7.5Z" /></svg>
+            </button>
+            <div class="booking-accordion__divider"></div>
+            <div class="booking-modal__field-grid">
+              <ibm-textarea-label class="booking-carbon-field booking-native-field--wide" size="md">
+                Description / comment
+                <textarea ibmTextArea [(ngModel)]="blockTimeDescription" rows="4"></textarea>
+              </ibm-textarea-label>
+            </div>
+          </section>
+        </div>
+      </div>
+      <footer class="booking-modal__footer">
+        <button type="button" class="booking-modal__close" (click)="closeBlockTimeModal()">Close</button>
+        <button type="button" class="booking-modal__delete" (click)="saveBlockTime()">{{ blockTimeEditingEntryId ? 'Save block' : 'Create block' }}</button>
+      </footer>
+    </section>
+  </div>
+}
 
 @if (selectedBookingEvent; as bookingEvent) {
   <div class="booking-modal-overlay" role="presentation" (click)="closeBookingModal()">
@@ -588,7 +857,19 @@
       <header class="booking-modal__header">
         <div class="booking-modal__heading">
           <div class="booking-modal__reference">{{ getBookingReferenceInfo(bookingEvent) }}</div>
-          <h2 id="booking-modal-title">Resource Booking</h2>
+          <div class="booking-modal__title-row">
+            <h2 id="booking-modal-title">Resource Booking</h2>
+            @if (getBookingEventCategories(bookingEvent).length) {
+              <span class="booking-modal__category-tags" aria-label="Booking categories">
+                @for (category of getBookingEventCategories(bookingEvent); track category.id) {
+                  <span class="booking-modal__category-tag" [style.--category-color]="category.color">
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                    <span>{{ category.label }}</span>
+                  </span>
+                }
+              </span>
+            }
+          </div>
         </div>
         <button class="booking-modal__icon-button" type="button" aria-label="Close" (click)="closeBookingModal()">
           <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">

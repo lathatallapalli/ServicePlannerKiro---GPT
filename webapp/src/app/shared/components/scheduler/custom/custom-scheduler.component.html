@@ -143,9 +143,11 @@
             <span>Select all</span>
           </label>
           <div style="display:flex;align-items:center;gap:4px">
-            <button type="button" [attr.aria-label]="showSelectedOnlyResources ? 'Show all resources' : 'Show selected resources only'" [attr.title]="showSelectedOnlyResources ? 'Show all resources' : 'Show selected resources only'" [disabled]="!showSelectedOnlyResources && !hasSelectedResources()" (click)="toggleSelectedOnlyResources()" [style.color]="(!showSelectedOnlyResources && !hasSelectedResources()) ? 'var(--Icon-icon-disabled,#C6C6C6)' : 'var(--Icon-icon-on-color,white)'" [style.cursor]="(!showSelectedOnlyResources && !hasSelectedResources()) ? 'not-allowed' : 'pointer'" style="height:32px;border:0;background:var(--Button-button-secondary,#626469);padding:7px 12px;display:flex;align-items:center;gap:6px;justify-content:center;color:var(--Icon-icon-on-color,white);font:400 14px/18px 'IBM Plex Sans',sans-serif;letter-spacing:.16px;white-space:nowrap">
+            <button type="button" [attr.aria-pressed]="showSelectedOnlyResources" [attr.aria-label]="showSelectedOnlyResources ? 'Show all resources' : 'Show selected resources only'" [attr.title]="showSelectedOnlyResources ? 'Show all resources' : 'Show selected resources only'" [disabled]="!showSelectedOnlyResources && !hasSelectedResources()" (click)="toggleSelectedOnlyResources()" [style.color]="(!showSelectedOnlyResources && !hasSelectedResources()) ? 'var(--Icon-icon-disabled,#C6C6C6)' : 'var(--Icon-icon-on-color,white)'" [style.cursor]="(!showSelectedOnlyResources && !hasSelectedResources()) ? 'not-allowed' : 'pointer'" [style.background]="showSelectedOnlyResources ? 'var(--Button-button-primary,#0F62FE)' : 'var(--Button-button-secondary,#626469)'" style="width:32px;height:32px;border:0;padding:8px;display:flex;align-items:center;justify-content:center;color:var(--Icon-icon-on-color,white)">
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.5 11.4 3 7.9l.7-.7 2.8 2.8 5.8-5.8.7.7-6.5 6.5Z" fill="currentColor"/></svg>
-              {{ showSelectedOnlyResources ? 'All resources' : 'Selected only' }}
+            </button>
+            <button type="button" [attr.aria-pressed]="showBookedOnlyResources" [attr.aria-label]="showBookedOnlyResources ? 'Show all resources' : 'Show booked resources only'" [attr.title]="showBookedOnlyResources ? 'Show all resources' : 'Show booked resources only'" [disabled]="!showBookedOnlyResources && !hasBookedResources()" (click)="toggleBookedOnlyResources()" [style.color]="(!showBookedOnlyResources && !hasBookedResources()) ? 'var(--Icon-icon-disabled,#C6C6C6)' : 'var(--Icon-icon-on-color,white)'" [style.cursor]="(!showBookedOnlyResources && !hasBookedResources()) ? 'not-allowed' : 'pointer'" [style.background]="showBookedOnlyResources ? 'var(--Button-button-primary,#0F62FE)' : 'var(--Button-button-secondary,#626469)'" style="width:32px;height:32px;border:0;padding:8px;display:flex;align-items:center;justify-content:center;color:var(--Icon-icon-on-color,white)">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 1.5h1V3h4V1.5h1V3h1.5c.28 0 .5.22.5.5v10c0 .28-.22.5-.5.5h-9a.5.5 0 0 1-.5-.5v-10c0-.28.22-.5.5-.5H5V1.5ZM4 6v7h8V6H4Zm0-1h8V4H4v1Zm2 3h4v1H6V8Zm0 2h3v1H6v-1Z" fill="currentColor"/></svg>
             </button>
             <button type="button" [attr.aria-label]="areAllVisibleGroupsCollapsed() ? 'Expand all resource groups' : 'Collapse all resource groups'" [attr.title]="areAllVisibleGroupsCollapsed() ? 'Expand all resource groups' : 'Collapse all resource groups'" (click)="toggleAllGroupsCollapsed()" style="width:32px;height:32px;border:0;background:var(--Button-button-secondary,#626469);color:var(--Icon-icon-on-color,white);padding:8px;display:flex;align-items:center;justify-content:center;cursor:pointer">
               @if (areAllVisibleGroupsCollapsed()) {
@@ -307,9 +309,14 @@
               }
             </div>
           </div>
-          <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null">
-            @if (getActiveTimeRange(); as range) {
+          <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
+            @if (getActiveTimeRange(); as bookingRange) {
               <div class="scheduler__booking-window-band"
+                [style.left.px]="getTimeRangeLeft(bookingRange)"
+                [style.width.px]="getTimeRangeWidth(bookingRange)"></div>
+            }
+            @if (getResourceActiveTimeRange(resource.id); as range) {
+              <div class="scheduler__booking-window-band scheduler__booking-window-band--resource-selection"
                 [style.left.px]="getTimeRangeLeft(range)"
                 [style.width.px]="getTimeRangeWidth(range)"></div>
             }
@@ -465,8 +472,8 @@
                   <span class="scheduler__event-copy">
                     @if (!shouldReserveOrderRunSpace(event)) {
                       <span class="scheduler__event-order">
-                        <span class="scheduler__event-order-ref">{{ getEventOrderReference(event) }}</span>
-                        <button class="scheduler__event-order-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="'Focus order ' + getEventOrderReference(event) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onOrderFocusClick($event, event)" (contextmenu)="suppressEventAction($event)">
+                        <span class="scheduler__event-order-ref">{{ isResourceBlockEvent(event) ? '' : getEventOrderReference(event) }}</span>
+                        <button class="scheduler__event-order-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="isResourceBlockEvent(event) ? 'Find block in panel' : 'Focus order ' + getEventOrderReference(event) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onOrderFocusClick($event, event)" (contextmenu)="suppressEventAction($event)">
                           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                             <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
                             <path d="M1 3V13C1 13.5522 1.44775 14 2 14H14C14.5522 14 15 13.5522 15 13V3C15 2.44775 14.5522 2 14 2H2C1.44775 2 1 2.44775 1 3ZM11 3H14V13H11V3ZM2 3H10V13H2V8.5H7.08495L5.2949 10.2949L6 11L9 8L6 5L5.2949 5.7051L7.08495 7.5H2V3Z" fill="currentColor"/>
@@ -481,14 +488,26 @@
                         <span class="scheduler__event-customer">{{ getEventCustomerVehicleDetail(event) }}</span>
                       </span>
                       <span class="scheduler__event-actions">
-                        @if (shouldShowEventTag(event)) {
-                          <span class="scheduler__event-tag">
-                            <span class="scheduler__event-tag-icon" aria-hidden="true">
-                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                        <span class="scheduler__event-tag-row">
+                          @for (category of getVisibleEventCategories(event).reverse(); track category.id) {
+                            <span class="scheduler__event-category-tag" [style.--category-color]="category.color" [attr.title]="category.label">
+                              <span class="scheduler__event-tag-icon" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                              </span>
+                              @if (shouldShowEventCategoryLabels(event)) {
+                                <span class="scheduler__event-category-tag-label">{{ category.label }}</span>
+                              }
                             </span>
-                            <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
-                          </span>
-                        }
+                          }
+                          @if (shouldShowEventTag(event)) {
+                            <span class="scheduler__event-tag">
+                              <span class="scheduler__event-tag-icon" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                              </span>
+                              <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
+                            </span>
+                          }
+                        </span>
                         @if (shouldShowEventContacts(event)) {
                           <span class="scheduler__event-contact-list" aria-live="polite">
                             @if (getEventCustomerEmail(event); as email) {
@@ -635,9 +654,14 @@
             }
           </div>
         </div>
-        <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null">
-          @if (getActiveTimeRange(); as range) {
+        <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
+          @if (getActiveTimeRange(); as bookingRange) {
             <div class="scheduler__booking-window-band"
+              [style.left.px]="getTimeRangeLeft(bookingRange)"
+              [style.width.px]="getTimeRangeWidth(bookingRange)"></div>
+          }
+          @if (getResourceActiveTimeRange(resource.id); as range) {
+            <div class="scheduler__booking-window-band scheduler__booking-window-band--resource-selection"
               [style.left.px]="getTimeRangeLeft(range)"
               [style.width.px]="getTimeRangeWidth(range)"></div>
           }
@@ -787,8 +811,8 @@
                   <span class="scheduler__event-copy">
                     @if (!shouldReserveOrderRunSpace(event)) {
                     <span class="scheduler__event-order">
-                      <span class="scheduler__event-order-ref">{{ getEventOrderReference(event) }}</span>
-                        <button class="scheduler__event-order-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="'Focus order ' + getEventOrderReference(event) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onOrderFocusClick($event, event)" (contextmenu)="suppressEventAction($event)">
+                      <span class="scheduler__event-order-ref">{{ isResourceBlockEvent(event) ? '' : getEventOrderReference(event) }}</span>
+                        <button class="scheduler__event-order-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="isResourceBlockEvent(event) ? 'Find block in panel' : 'Focus order ' + getEventOrderReference(event) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onOrderFocusClick($event, event)" (contextmenu)="suppressEventAction($event)">
                           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                             <rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/>
                             <path d="M1 3V13C1 13.5522 1.44775 14 2 14H14C14.5522 14 15 13.5522 15 13V3C15 2.44775 14.5522 2 14 2H2C1.44775 2 1 2.44775 1 3ZM11 3H14V13H11V3ZM2 3H10V13H2V8.5H7.08495L5.2949 10.2949L6 11L9 8L6 5L5.2949 5.7051L7.08495 7.5H2V3Z" fill="currentColor"/>
@@ -803,14 +827,26 @@
                         <span class="scheduler__event-customer">{{ getEventCustomerVehicleDetail(event) }}</span>
                       </span>
                       <span class="scheduler__event-actions">
-                        @if (shouldShowEventTag(event)) {
-                          <span class="scheduler__event-tag">
-                            <span class="scheduler__event-tag-icon" aria-hidden="true">
-                              <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                        <span class="scheduler__event-tag-row">
+                          @for (category of getVisibleEventCategories(event).reverse(); track category.id) {
+                            <span class="scheduler__event-category-tag" [style.--category-color]="category.color" [attr.title]="category.label">
+                              <span class="scheduler__event-tag-icon" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8.5 2 2 8.5 7.5 14 14 7.5 8.5 2ZM3.4 8.5 8.5 3.4l4.1 4.1-5.1 5.1-4.1-4.1ZM6 6.5A1.5 1.5 0 1 1 6 3.5a1.5 1.5 0 0 1 0 3Z" fill="currentColor"/></svg>
+                              </span>
+                              @if (shouldShowEventCategoryLabels(event)) {
+                                <span class="scheduler__event-category-tag-label">{{ category.label }}</span>
+                              }
                             </span>
-                            <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
-                          </span>
-                        }
+                          }
+                          @if (shouldShowEventTag(event)) {
+                            <span class="scheduler__event-tag">
+                              <span class="scheduler__event-tag-icon" aria-hidden="true">
+                                <svg width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14Zm0-13a6 6 0 1 0 0 12A6 6 0 0 0 8 2Z" fill="currentColor"/><path d="M10.295 11 7.5 8.205V3.5h1v4.29l2.5 2.505-.705.705Z" fill="currentColor"/></svg>
+                              </span>
+                              <span class="scheduler__event-tag-label">{{ getEventTagLabel(event) }}</span>
+                            </span>
+                          }
+                        </span>
                         @if (shouldShowEventContacts(event)) {
                           <span class="scheduler__event-contact-list" aria-live="polite">
                             @if (getEventCustomerEmail(event); as email) {

@@ -7,6 +7,8 @@ export type GenericListActionId = 'settings' | 'clear-filter' | 'edit' | 'delete
 export interface GenericListColumn<T = Record<string, unknown>> {
   key: keyof T & string;
   label: string;
+  cellType?: 'text' | 'color' | 'input' | 'select';
+  options?: Array<{ label: string; value: string }>;
   width?: string;
   minWidth?: string;
   maxWidth?: string;
@@ -52,6 +54,7 @@ export class GenericListComponent<T extends Record<string, unknown> = Record<str
   @Input() showAddButton = true;
   @Input() selectable = true;
   @Input() fitContent = false;
+  @Input() inlineEditEnabled = false;
   @Input() editableCell?: { rowId?: string; columnKey: string; value?: string } | null = null;
   @Input() rowActions: GenericListRowAction[] = [{ id: 'open', label: 'Open', icon: 'launch' }];
   @Input() toolbarActions: GenericListToolbarAction[] = [
@@ -68,7 +71,7 @@ export class GenericListComponent<T extends Record<string, unknown> = Record<str
   @Output() rowAction = new EventEmitter<{ action: GenericListRowAction; row: T }>();
   @Output() selectionChange = new EventEmitter<T[]>();
   @Output() sortChange = new EventEmitter<GenericListSort<T>>();
-  @Output() editableCellValueChange = new EventEmitter<{ row: T; value: string }>();
+  @Output() editableCellValueChange = new EventEmitter<{ row: T; value: string; columnKey?: string }>();
 
   selectedRowIds = new Set<string>();
   sortState: GenericListSort<T> | null = null;
@@ -167,6 +170,11 @@ export class GenericListComponent<T extends Record<string, unknown> = Record<str
     const value = row[column.key];
     if (value === null || value === undefined) return '';
     return String(value);
+  }
+
+  getSelectOptionLabel(row: T, column: GenericListColumn<T>): string {
+    const value = this.getCellValue(row, column);
+    return column.options?.find(option => option.value === value)?.label ?? value;
   }
 
   getRowId(row: T): string {

@@ -7,8 +7,10 @@ export interface ScheduleEntry {
   start: Date;
   end: Date;
   title?: string;
+  description?: string;
   color?: string;
-  kind?: 'tentative' | 'blocked-order' | 'scheduled' | 'day-capacity';
+  kind?: 'tentative' | 'blocked-order' | 'scheduled' | 'day-capacity' | 'resource-block';
+  categoryIds?: string[];
   workOrderReference?: string;
   workorderItemStatus?: WorkorderItemStatus;
   workorderItemCategory?: WorkorderItemCategory;

@@ -1,6 +1,8 @@
 import { Routes } from '@angular/router';
 import { AppHomeComponent } from './features/app-home/app-home.component';
 import { AppointmentSelectionComponent } from './features/appointment-selection/appointment-selection.component';
+import { BookingCategoryCardComponent } from './features/booking-categories/booking-category-card.component';
+import { BookingCategoriesListComponent } from './features/booking-categories/booking-categories-list.component';
 import { OrderSummaryComponent } from './features/order-summary/order-summary.component';
 import { QuickViewComponent } from './features/quick-view/quick-view.component';
 import { ResourceCatalogComponent } from './features/resource-catalog/resource-catalog.component';
@@ -24,6 +26,8 @@ export const routes: Routes = [
   { path: 'orders/:orderId/quick-view', component: QuickViewComponent },
   { path: 'orders/:orderId/service-planner', loadComponent: loadServicePlanner },
   { path: 'service-planner', loadComponent: loadServicePlanner },
+  { path: 'booking-categories', component: BookingCategoriesListComponent },
+  { path: 'booking-categories/:categoryId', component: BookingCategoryCardComponent },
   { path: 'resource-views', component: ResourceViewsListComponent },
   { path: 'resource-views/:viewId/edit', component: ResourceViewEditorComponent },
   { path: 'resource-catalog', component: ResourceCatalogComponent },

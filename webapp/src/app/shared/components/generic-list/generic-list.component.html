@@ -161,12 +161,44 @@
 
         @for (column of columns; track trackColumn($index, column)) {
           <div class="generic-list-data-cell" role="cell" data-layer="Generic list data cell" [style.width]="column.width" [style.min-width]="column.minWidth" [style.max-width]="column.maxWidth">
-            @if (isEditingCell(row, column)) {
+            @if (column.cellType === 'color') {
+              <label class="generic-list-color-cell" [attr.aria-label]="'Edit ' + column.label">
+                <span class="generic-list-color-cell__value">{{ getCellValue(row, column) }}</span>
+                <input
+                  class="generic-list-color-cell__input"
+                  type="color"
+                  [ngModel]="getCellValue(row, column)"
+                  (ngModelChange)="editableCellValueChange.emit({ row, value: $event, columnKey: column.key })"
+                />
+              </label>
+            } @else if (column.cellType === 'select' && inlineEditEnabled) {
+              <select
+                class="generic-list-data-cell__input generic-list-data-cell__select"
+                [ngModel]="getCellValue(row, column)"
+                (ngModelChange)="editableCellValueChange.emit({ row, value: $event, columnKey: column.key })"
+                [attr.aria-label]="'Edit ' + column.label">
+                @for (option of column.options ?? []; track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+            } @else if (column.cellType === 'select') {
+              <span class="generic-list-data-cell__cell" data-layer="Cell">
+                <span class="generic-list-data-cell__text">{{ getSelectOptionLabel(row, column) }}</span>
+              </span>
+            } @else if (column.cellType === 'input' && inlineEditEnabled) {
+              <input
+                class="generic-list-data-cell__input"
+                type="text"
+                [ngModel]="getCellValue(row, column)"
+                (ngModelChange)="editableCellValueChange.emit({ row, value: $event, columnKey: column.key })"
+                [attr.aria-label]="'Edit ' + column.label"
+              />
+            } @else if (isEditingCell(row, column)) {
               <input
                 class="generic-list-data-cell__input"
                 type="text"
                 [ngModel]="getEditableCellValue(row, column)"
-                (ngModelChange)="editableCellValueChange.emit({ row, value: $event })"
+                (ngModelChange)="editableCellValueChange.emit({ row, value: $event, columnKey: column.key })"
                 aria-label="Edit cell value"
               />
             } @else {

@@ -29,6 +29,18 @@ export class MockScheduleRepository extends ScheduleRepository {
     return of({ ...stored });
   }
 
+  update(entryId: string, changes: Partial<ScheduleEntry>): Observable<ScheduleEntry> {
+    const entry = this.entries.find(candidate => candidate.id === entryId);
+    if (entry) {
+      Object.assign(entry, {
+        ...changes,
+        start: changes.start ? new Date(changes.start) : entry.start,
+        end: changes.end ? new Date(changes.end) : entry.end,
+      });
+    }
+    return of({ ...entry! });
+  }
+
   unassign(entryId: string): Observable<void> {
     this.entries = this.entries.filter(e => e.id !== entryId);
     return of(void 0);

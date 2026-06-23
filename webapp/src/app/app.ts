@@ -38,13 +38,14 @@ export class App implements OnInit {
   protected readonly isFullServicePlannerPage = signal(false);
   protected readonly isResourceEditorPage = signal(false);
   protected readonly isResourceCatalogPage = signal(false);
+  protected readonly isBookingCategoriesPage = signal(false);
   protected readonly shellTitle = signal('Service Planner');
   protected readonly shellReference = signal('014826312');
   protected readonly shellBreadcrumbs = signal([{ label: 'Appointment Selection' }]);
   protected readonly resourceEditorReference = signal('');
   protected readonly activeOrder = signal<WorkOrder | null>(findWorkOrderByIdOrReference('014826312') ?? null);
   protected readonly visibleActionRibbonItems = computed(() =>
-    this.isHomePage() || this.isTransactionsPage() || this.isQuickViewPage()
+    this.isHomePage() || this.isTransactionsPage() || this.isQuickViewPage() || this.isBookingCategoriesPage()
       ? []
       : this.isTransactionSummaryPage()
         ? this.transactionSummaryActionRibbonItems
@@ -52,7 +53,7 @@ export class App implements OnInit {
         ? this.appointmentSelectionActionRibbonItems
         : this.isOrderSummaryPage()
           ? this.orderSummaryActionRibbonItems
-      : this.isResourceEditorPage() || this.isResourceCatalogPage() ? this.resourceEditorActionRibbonItems : this.actionRibbonItems
+          : this.isResourceEditorPage() || this.isResourceCatalogPage() ? this.resourceEditorActionRibbonItems : this.actionRibbonItems
   );
 
   private readonly favoriteResourceViews = [
@@ -135,7 +136,7 @@ export class App implements OnInit {
       value: 'view-main-workshop',
       resourceIds: ['mech-scenario-flex', 'mech-mark-owen', 'mech-phil-parker', 'mech-greg-jackson', 'mech-jeff-goldberg', 'mech-kelly-hanson', 'advisor-scenario-lead', 'advisor-ted-phillips', 'advisor-frank-miller', 'bay-scenario-express', 'bay-pc-1', 'bay-pc-2', 'bay-pc-3'],
       groups: [
-        { label: 'Mechanics', children: ['Workshop Flex Mechanic', 'Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
+        { label: 'Mechanics', children: ['Dave Walker', 'Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
         { label: 'Service Advisors', children: ['Lead Service Advisor', 'Ted Phillips', 'Frank Miller'] },
         { label: 'Bays', children: ['Express Bay', 'PC Bay 1', 'PC Bay 2', 'PC Bay 3'] },
       ],
@@ -145,7 +146,7 @@ export class App implements OnInit {
       value: 'view-mot-emissions',
       resourceIds: ['mech-scenario-flex', 'mech-greg-jackson', 'mech-jeff-goldberg', 'advisor-scenario-lead', 'advisor-frank-miller', 'bay-scenario-express', 'bay-pc-1', 'bay-pc-2', 'bay-pc-3', 'device-bea-950'],
       groups: [
-        { label: 'Mechanics', children: ['Workshop Flex Mechanic', 'Greg Jackson', 'Jeff Goldberg'] },
+        { label: 'Mechanics', children: ['Dave Walker', 'Greg Jackson', 'Jeff Goldberg'] },
         { label: 'Service Advisors', children: ['Lead Service Advisor', 'Frank Miller'] },
         { label: 'Bays', children: ['Express Bay', 'PC Bay 1', 'PC Bay 2', 'PC Bay 3'] },
         { label: 'Devices', children: ['BEA 950 Emission Tester'] },
@@ -165,7 +166,7 @@ export class App implements OnInit {
       value: 'view-full',
       resourceIds: MOCK_WORK_ORDERS.length ? ['mech-scenario-flex', 'mech-mark-owen', 'mech-phil-parker', 'mech-greg-jackson', 'mech-jeff-goldberg', 'mech-kelly-hanson', 'advisor-scenario-lead', 'advisor-ted-phillips', 'advisor-frank-miller', 'bay-scenario-express', 'bay-pc-1', 'bay-pc-2', 'bay-pc-3', 'bay-lt-1', 'bay-pc-alignment', 'device-bea-950', 'device-eps-708', 'car-scenario-courtesy', 'car-audi-a4-kl657og', 'car-audi-a3-kl643ju', 'car-bmw-320-mw112ab'] : [],
       groups: [
-        { label: 'Mechanics', children: ['Workshop Flex Mechanic', 'Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
+        { label: 'Mechanics', children: ['Dave Walker', 'Mark Owen', 'Phil Parker', 'Greg Jackson', 'Jeff Goldberg', 'Kelly Hanson'] },
         { label: 'Service Advisors', children: ['Lead Service Advisor', 'Ted Phillips', 'Frank Miller'] },
         { label: 'Bays', children: ['Express Bay', 'PC Bay 1', 'PC Bay 2', 'PC Bay 3', 'LT Bay 1', 'PC Alignment'] },
         { label: 'Devices', children: ['BEA 950 Emission Tester', 'EPS 708 Diesel Tester'] },
@@ -207,11 +208,6 @@ export class App implements OnInit {
 
   actionRibbonItems: ActionRibbonItem[] = [
     {
-      label: 'Undo Booking', type: 'link' as const,
-      icon: 'M15 7.5H5.86117L8.55172 4.81058L7.5 3.75L3 8.25L7.5 12.75L8.55172 11.689L5.86343 9H15C16.1935 9 17.3381 9.47411 18.182 10.318C19.0259 11.1619 19.5 12.3065 19.5 13.5C19.5 14.6935 19.0259 15.8381 18.182 16.682C17.3381 17.5259 16.1935 18 15 18H9V19.5H15C16.5913 19.5 18.1174 18.8679 19.2426 17.7426C20.3679 16.6174 21 15.0913 21 13.5C21 11.9087 20.3679 10.3826 19.2426 9.25736C18.1174 8.13214 16.5913 7.5 15 7.5Z',
-      action: () => this.plannerSettings.triggerUndo(),
-    },
-    {
       label: 'View', type: 'dropdown' as const,
       options: [
         { label: 'Free', value: 'free' },
@@ -234,6 +230,12 @@ export class App implements OnInit {
       ],
       selectedValue: '60',
       onSelect: (opt: any) => this.plannerSettings.setSlotDuration(parseInt(opt.value, 10)),
+    },
+    {
+      label: 'Categories', type: 'link' as const,
+      iconViewBox: '0 0 20 20',
+      icon: 'M18.5 10.5L9.5 1.5C9.2 1.2 8.8 1 8.4 1H2.5C1.7 1 1 1.7 1 2.5V8.4C1 8.8 1.2 9.2 1.5 9.5L10.5 18.5C11.1 19.1 12 19.1 12.6 18.5L18.5 12.6C19.1 12 19.1 11.1 18.5 10.5ZM17.8 11.8L11.8 17.8C11.6 18 11.3 18 11.1 17.8L2.2 8.8C2.1 8.7 2 8.6 2 8.4V2.5C2 2.2 2.2 2 2.5 2H8.4C8.5 2 8.7 2.1 8.8 2.2L17.8 11.1C18 11.3 18 11.6 17.8 11.8ZM5 6.5C4.2 6.5 3.5 5.8 3.5 5C3.5 4.2 4.2 3.5 5 3.5C5.8 3.5 6.5 4.2 6.5 5C6.5 5.8 5.8 6.5 5 6.5Z',
+      action: () => this.router.navigate(['/booking-categories']),
     },
     {
       label: 'Settings', type: 'link' as const,
@@ -488,6 +490,7 @@ export class App implements OnInit {
     const isResourceViewsList = cleanUrl === '/resource-views';
     const isResourceEditor = cleanUrl.startsWith('/resource-views/');
     const isResourceCatalog = cleanUrl.startsWith('/resource-catalog');
+    const isBookingCategories = cleanUrl.startsWith('/booking-categories');
     this.isHomePage.set(isHome);
     this.isTransactionsPage.set(isTransactions);
     this.isTransactionsOfferPage.set(isTransactionsOffer);
@@ -501,12 +504,20 @@ export class App implements OnInit {
     this.isFullServicePlannerPage.set(isFullServicePlanner);
     this.isResourceEditorPage.set(isResourceEditor || isResourceViewsList);
     this.isResourceCatalogPage.set(isResourceCatalog);
+    this.isBookingCategoriesPage.set(isBookingCategories);
     const viewId = cleanUrl.match(/^\/resource-views\/([^/?#]+)\/edit/)?.[1];
     const view = this.resourceViewsService.getByValue(viewId);
     this.resourceEditorReference.set(view?.label ?? '');
 
     if (isResourceViewsList) {
       this.shellTitle.set('Resource views');
+      this.shellReference.set('Service Planner');
+      this.shellBreadcrumbs.set([{ label: 'Service Planner' }]);
+      return;
+    }
+
+    if (isBookingCategories) {
+      this.shellTitle.set(cleanUrl === '/booking-categories' ? 'Booking categories' : 'Category');
       this.shellReference.set('Service Planner');
       this.shellBreadcrumbs.set([{ label: 'Service Planner' }]);
       return;
@@ -601,6 +612,16 @@ export class App implements OnInit {
       return;
     }
 
+    if (cleanUrl === '/booking-categories') {
+      this.router.navigate(['/service-planner']);
+      return;
+    }
+
+    if (cleanUrl.startsWith('/booking-categories/')) {
+      this.router.navigate(['/booking-categories']);
+      return;
+    }
+
     if (cleanUrl.startsWith('/resource-views/')) {
       this.router.navigateByUrl(this.getResourceEditorReturnTarget());
       return;
@@ -640,6 +661,16 @@ export class App implements OnInit {
 
     if (cleanUrl === '/resource-views') {
       this.router.navigateByUrl(this.getResourceViewsListReturnTarget());
+      return;
+    }
+
+    if (cleanUrl === '/booking-categories') {
+      this.router.navigate(['/service-planner']);
+      return;
+    }
+
+    if (cleanUrl.startsWith('/booking-categories/')) {
+      this.router.navigate(['/booking-categories']);
       return;
     }
 

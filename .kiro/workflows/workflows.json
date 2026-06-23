@@ -1,0 +1,25 @@
+{
+  "tasks": [
+    {
+      "type": "kiro",
+      "label": "Git Diff Review",
+      "preCommand": "git diff 2>&1",
+      "prompt": "Review this diff before I commit:\n\n{{commandOutput}}",
+      "autonomyMode": "supervised"
+    },
+    {
+      "type": "kiro",
+      "label": "Explain Module",
+      "prompt": "Explain the {{moduleName}} module — its purpose, key functions, and how it fits into the project",
+      "autonomyMode": "supervised"
+    }
+  ],
+  "reminders": [
+    {
+      "label": "Review today's changes",
+      "prompt": "Review my recent git changes and suggest improvements",
+      "intervalMinutes": 120,
+      "enabled": true
+    }
+  ]
+}

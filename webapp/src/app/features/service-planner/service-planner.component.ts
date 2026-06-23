@@ -3,10 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
-import { ComboBoxModule, DatePickerModule, InputModule, SearchModule, SelectModule, TimePickerModule, TimePickerSelectModule, ToggleModule } from 'carbon-components-angular';
+import { ComboBoxModule, ContextMenuModule, DatePickerModule, InputModule, SearchModule, SelectModule, TimePickerModule, TimePickerSelectModule, ToggleModule } from 'carbon-components-angular';
 import { CustomSchedulerComponent } from '../../shared/components/scheduler/custom/custom-scheduler.component';
 import { JobTile, JobBooking, ActivityTile } from './components/jobs-panel/jobs-panel.component';
-import { SchedulerResource, SchedulerEvent, SchedulerGroup, SchedulerCapacityBlock, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerInvalidCapacityResource, SchedulerDropVisualContext, SchedulerTimeRangePayload } from '../../shared/components/scheduler/scheduler.interface';
+import { SchedulerResource, SchedulerEvent, SchedulerGroup, SchedulerCapacityBlock, EventMovePayload, EventResizePayload, EventDropPayload, EventClickPayload, EventContextMenuPayload, OrderFocusPayload, ResourceSelectionChangePayload, ResourceTypeSelectionChangePayload, SchedulerInvalidDropRange, SchedulerInvalidCapacityResource, SchedulerDropVisualContext, SchedulerTimeRangePayload, SchedulerBookedResourceFilterContext, SchedulerResourceSlotContextMenuPayload } from '../../shared/components/scheduler/scheduler.interface';
 import { ResourceRepository } from '../../core/services/resource.repository';
 import { ScheduleRepository } from '../../core/services/schedule.repository';
 import { WorkOrderRepository } from '../../core/services/work-order.repository';
@@ -15,12 +15,14 @@ import { AutoScheduleResult, AutoSchedulerService } from './services/auto-schedu
 import { ResourceViewsService } from './services/resource-views.service';
 import { MOCK_UNAVAILABILITY } from '../../core/services/mock/mock-data';
 import { UnavailabilityBlock } from '../../core/models/availability.model';
+import { BookingCategory } from '../../core/models/booking-category.model';
 import { ScheduleEntry } from '../../core/models/schedule.model';
 import { JobResourceRequirement, WorkorderItemStatus } from '../../core/models/job.model';
 import { Resource, ResourceType } from '../../core/models/resource.model';
 import { ResourceFavoriteView } from './services/planner-settings.service';
 import { AppointmentSyncService } from '../../core/services/appointment-sync.service';
 import { QuickViewSelectionService } from '../quick-view/quick-view-selection.service';
+import { BookingCategoriesService } from '../booking-categories/booking-categories.service';
 
 const MINUTES_PER_FRU = 60;
 
@@ -150,6 +152,7 @@ interface SelectedResourceConstraintContext {
     CommonModule,
     FormsModule,
     ComboBoxModule,
+    ContextMenuModule,
     DatePickerModule,
     InputModule,
     SearchModule,
@@ -201,6 +204,18 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   selectedResourceTypeGroupIds: string[] = [];
   selectedBookingEvent: SchedulerEvent | null = null;
   eventContextMenu: { eventId: string; x: number; y: number } | null = null;
+  isCategoryFlyoutOpen = false;
+  resourceSlotContextMenu: SchedulerResourceSlotContextMenuPayload | null = null;
+  blockTimeModalOpen = false;
+  blockTimeResourceId = '';
+  blockTimeStartDate = '';
+  blockTimeStartTime = '';
+  blockTimeEndDate = '';
+  blockTimeEndTime = '';
+  blockTimeTitle = '';
+  blockTimeDescription = '';
+  blockTimeEditingEntryId: string | null = null;
+  blockTimeCategoryIds: string[] = [];
   bookingModalStartDate = '';
   bookingModalStartTime = '';
   bookingModalEndDate = '';
@@ -548,29 +563,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return this.getPersistedBookingsFromEntries(this.allScheduleEntries, this.allOrders);
   }
 
-  /** After booking, only show resources that have at least one event */
   get filteredResources(): SchedulerResource[] {
-    const resourcePool = this.visibleResourcePool;
-    if (this.plannerMode === 'order' && this.isAutoProposalVisible) {
-      const order = this.allOrders.find(candidate => candidate.id === this.activeOrderId || candidate.referenceNumber === this.activeOrderId);
-      const bookedResourceIds = new Set(
-        this.events
-          .filter(event =>
-            event.meta?.entry?.workOrderReference === order?.referenceNumber ||
-            (event.meta as any)?.order?.id === order?.id
-          )
-          .map(event => event.resourceId)
-      );
-      for (const resourceId of this.pinnedVisibleResourceIds) {
-        bookedResourceIds.add(resourceId);
-      }
-      if (bookedResourceIds.size) {
-        return resourcePool.filter(resource => bookedResourceIds.has(resource.id));
-      }
-    }
-    if (!this.isAutoProposalVisible) return resourcePool;
-    const bookedResourceIds = new Set(this.events.map(e => e.resourceId));
-    return resourcePool.filter(r => bookedResourceIds.has(r.id));
+    return this.visibleResourcePool;
   }
 
   get fullPlannerResources(): SchedulerResource[] {
@@ -598,7 +592,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   get visibleSchedulerResources(): SchedulerResource[] {
-    const resources = this.plannerMode === 'full' ? this.getFullPlannerVisibleResources() : this.filteredResources;
+    const resources = this.visibleResourcePool;
     if (!this.viewPersonalCalendarOnTop) return resources;
 
     return resources.map(resource =>
@@ -606,6 +600,60 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         ? { ...resource, groupId: this.personalCalendarGroup.id, groupLabel: this.personalCalendarGroup.label }
         : resource
     );
+  }
+
+  get schedulerBookedResourceFilterContext(): SchedulerBookedResourceFilterContext | null {
+    const focusedOrder = this.getFullPlannerFocusedOrder();
+    if (focusedOrder) {
+      return {
+        contextKey: `focused-order:${focusedOrder.id}`,
+        active: true,
+        label: 'Focused order',
+        source: 'focused-order',
+        resourceIds: this.getBookedResourceIdsForOrder(focusedOrder),
+      };
+    }
+
+    if (this.isAutoProposalVisible) {
+      const order = this.getFocusedPlanningOrder();
+      const resourceIds = order
+        ? this.getBookedResourceIdsForOrder(order, { includePinned: this.plannerMode === 'order' })
+        : this.getBookedResourceIdsForVisibleSchedule();
+
+      return {
+        contextKey: `auto-proposal:${order?.id ?? this.activeOrderId ?? 'all'}`,
+        active: true,
+        label: 'Booked proposal',
+        source: 'auto-proposal',
+        resourceIds,
+      };
+    }
+
+    return null;
+  }
+
+  private getBookedResourceIdsForOrder(order: any, options: { includePinned?: boolean } = {}): string[] {
+    const resourceIds = new Set<string>();
+    this.events
+      .filter(event => this.isEventForOrder(event, order))
+      .forEach(event => resourceIds.add(event.resourceId));
+    this.capacityBlocks
+      .filter(block => this.isEntryForOrder(block.meta?.entry as ScheduleEntry | undefined, order))
+      .forEach(block => resourceIds.add(block.resourceId));
+    this.allScheduleEntries
+      .filter(entry => this.isEntryForOrder(entry, order))
+      .forEach(entry => resourceIds.add(entry.resourceId));
+    if (options.includePinned) {
+      this.pinnedVisibleResourceIds.forEach(resourceId => resourceIds.add(resourceId));
+    }
+    return [...resourceIds];
+  }
+
+  private getBookedResourceIdsForVisibleSchedule(): string[] {
+    return [...new Set([
+      ...this.events.map(event => event.resourceId),
+      ...this.capacityBlocks.map(block => block.resourceId),
+    ])];
   }
 
   get visibleSchedulerGroups(): SchedulerGroup[] {
@@ -628,6 +676,18 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   get visibleSchedulerCapacityBlocks(): SchedulerCapacityBlock[] {
     return this.capacityBlocks;
+  }
+
+  get bookingCategories() {
+    return this.bookingCategoriesService.getAll();
+  }
+
+  getBookingEventCategories(event: SchedulerEvent): BookingCategory[] {
+    const ids = event.meta?.entry?.categoryIds ?? [];
+    if (!ids.length) return [];
+    return ids
+      .map(id => this.bookingCategoriesService.getById(id))
+      .filter((category): category is BookingCategory => !!category);
   }
 
   get visibleSchedulerUnavailability(): UnavailabilityBlock[] {
@@ -833,6 +893,55 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return orders.filter(order => this.getOrderPlanningState(order) === 'scheduled');
   }
 
+  get visibleScheduledBlocks(): ScheduleEntry[] {
+    const query = this.bookingSearchQuery.trim().toLowerCase();
+    return this.allScheduleEntries
+      .filter(entry => entry.kind === 'resource-block')
+      .filter(entry => this.isEntryInCurrentPlannerWindow(entry))
+      .filter(entry => !query || this.includesQuery([
+        entry.title,
+        entry.description,
+        this.getResourceLabel(entry.resourceId),
+        ...(entry.categoryIds ?? []).map(id => this.bookingCategoriesService.getById(id)?.label),
+      ], query))
+      .sort((first, second) => first.start.getTime() - second.start.getTime());
+  }
+
+  get scheduledSectionCount(): number {
+    return this.visibleScheduledOrders.length + this.visibleScheduledBlocks.length;
+  }
+
+  get scheduledSectionCountLabel(): string {
+    if (this.visibleScheduledBlocks.length) return this.isSearchActive ? 'Results' : 'Items';
+    return this.isSearchActive ? 'Results' : 'Orders';
+  }
+
+  findBlockOnPlanner(entry: ScheduleEntry): void {
+    this.focusPlannerEvent(entry.id, { pulse: true });
+  }
+
+  undoBlockBooking(entry: ScheduleEntry): void {
+    this.scheduleRepo.unassign(entry.id).subscribe(() => {
+      this.removeScheduleEntriesById([entry.id]);
+    });
+  }
+
+  getResourceLabel(resourceId: string): string {
+    return this.resources.find(resource => resource.id === resourceId)?.label ?? resourceId;
+  }
+
+  getBlockScheduleSummary(entry: ScheduleEntry): string {
+    return `${this.formatOrderScheduleDateTime(entry.start)} | ${this.formatDuration(entry.start, entry.end)}`;
+  }
+
+  getBlockNotesLabel(entry: ScheduleEntry): string {
+    return entry.description?.trim() || 'No notes';
+  }
+
+  private isEntryInCurrentPlannerWindow(entry: ScheduleEntry): boolean {
+    return entry.start < this.viewEnd && entry.end > this.viewStart;
+  }
+
   get visibleInProgressOrders(): any[] {
     const orders = this.isSearchActive
       ? this.getPanelSearchOrders()
@@ -894,6 +1003,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     private autoScheduler: AutoSchedulerService,
     private appointmentSync: AppointmentSyncService,
     private quickViewSelection: QuickViewSelectionService,
+    private bookingCategoriesService: BookingCategoriesService,
     private route: ActivatedRoute,
     private router: Router,
   ) {
@@ -1181,7 +1291,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   onEventClicked(payload: EventClickPayload): void {
     this.closeEventContextMenu();
-    this.selectedBookingEvent = this.events.find(event => event.id === payload.eventId) ?? null;
+    const event = this.events.find(candidate => candidate.id === payload.eventId) ?? null;
+    if (event?.meta?.entry?.kind === 'resource-block') {
+      this.openBlockTimeModal(event.resourceId, event.start, event.end, event.meta.entry);
+      return;
+    }
+    this.selectedBookingEvent = event;
     if (this.selectedBookingEvent) {
       this.initializeBookingModalState(this.selectedBookingEvent);
     }
@@ -1189,6 +1304,10 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   onOrderFocusRequested(payload: OrderFocusPayload): void {
     const event = this.events.find(candidate => candidate.id === payload.eventId);
+    if (event?.meta?.entry?.kind === 'resource-block') {
+      this.revealBlockInPanel(event.id);
+      return;
+    }
     const capacityBlock = this.capacityBlocks.find(candidate => candidate.id === payload.eventId);
     const eventOrder = event
       ? this.findOrderForEvent(event)
@@ -1204,22 +1323,208 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.setFocusedPlanningOrder(order);
   }
 
+  private revealBlockInPanel(entryId: string): void {
+    this.collapsedOrderGroups = new Set([...this.collapsedOrderGroups].filter(group => group !== 'scheduled'));
+    this.expandedEmptyOrderGroups = new Set([...this.expandedEmptyOrderGroups, 'scheduled']);
+    this.expandedEmptySearchOrderGroups = new Set([...this.expandedEmptySearchOrderGroups, 'scheduled']);
+    queueMicrotask(() => {
+      document.getElementById(`order-panel-block-${entryId}`)?.scrollIntoView({ block: 'center', inline: 'nearest' });
+    });
+  }
+
   isPanelOrderFocused(order: any): boolean {
     return this.selectedPanelOrderId === order.id;
   }
   onEventContextMenu(payload: EventContextMenuPayload): void {
     const event = this.events.find(candidate => candidate.id === payload.eventId);
     if (!event) return;
+    this.closeResourceSlotContextMenu();
     this.eventContextMenu = { eventId: payload.eventId, x: payload.x, y: payload.y };
   }
 
   @HostListener('document:click')
   onDocumentClick(): void {
     this.closeEventContextMenu();
+    this.closeResourceSlotContextMenu();
   }
 
   closeEventContextMenu(): void {
     this.eventContextMenu = null;
+    this.isCategoryFlyoutOpen = false;
+  }
+
+  closeResourceSlotContextMenu(): void {
+    this.resourceSlotContextMenu = null;
+  }
+
+  onResourceSlotContextMenu(payload: SchedulerResourceSlotContextMenuPayload): void {
+    this.closeEventContextMenu();
+    this.resourceSlotContextMenu = payload;
+  }
+
+  openBlockTimeFromContext(): void {
+    const context = this.resourceSlotContextMenu;
+    this.closeResourceSlotContextMenu();
+    if (!context) return;
+    this.openBlockTimeModal(context.resourceId, context.start, context.end);
+  }
+
+  getResourceSlotContextMenuTitle(): string {
+    return this.resourceSlotContextMenu?.source === 'selection'
+      ? 'Block selected time'
+      : 'Block this slot';
+  }
+
+  getResourceSlotContextMenuDetail(): string {
+    const context = this.resourceSlotContextMenu;
+    if (!context) return '';
+    return `${this.getResourceLabel(context.resourceId)} · ${this.formatOrderScheduleDateTime(context.start)} | ${this.formatDuration(context.start, context.end)}`;
+  }
+
+  private openBlockTimeModal(resourceId: string, start: Date, end: Date, entry?: ScheduleEntry): void {
+    this.blockTimeResourceId = resourceId;
+    this.blockTimeStartDate = this.toDateInputValue(start);
+    this.blockTimeStartTime = this.toTimeInputValue(start);
+    this.blockTimeEndDate = this.toDateInputValue(end);
+    this.blockTimeEndTime = this.toTimeInputValue(end);
+    this.blockTimeTitle = entry?.title ?? 'Blocked time';
+    this.blockTimeDescription = entry?.description ?? '';
+    this.blockTimeEditingEntryId = entry?.id ?? null;
+    this.blockTimeCategoryIds = entry?.categoryIds ? [...entry.categoryIds] : [];
+    this.blockTimeModalOpen = true;
+  }
+
+  closeBlockTimeModal(): void {
+    this.blockTimeModalOpen = false;
+    this.blockTimeEditingEntryId = null;
+    this.blockTimeCategoryIds = [];
+  }
+
+  toggleBlockTimeCategory(categoryId: string): void {
+    const ids = new Set(this.blockTimeCategoryIds);
+    if (ids.has(categoryId)) {
+      ids.delete(categoryId);
+    } else {
+      ids.add(categoryId);
+    }
+    this.blockTimeCategoryIds = [...ids];
+  }
+
+  isBlockTimeCategorySelected(categoryId: string): boolean {
+    return this.blockTimeCategoryIds.includes(categoryId);
+  }
+
+  saveBlockTime(): void {
+    const start = this.combineBookingDateTime(this.blockTimeStartDate, this.blockTimeStartTime);
+    const end = this.combineBookingDateTime(this.blockTimeEndDate, this.blockTimeEndTime);
+    if (!this.blockTimeResourceId || !start || !end || end <= start || !this.blockTimeTitle.trim()) return;
+    if (!this.isResourceBlockPlacementValid(this.blockTimeResourceId, start, end)) {
+      this.setSchedulingError('Choose a free time inside working hours for this resource.', 'Block time not possible');
+      return;
+    }
+
+    const entry: ScheduleEntry = {
+      id: this.blockTimeEditingEntryId ?? `block-${Date.now()}`,
+      jobId: 'resource-block',
+      resourceId: this.blockTimeResourceId,
+      start,
+      end,
+      title: this.blockTimeTitle.trim(),
+      description: this.blockTimeDescription.trim(),
+      kind: 'resource-block',
+      color: '#6F6F6F',
+      workorderItemStatus: 'scheduled',
+      categoryIds: this.blockTimeCategoryIds.length ? [...this.blockTimeCategoryIds] : undefined,
+    };
+
+    if (this.blockTimeEditingEntryId) {
+      this.scheduleRepo.update(this.blockTimeEditingEntryId, entry).subscribe(updated => {
+        const normalized: ScheduleEntry = { ...entry, ...updated, kind: 'resource-block' };
+        this.updateScheduleEntry(normalized.id, normalized);
+        this.events = this.events.map(event => event.id === normalized.id ? this.mapScheduleEntryToEvent(normalized) : event);
+        this.closeBlockTimeModal();
+        this.clearSchedulingError();
+      });
+      return;
+    }
+
+    this.scheduleRepo.assign(entry).subscribe(assigned => {
+      const normalized: ScheduleEntry = { ...entry, ...assigned, kind: 'resource-block' };
+      this.upsertScheduleEntry(normalized);
+      this.events = [...this.events, this.mapScheduleEntryToEvent(normalized)];
+      this.closeBlockTimeModal();
+      this.clearSchedulingError();
+    });
+  }
+
+  private isResourceBlockPlacementValid(resourceId: string, start: Date, end: Date): boolean {
+    const dayStart = new Date(start);
+    dayStart.setHours(9, 0, 0, 0);
+    const dayEnd = new Date(start);
+    dayEnd.setHours(21, 0, 0, 0);
+    if (start < dayStart || end > dayEnd) return false;
+    const overlapsEvent = this.events.some(event => event.id !== this.blockTimeEditingEntryId && event.resourceId === resourceId && event.start < end && event.end > start);
+    const overlapsBlock = this.capacityBlocks.some(block => block.resourceId === resourceId && block.date.toDateString() === start.toDateString());
+    const overlapsUnavailable = this.unavailability.some(block => block.resourceId === resourceId && block.start < end && block.end > start);
+    return !overlapsEvent && !overlapsBlock && !overlapsUnavailable;
+  }
+
+  toggleCategoryFlyout(event: Event): void {
+    event.stopPropagation();
+    this.isCategoryFlyoutOpen = !this.isCategoryFlyoutOpen;
+  }
+
+  openCategoryManagement(): void {
+    this.closeEventContextMenu();
+    this.router.navigate(['/booking-categories']);
+  }
+
+  getContextEvent(): SchedulerEvent | undefined {
+    return this.eventContextMenu
+      ? this.events.find(candidate => candidate.id === this.eventContextMenu?.eventId)
+      : undefined;
+  }
+
+  isContextCategoryApplied(category: BookingCategory): boolean {
+    const event = this.getContextEvent();
+    if (!event) return false;
+    const affectedEntries = this.getCategoryAffectedEntries(event, category);
+    return affectedEntries.length > 0 && affectedEntries.every(entry => entry.categoryIds?.includes(category.id));
+  }
+
+  toggleContextCategory(category: BookingCategory, domEvent?: Event): void {
+    domEvent?.stopPropagation();
+    const event = this.getContextEvent();
+    if (!event) return;
+    const affectedEntries = this.getCategoryAffectedEntries(event, category);
+    if (!affectedEntries.length) return;
+
+    const remove = affectedEntries.every(entry => entry.categoryIds?.includes(category.id));
+    for (const entry of affectedEntries) {
+      const currentIds = new Set(entry.categoryIds ?? []);
+      if (remove) {
+        currentIds.delete(category.id);
+      } else {
+        currentIds.add(category.id);
+      }
+      const categoryIds = [...currentIds];
+      this.scheduleRepo.update(entry.id, { categoryIds }).subscribe(updated => {
+        this.updateScheduleEntry(entry.id, { categoryIds: updated.categoryIds ?? categoryIds });
+        this.updateEventEntry(entry.id, { categoryIds: updated.categoryIds ?? categoryIds });
+        this.updateCapacityBlockEntry(entry.id, { categoryIds: updated.categoryIds ?? categoryIds });
+      });
+    }
+  }
+
+  private getCategoryAffectedEntries(event: SchedulerEvent, category: BookingCategory): ScheduleEntry[] {
+    const entry = event.meta?.entry ?? this.allScheduleEntries.find(candidate => candidate.id === event.id);
+    if (!entry) return [];
+    if (category.appliesTo === 'entry' || entry.kind === 'resource-block') return [entry];
+    if (category.appliesTo === 'booking-set') return this.getBookingSetEntries(entry);
+
+    const order = this.findOrderForEvent(event);
+    if (!order) return [entry];
+    return this.allScheduleEntries.filter(candidate => this.isEntryForOrder(candidate, order));
   }
 
   canSplitContextEvent(): boolean {
@@ -1489,7 +1794,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private getVisibleOrdersForPanelGroup(group: OrderPanelGroup): any[] {
-    if (group === 'scheduled') return this.visibleScheduledOrders;
+    if (group === 'scheduled') return [...this.visibleScheduledOrders, ...this.visibleScheduledBlocks];
     if (group === 'in-progress') return this.visibleInProgressOrders;
     if (group === 'completed') return this.visibleCompletedOrders;
     return this.visiblePendingOrders;
@@ -1599,6 +1904,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   onAutoBookingWindowSelected(range: SchedulerTimeRangePayload): void {
+    if (range.resourceId) {
+      this.openBlockTimeModal(range.resourceId, new Date(range.start), new Date(range.end));
+      this.clearSchedulingError();
+      return;
+    }
     this.autoBookingWindow = { start: new Date(range.start), end: new Date(range.end) };
     this.clearSchedulingError();
   }
@@ -1798,6 +2108,24 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.bookingModalStartTime = value;
     } else {
       this.bookingModalEndTime = value;
+    }
+  }
+
+  onBlockTimeDateChange(target: 'start' | 'end', value: Date[]): void {
+    const date = value?.[0];
+    if (!date) return;
+    if (target === 'start') {
+      this.blockTimeStartDate = this.toDateInputValue(date);
+    } else {
+      this.blockTimeEndDate = this.toDateInputValue(date);
+    }
+  }
+
+  onBlockTimeChange(target: 'start' | 'end', value: string): void {
+    if (target === 'start') {
+      this.blockTimeStartTime = value;
+    } else {
+      this.blockTimeEndTime = value;
     }
   }
 
@@ -2522,6 +2850,55 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return `${this.formatOrderScheduleDateTime(entry.start)} | ${this.formatDuration(entry.start, entry.end)}`;
   }
 
+  getOrderCategories(order: any): BookingCategory[] {
+    const entries = this.allScheduleEntries.filter(entry => this.isEntryForOrder(entry, order));
+    return this.getCategoriesForEntriesByScope(entries, 'order');
+  }
+
+  getBookingSetCategories(bookingSet: BookingSet): BookingCategory[] {
+    const bookingEntryIds = new Set(bookingSet.bookings.map(booking => booking.entryId));
+    const entries = this.allScheduleEntries.filter(entry =>
+      bookingEntryIds.has(entry.id) || this.getEntryBookingSetId(entry) === bookingSet.id
+    );
+    return this.getCategoriesForEntriesByScope(entries, 'booking-set');
+  }
+
+  getJobBookingSetCategories(job: any, order: any): BookingCategory[] {
+    const categoriesById = new Map<string, BookingCategory>();
+    for (const bookingSet of this.getJobBookingSets(job, order)) {
+      for (const category of this.getBookingSetCategories(bookingSet)) {
+        categoriesById.set(category.id, category);
+      }
+    }
+    return [...categoriesById.values()];
+  }
+
+  getEntryCategoriesForBooking(booking: JobBooking): BookingCategory[] {
+    const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
+    return entry ? this.getEntryCategories(entry) : [];
+  }
+
+  getEntryCategories(entry: ScheduleEntry): BookingCategory[] {
+    if (!entry.categoryIds?.length) return [];
+    return this.getCategoriesForEntriesByScope([entry], 'entry');
+  }
+
+  getBookingCategoriesForBooking(booking: JobBooking): BookingCategory[] {
+    return this.getEntryCategoriesForBooking(booking);
+  }
+
+  private getCategoriesForEntriesByScope(entries: ScheduleEntry[], scope: BookingCategory['appliesTo']): BookingCategory[] {
+    const categoriesById = new Map<string, BookingCategory>();
+    for (const entry of entries) {
+      for (const categoryId of entry.categoryIds ?? []) {
+        if (categoriesById.has(categoryId)) continue;
+        const category = this.bookingCategoriesService.getById(categoryId);
+        if (category?.appliesTo === scope) categoriesById.set(category.id, category);
+      }
+    }
+    return [...categoriesById.values()];
+  }
+
   scrollToBookingInAvailabilityView(order: any, booking: JobBooking): void {
     this.selectedPanelOrderId = order.id;
     this.setFocusedPlanningOrder(order);
@@ -2899,6 +3276,14 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       event.id === entryId
         ? { ...event, meta: { ...(event.meta ?? {}), entry: { ...(event.meta?.entry as ScheduleEntry), ...changes } } }
         : event
+    );
+  }
+
+  private updateCapacityBlockEntry(entryId: string, changes: Partial<ScheduleEntry>): void {
+    this.capacityBlocks = this.capacityBlocks.map(block =>
+      block.id === entryId
+        ? { ...block, meta: { ...(block.meta ?? {}), entry: { ...(block.meta?.entry as ScheduleEntry), ...changes } } }
+        : block
     );
   }
 
