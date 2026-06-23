@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Credit Prompt Snapshot",
+  "description": "Auto-deployed by Kiro Credit Tracker: records credit snapshot on prompt submit",
+  "version": "1.2",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "python \"C:\\Users\\saisantoshalatha.tal\\.kiro\\scripts\\credit-prompt-tracker.py\" snapshot"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Enhanced Credit Ledger",
+  "description": "Records credit cost, session type, git branch/commit, full prompt/response per turn",
+  "version": "2.0",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "python \"C:\\Users\\saisantoshalatha.tal\\.kiro\\scripts\\credit-tracker-enhanced.py\" record"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Enhanced Credit Snapshot",
+  "description": "Records credit state, chat-log offset, and cwd at prompt submit for the enhanced tracker",
+  "version": "2.0",
+  "when": {
+    "type": "promptSubmit"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "python \"C:\\Users\\saisantoshalatha.tal\\.kiro\\scripts\\credit-tracker-enhanced.py\" snapshot"
+  }
+}
