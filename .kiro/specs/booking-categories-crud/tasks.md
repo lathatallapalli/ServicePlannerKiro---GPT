@@ -7,7 +7,7 @@ This plan implements the Booking Categories CRUD feature incrementally: data mod
 ## Tasks
 
 - [ ] 1. Create data model and service
-  - [-] 1.1 Create the BookingCategory model and ApplyScope type
+  - [x] 1.1 Create the BookingCategory model and ApplyScope type
     - Create `webapp/src/app/core/models/booking-category.model.ts`
     - Define `BookingCategoryApplyScope` as `'entry' | 'booking-set' | 'order'`
     - Define `BookingCategory` interface with required fields (id, label, color, appliesTo) and optional fields (tagBackgroundColor, tagTextColor, description, isSystem)

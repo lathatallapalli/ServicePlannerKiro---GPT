@@ -1,19 +1,14 @@
 import { Injectable } from '@angular/core';
 import { BookingCategory, BookingCategoryApplyScope } from '../../core/models/booking-category.model';
 
-const STORAGE_KEY = 'service-planner.booking-categories.v1';
-
-const DEFAULT_CATEGORIES: BookingCategory[] = [
-  { id: 'cat-warranty', label: 'Warranty', color: '#8A3FFC', appliesTo: 'order', isSystem: true },
-  { id: 'cat-waiting-parts', label: 'Waiting for parts', color: '#F1C21B', appliesTo: 'order', isSystem: true },
-  { id: 'cat-customer-priority', label: 'Customer priority', color: '#DA1E28', appliesTo: 'order', isSystem: true },
-  { id: 'cat-diagnosis', label: 'Diagnosis', color: '#0F62FE', appliesTo: 'booking-set', isSystem: true },
-  { id: 'cat-internal', label: 'Internal', color: '#198038', appliesTo: 'entry', isSystem: true },
-];
-
 @Injectable({ providedIn: 'root' })
 export class BookingCategoriesService {
-  private categories: BookingCategory[] = this.restoreCategories();
+  private readonly STORAGE_KEY = 'service-planner.booking-categories.v1';
+  private categories: BookingCategory[];
+
+  constructor() {
+    this.categories = this.loadFromStorage();
+  }
 
   getAll(): BookingCategory[] {
     return this.categories.map(category => ({ ...category }));
@@ -58,21 +53,44 @@ export class BookingCategoriesService {
     this.persist();
   }
 
-  private restoreCategories(): BookingCategory[] {
-    if (typeof localStorage === 'undefined') return DEFAULT_CATEGORIES.map(category => ({ ...category }));
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_CATEGORIES.map(category => ({ ...category }));
+  private loadFromStorage(): BookingCategory[] {
     try {
+      if (typeof localStorage === 'undefined') {
+        return this.getDefaultCategories();
+      }
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (!raw) {
+        return this.getDefaultCategories();
+      }
       const parsed = JSON.parse(raw) as BookingCategory[];
-      return parsed.length ? parsed : DEFAULT_CATEGORIES.map(category => ({ ...category }));
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        return this.getDefaultCategories();
+      }
+      return parsed;
     } catch {
-      return DEFAULT_CATEGORIES.map(category => ({ ...category }));
+      return this.getDefaultCategories();
     }
   }
 
   private persist(): void {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.categories));
+    try {
+      if (typeof localStorage === 'undefined') {
+        return;
+      }
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.categories));
+    } catch {
+      // localStorage unavailable or full — operate in-memory only
+    }
+  }
+
+  private getDefaultCategories(): BookingCategory[] {
+    return [
+      { id: 'cat-warranty', label: 'Warranty', color: '#8A3FFC', appliesTo: 'order', isSystem: true },
+      { id: 'cat-waiting-parts', label: 'Waiting for parts', color: '#F1C21B', appliesTo: 'order', isSystem: true },
+      { id: 'cat-customer-priority', label: 'Customer priority', color: '#DA1E28', appliesTo: 'order', isSystem: true },
+      { id: 'cat-diagnosis', label: 'Diagnosis', color: '#0F62FE', appliesTo: 'booking-set', isSystem: true },
+      { id: 'cat-internal', label: 'Internal', color: '#198038', appliesTo: 'entry', isSystem: true },
+    ];
   }
 
   private getNextColor(): string {

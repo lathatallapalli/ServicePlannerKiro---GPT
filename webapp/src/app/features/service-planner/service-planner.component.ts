@@ -603,36 +603,28 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   get schedulerBookedResourceFilterContext(): SchedulerBookedResourceFilterContext | null {
-    const focusedOrder = this.getFullPlannerFocusedOrder();
-    if (focusedOrder) {
-      return {
-        contextKey: `focused-order:${focusedOrder.id}`,
-        active: true,
-        label: 'Focused order',
-        source: 'focused-order',
-        resourceIds: this.getBookedResourceIdsForOrder(focusedOrder),
-      };
-    }
-
-    if (this.isAutoProposalVisible) {
-      const order = this.getFocusedPlanningOrder();
-      const resourceIds = order
-        ? this.getBookedResourceIdsForOrder(order, { includePinned: this.plannerMode === 'order' })
-        : this.getBookedResourceIdsForVisibleSchedule();
-
-      return {
-        contextKey: `auto-proposal:${order?.id ?? this.activeOrderId ?? 'all'}`,
-        active: true,
-        label: 'Booked proposal',
-        source: 'auto-proposal',
-        resourceIds,
-      };
-    }
-
-    return null;
+    const focusedOrder = this.getBookedFilterFocusedOrder();
+    if (!focusedOrder) return null;
+    const resourceIds = this.getBookedResourceIdsForOrder(focusedOrder);
+    if (!resourceIds.length) return null;
+    return {
+      contextKey: `focused-order:${focusedOrder.id}`,
+      active: true,
+      source: 'focused-order',
+      resourceIds,
+    };
   }
 
-  private getBookedResourceIdsForOrder(order: any, options: { includePinned?: boolean } = {}): string[] {
+  private getBookedFilterFocusedOrder(): any | null {
+    if (this.plannerMode === 'order') {
+      if (!this.activeOrderId) return null;
+      const order = this.allOrders.find(candidate => candidate.id === this.activeOrderId || candidate.referenceNumber === this.activeOrderId) ?? null;
+      return order && this.hasPlannerBookingsForOrder(order) ? order : null;
+    }
+    return this.getFullPlannerFocusedOrder();
+  }
+
+  private getBookedResourceIdsForOrder(order: any): string[] {
     const resourceIds = new Set<string>();
     this.events
       .filter(event => this.isEventForOrder(event, order))
@@ -643,17 +635,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.allScheduleEntries
       .filter(entry => this.isEntryForOrder(entry, order))
       .forEach(entry => resourceIds.add(entry.resourceId));
-    if (options.includePinned) {
-      this.pinnedVisibleResourceIds.forEach(resourceId => resourceIds.add(resourceId));
-    }
     return [...resourceIds];
-  }
-
-  private getBookedResourceIdsForVisibleSchedule(): string[] {
-    return [...new Set([
-      ...this.events.map(event => event.resourceId),
-      ...this.capacityBlocks.map(block => block.resourceId),
-    ])];
   }
 
   get visibleSchedulerGroups(): SchedulerGroup[] {

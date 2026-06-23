@@ -215,9 +215,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   showBookedOnlyResources = false;
   collapsedGroupIds = new Set<string>();
   copiedContactKey: string | null = null;
-  private derivedBookedResourceIds = new Set<string>();
   private lastBookedContextKey: string | null = null;
-  private restoreBookedOnlyAfterContext: boolean | null = null;
   private copiedContactResetId: ReturnType<typeof setTimeout> | null = null;
   private expandedCapacityLane: { resourceId: string; dayKey: string } | null = null;
 
@@ -307,9 +305,6 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     }
     if (changes['capacityBlocks'] || changes['resources'] || changes['viewStart'] || changes['viewEnd']) {
       this.reconcileExpandedCapacityLane();
-    }
-    if (changes['events'] || changes['capacityBlocks']) {
-      this.rebuildDerivedBookedResourceIds();
     }
     if (changes['bookedResourceFilterContext']) {
       this.syncBookedFilterWithContext();
@@ -1634,37 +1629,22 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return true;
   }
 
-  private rebuildDerivedBookedResourceIds(): void {
-    this.derivedBookedResourceIds = new Set([
-      ...this.events.map(event => event.resourceId),
-      ...this.capacityBlocks.map(block => block.resourceId),
-    ]);
-  }
-
   private syncBookedFilterWithContext(): void {
-    const activeContextKey = this.bookedResourceFilterContext?.active ? this.bookedResourceFilterContext.contextKey : null;
-    if (activeContextKey === this.lastBookedContextKey) return;
+    const contextKey = this.bookedResourceFilterContext?.contextKey ?? null;
+    if (contextKey === this.lastBookedContextKey) return;
 
-    if (activeContextKey) {
-      if (!this.lastBookedContextKey) {
-        this.restoreBookedOnlyAfterContext = this.showBookedOnlyResources;
-      }
+    if (contextKey) {
       this.showBookedOnlyResources = true;
-      this.lastBookedContextKey = activeContextKey;
-      return;
+    } else {
+      this.showBookedOnlyResources = false;
     }
-
-    if (this.lastBookedContextKey) {
-      this.showBookedOnlyResources = this.restoreBookedOnlyAfterContext ?? false;
-      this.restoreBookedOnlyAfterContext = null;
-    }
-    this.lastBookedContextKey = null;
+    this.lastBookedContextKey = contextKey;
   }
 
   private getEffectiveBookedResourceIds(): Set<string> {
     return this.bookedResourceFilterContext?.active
       ? new Set(this.bookedResourceFilterContext.resourceIds)
-      : this.derivedBookedResourceIds;
+      : new Set<string>();
   }
 
   get selectedGroupLabel(): string {
@@ -2075,12 +2055,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   toggleBookedOnlyResources(): void {
-    if (this.showBookedOnlyResources) {
-      this.showBookedOnlyResources = false;
-      return;
-    }
-    if (!this.hasBookedResources()) return;
-    this.showBookedOnlyResources = true;
+    if (!this.bookedResourceFilterContext) return;
+    this.showBookedOnlyResources = !this.showBookedOnlyResources;
   }
 
   hasSelectedResources(): boolean {
