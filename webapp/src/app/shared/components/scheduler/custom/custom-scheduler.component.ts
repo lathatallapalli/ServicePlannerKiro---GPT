@@ -160,10 +160,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private timelineViewportWidth = 0;
   private resizeObserver: ResizeObserver | null = null;
   private removeBodyScrollListener: (() => void) | null = null;
-  private removeDragOverListener: (() => void) | null = null;
   private scrollSyncFrame: number | null = null;
   private isSyncingHeaderScroll = false;
-  private cachedWorkingRanges: Array<{ start: Date; end: Date }> = [];
 
   // dynamic: one slot always = 60px, so hour width scales with slot duration
   get HOUR_WIDTH(): number {
@@ -274,70 +272,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
           });
           this.resizeObserver.observe(body);
         }
-
-        // Handle dragover/dragleave outside Angular's zone to prevent CD on every mouse move.
-        // Only trigger detectChanges when the snapped drop position actually changes.
-        const onDragOver = (e: DragEvent) => {
-          const rowEl = (e.target as HTMLElement | null)?.closest('.scheduler__row') as HTMLElement | null;
-          const capLane = (e.target as HTMLElement | null)?.closest('.scheduler__capacity-lane') as HTMLElement | null;
-          if (!rowEl) return;
-
-          if (capLane) {
-            // capacity lane dragover: delegate to existing method but skip zone CD
-            const resourceId = capLane.getAttribute('data-resource-id');
-            const dayKey = capLane.getAttribute('data-day-key');
-            if (!resourceId || !dayKey) return;
-            const day = this.daySlots.find(d => this.getCapacityDayKey(d) === dayKey);
-            if (!day) return;
-            e.preventDefault();
-            e.stopPropagation();
-            const prev = this.dropPreview;
-            this.dropPreview = this.buildCapacityDropPreview(e as DragEvent, resourceId, day, true);
-            this.dropTargetResourceId = resourceId;
-            if (this.dropPreview) this.lastValidDropPreview = this.dropPreview;
-            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-            if (this.previewChanged(prev, this.dropPreview)) this.cdr.detectChanges();
-            return;
-          }
-
-          const resourceId = rowEl.getAttribute('data-resource-id');
-          if (!resourceId) return;
-          e.preventDefault();
-          const prev = this.dropPreview;
-          const prevTargetId = this.dropTargetResourceId;
-          this.dropPreview = this.buildDropPreview(e as DragEvent, resourceId, true);
-          this.dropTargetResourceId = this.isResourceGenerallyAvailableForDrop(resourceId) ? resourceId : null;
-          if (this.dropPreview) this.lastValidDropPreview = this.dropPreview;
-          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-          if (this.previewChanged(prev, this.dropPreview) || prevTargetId !== this.dropTargetResourceId) {
-            this.cdr.detectChanges();
-          }
-        };
-
-        const onDragLeave = (e: DragEvent) => {
-          // Only clear when leaving the body container entirely, not when moving between rows
-          const related = e.relatedTarget as HTMLElement | null;
-          if (related && body.contains(related)) return;
-          const prevPreview = this.dropPreview;
-          const prevTarget = this.dropTargetResourceId;
-          this.dropPreview = null;
-          this.dropTargetResourceId = null;
-          if (prevPreview !== null || prevTarget !== null) this.cdr.detectChanges();
-        };
-
-        body.addEventListener('dragover', onDragOver);
-        body.addEventListener('dragleave', onDragLeave);
-        this.removeDragOverListener = () => {
-          body.removeEventListener('dragover', onDragOver);
-          body.removeEventListener('dragleave', onDragLeave);
-        };
       }
     });
   }
 
   ngOnDestroy(): void {
     this.removeBodyScrollListener?.();
-    this.removeDragOverListener?.();
     this.resizeObserver?.disconnect();
     if (this.scrollSyncFrame !== null && typeof cancelAnimationFrame === 'function') {
       cancelAnimationFrame(this.scrollSyncFrame);
@@ -349,7 +289,6 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (changes['viewStart'] || changes['viewEnd'] || changes['slotDurationMinutes']) {
       this.selectedMonth = this.viewStart.getMonth();
       this.buildTimeSlots();
-      this.rebuildCachedWorkingRanges();
       queueMicrotask(() => this.updateTimelineViewportWidth());
     }
     if (changes['capacityBlocks'] || changes['resources'] || changes['viewStart'] || changes['viewEnd']) {
@@ -574,10 +513,6 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getDropPreviewHeight(): number {
     return this.dropPreview ? this.getResourceRowHeight(this.dropPreview.resourceId) : ROW_HEIGHT;
-  }
-
-  getCapacityDayKeyPublic(day: Date): string {
-    return this.getCapacityDayKey(day);
   }
 
   private getCapacityDayKey(day: Date): string {
@@ -1035,7 +970,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getDropPreviewLeft(): number {
-    return this.dropPreview?.left ?? 0;
+    return (this.dropPreview?.left ?? 0) + RESOURCE_COL_WIDTH;
   }
 
   getDropPreviewTop(): number {
@@ -1761,10 +1696,9 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const rect = header.getBoundingClientRect();
     const rawX = event.clientX - rect.left + header.scrollLeft;
     const x = Math.max(0, Math.min(rawX, this.totalWidth));
-    const dayWidthPx = this.getDayWidth();
+    const dayWidthPx = 12 * this.HOUR_WIDTH;
     const dayIndex = Math.max(0, Math.min(Math.floor(x / dayWidthPx), this.daySlots.length - 1));
-    const xWithinDay = Math.max(0, x - dayIndex * dayWidthPx - this.getDayCapacityLaneWidth());
-    const minutesWithinDay = (xWithinDay / this.HOUR_WIDTH) * 60;
+    const minutesWithinDay = ((x - dayIndex * dayWidthPx) / this.HOUR_WIDTH) * 60;
     const date = new Date(this.daySlots[dayIndex]);
     date.setHours(9, 0, 0, 0);
     date.setMinutes(Math.max(0, Math.min(12 * 60, minutesWithinDay)), 0, 0);
@@ -2327,31 +2261,23 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   private getWorkingRangesForCurrentView(): Array<{ start: Date; end: Date }> {
-    return this.cachedWorkingRanges;
-  }
-
-  private rebuildCachedWorkingRanges(): void {
     const ranges: Array<{ start: Date; end: Date }> = [];
     let cursor = new Date(this.viewStart);
     cursor.setHours(9, 0, 0, 0);
+
     while (cursor < this.viewEnd) {
       const start = new Date(Math.max(cursor.getTime(), this.viewStart.getTime()));
       const end = new Date(cursor);
       end.setHours(21, 0, 0, 0);
       const clippedEnd = new Date(Math.min(end.getTime(), this.viewEnd.getTime()));
       if (start < clippedEnd) ranges.push({ start, end: clippedEnd });
+
       cursor = new Date(cursor);
       cursor.setDate(cursor.getDate() + 1);
       cursor.setHours(9, 0, 0, 0);
     }
-    this.cachedWorkingRanges = ranges;
-  }
 
-  private previewChanged(prev: DropPreview | null, next: DropPreview | null): boolean {
-    if (prev === null && next === null) return false;
-    if (prev === null || next === null) return true;
-    return prev.left !== next.left || prev.top !== next.top ||
-           prev.width !== next.width || prev.resourceId !== next.resourceId;
+    return ranges;
   }
 
   private buildDropPreview(e: DragEvent, resourceId: string, allowDragOverFallback = false): DropPreview | null {
