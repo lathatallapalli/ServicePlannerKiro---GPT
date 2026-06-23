@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Credit Ledger",
+  "description": "Auto-deployed by Kiro Credit Tracker: records credit usage on agent stop",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "python \"C:\\Users\\saisantoshalatha.tal\\.kiro\\scripts\\credit-prompt-tracker.py\" record"
+  }
+}

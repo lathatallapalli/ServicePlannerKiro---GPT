@@ -277,11 +277,10 @@
 
       @for (resource of getExpandedResourcesForGroup(group.id); track resource.id) {
         <div class="scheduler__row" [style.height.px]="getResourceRowHeight(resource.id)"
+          [attr.data-resource-id]="resource.id"
           [class.scheduler__row--drop-target]="isDropTargetResource(resource.id)"
           [class.scheduler__row--drop-invalid]="isDropPreviewInvalidForResource(resource.id)"
           [style.cursor]="isDropPreviewInvalidForResource(resource.id) ? 'not-allowed' : null"
-          (dragover)="onDragOver($event, resource.id)"
-          (dragleave)="onDragLeave()"
           (drop)="onDrop($event, resource.id)">
           <div class="scheduler__resource-cell" [style.width.px]="RESOURCE_COL_WIDTH">
             <div class="scheduler__resource-content">
@@ -324,13 +323,13 @@
               @if (showDayCapacityLane) {
                 <div
                   class="scheduler__capacity-lane"
+                  [attr.data-resource-id]="resource.id"
+                  [attr.data-day-key]="getCapacityDayKeyPublic(day)"
                   [class.scheduler__capacity-lane--drop-target]="isCapacityDropPreviewForResourceDay(resource.id, day)"
                   [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
                   [style.left.px]="getCapacityLaneLeft(day)"
                   [style.width.px]="DAY_CAPACITY_LANE_WIDTH"
                   [attr.aria-label]="getCapacityLaneTitle(resource.id, day)"
-                  (dragover)="onCapacityDragOver($event, resource.id, day)"
-                  (dragleave)="onDragLeave()"
                   (drop)="onCapacityDrop($event, resource.id, day)">
                   @for (block of getVisibleCapacityBlocksForResourceDay(resource.id, day); track block.id) {
                     <div
@@ -622,11 +621,10 @@
 
     @for (resource of getUngroupedResources(); track resource.id) {
         <div class="scheduler__row" [style.height.px]="getResourceRowHeight(resource.id)"
+        [attr.data-resource-id]="resource.id"
         [class.scheduler__row--drop-target]="isDropTargetResource(resource.id)"
         [class.scheduler__row--drop-invalid]="isDropPreviewInvalidForResource(resource.id)"
         [style.cursor]="isDropPreviewInvalidForResource(resource.id) ? 'not-allowed' : null"
-        (dragover)="onDragOver($event, resource.id)"
-        (dragleave)="onDragLeave()"
         (drop)="onDrop($event, resource.id)">
         <div class="scheduler__resource-cell" [style.width.px]="RESOURCE_COL_WIDTH">
           <div class="scheduler__resource-content">
@@ -669,13 +667,13 @@
             @if (showDayCapacityLane) {
               <div
                 class="scheduler__capacity-lane"
+                [attr.data-resource-id]="resource.id"
+                [attr.data-day-key]="getCapacityDayKeyPublic(day)"
                 [class.scheduler__capacity-lane--drop-target]="isCapacityDropPreviewForResourceDay(resource.id, day)"
                 [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
                 [style.left.px]="getCapacityLaneLeft(day)"
                 [style.width.px]="DAY_CAPACITY_LANE_WIDTH"
                 [attr.title]="getCapacityLaneTitle(resource.id, day)"
-                (dragover)="onCapacityDragOver($event, resource.id, day)"
-                (dragleave)="onDragLeave()"
                 (drop)="onCapacityDrop($event, resource.id, day)">
                 @for (block of getVisibleCapacityBlocksForResourceDay(resource.id, day); track block.id) {
                   <div
