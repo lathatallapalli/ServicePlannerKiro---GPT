@@ -4433,7 +4433,6 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private buildOrderDragContext(order: any): ManualDragContext | null {
-    const firstJob = order?.jobs?.[0];
     const durationFru = this.getOrderPlanningState(order) === 'partiallyScheduled'
       ? this.getRemainingOrderFru(order)
       : this.getOrderFru(order);
@@ -4441,8 +4440,24 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       kind: 'order',
       orderId: order.id,
       durationMinutes: Math.max(1, durationFru * MINUTES_PER_FRU),
-      requirements: firstJob ? this.getSchedulingRequirements(firstJob) : [],
+      requirements: this.getAllOrderSchedulingRequirements(order),
     };
+  }
+
+  private getAllOrderSchedulingRequirements(order: any): JobResourceRequirement[] {
+    const jobs: any[] = order?.jobs ?? [];
+    const seen = new Set<string>();
+    const result: JobResourceRequirement[] = [];
+    for (const job of jobs) {
+      for (const req of this.getSchedulingRequirements(job)) {
+        const key = `${req.resourceType}:${req.requiredQualifications.map(q => q.id).sort().join(',')}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          result.push(req);
+        }
+      }
+    }
+    return result;
   }
 
   private buildJobDragContext(job: any, order: any): ManualDragContext {
