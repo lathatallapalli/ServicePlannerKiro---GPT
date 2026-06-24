@@ -1181,6 +1181,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         requiredQualifications: [QUALIFICATIONS.mechanic],
         resourceRequirements: [
           { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.mechanic], label: 'Mechanic' },
+          { resourceType: 'bay', requiredQualifications: [QUALIFICATIONS.ltBay], label: 'LT Bay' },
           { resourceType: 'device', requiredQualifications: [QUALIFICATIONS.emissionTester], label: 'Emission Tester' },
         ],
         status: 'unscheduled',
