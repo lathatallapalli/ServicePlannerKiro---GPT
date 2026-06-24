@@ -3664,30 +3664,19 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   onUndoOrderBooking(order: any): void {
     const targetOrder = this.allOrders.find(candidate => candidate.id === order.id || candidate.referenceNumber === order.referenceNumber) ?? order;
-    const orderBookings = this.bookings.filter(booking => this.isBookingForOrder(booking, targetOrder));
     const orderEntryIds = new Set(this.allScheduleEntries
       .filter(entry => this.isEntryForOrder(entry, targetOrder))
       .map(entry => entry.id));
-    if (!orderBookings.length && orderEntryIds.size === 0) return;
+    if (orderEntryIds.size === 0) return;
 
-    const latestOrderAutoEntryIds = [...this.latestAutoBookingEntryIds].filter(entryId =>
-      orderEntryIds.has(entryId) || orderBookings.some(booking => booking.entryId === entryId)
-    );
-    if (latestOrderAutoEntryIds.length) {
-      latestOrderAutoEntryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
-      const entryIds = new Set(latestOrderAutoEntryIds);
-      const removedEntries = this.removeScheduleEntriesById(entryIds);
-      latestOrderAutoEntryIds.forEach(entryId => this.latestAutoBookingEntryIds.delete(entryId));
-      this.refreshWorkOrderItemStatusesForEntries(removedEntries);
-      if (this.latestAutoBookingEntryIds.size === 0) {
-        this.isAutoProposalVisible = false;
-      }
-      this.revealOrderInPanel(targetOrder);
-      return;
+    orderEntryIds.forEach(entryId => this.scheduleRepo.unassign(entryId).subscribe());
+    const removedEntries = this.removeScheduleEntriesById(orderEntryIds);
+    orderEntryIds.forEach(entryId => this.latestAutoBookingEntryIds.delete(entryId));
+    this.refreshWorkOrderItemStatusesForEntries(removedEntries);
+    if (this.latestAutoBookingEntryIds.size === 0) {
+      this.isAutoProposalVisible = false;
     }
-
-    const lastBooking = orderBookings[orderBookings.length - 1];
-    this.onUndoBooking(lastBooking);
+    this.revealOrderInPanel(targetOrder);
   }
 
   private revealOrderInPanel(order: any | null | undefined): void {
