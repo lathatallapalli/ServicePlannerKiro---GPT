@@ -1634,7 +1634,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (contextKey === this.lastBookedContextKey) return;
 
     if (contextKey) {
-      this.showBookedOnlyResources = true;
+      // Auto-activate only for focused-order (full planner View Only)
+      if (this.bookedResourceFilterContext?.source === 'focused-order') {
+        this.showBookedOnlyResources = true;
+      }
     } else {
       this.showBookedOnlyResources = false;
     }
@@ -2521,8 +2524,6 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       ?? (draggedEvent ? Math.max(1, Math.round((draggedEvent.end.getTime() - draggedEvent.start.getTime()) / 60000)) : undefined)
       ?? draggedCapacityBlock?.durationMinutes
       ?? (Number.isFinite(durationFru) && durationFru > 0 ? durationFru : 1) * MINUTES_PER_FRU;
-    const bodyEl = this.bodyScrollRef?.nativeElement;
-    const scrollLeft = bodyEl ? bodyEl.scrollLeft : 0;
     const rowEl = e.currentTarget as HTMLElement;
     const cell = rowEl.querySelector('.scheduler__timeline-cell') as HTMLElement | null;
     if (!cell || !this.daySlots.length) return null;
@@ -2533,7 +2534,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const dayWidthPx = this.getDayWidth();
     const previewWidth = Math.max((durationMinutes / 60) * this.HOUR_WIDTH, 20);
     const maxLeft = Math.max(0, this.totalWidth - previewWidth);
-    const absoluteX = Math.max(0, Math.min(e.clientX - cellRect.left + scrollLeft, maxLeft));
+    const absoluteX = Math.max(0, Math.min(e.clientX - cellRect.left, maxLeft));
     const dayIndex = Math.max(0, Math.min(Math.floor(absoluteX / dayWidthPx), this.daySlots.length - 1));
     const safeDay = this.daySlots[dayIndex];
     const xWithinDay = Math.max(0, Math.min(absoluteX - dayIndex * dayWidthPx - this.getDayCapacityLaneWidth(), this.getTimedDayWidth()));

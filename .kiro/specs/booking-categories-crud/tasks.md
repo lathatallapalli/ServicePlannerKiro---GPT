@@ -13,7 +13,7 @@ This plan implements the Booking Categories CRUD feature incrementally: data mod
     - Define `BookingCategory` interface with required fields (id, label, color, appliesTo) and optional fields (tagBackgroundColor, tagTextColor, description, isSystem)
     - _Requirements: 1.1, 1.2, 1.3_
 
-  - [-] 1.2 Create the BookingCategoriesService with localStorage persistence
+  - [ ] 1.2 Create the BookingCategoriesService with localStorage persistence
     - Create `webapp/src/app/features/booking-categories/booking-categories.service.ts`
     - Implement `@Injectable({ providedIn: 'root' })` service
     - Storage key: `service-planner.booking-categories.v1`
@@ -23,7 +23,7 @@ This plan implements the Booking Categories CRUD feature incrementally: data mod
     - Handle localStorage unavailability gracefully (try/catch)
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 3.5, 3.6_
 
-  - [~] 1.3 Implement CRUD methods on BookingCategoriesService
+  - [ ] 1.3 Implement CRUD methods on BookingCategoriesService
     - `getAll()`: return shallow copy array (spread each item)
     - `getById(id)`: find by id, return shallow copy or undefined
     - `createNewCategory()`: generate id as `cat-${Date.now()}`, set defaults (label: 'New category', appliesTo: 'entry', color from palette rotation, description: ''), append, persist, return copy
@@ -41,11 +41,11 @@ This plan implements the Booking Categories CRUD feature incrementally: data mod
     - **Property 6: User categories can be deleted**
     - **Validates: Requirements 3.1, 3.5, 4.1, 4.2, 4.4, 5.1, 5.2, 5.4, 6.1, 6.4, 7.1, 7.2**
 
-- [~] 2. Checkpoint - Verify model and service compile
+- [ ] 2. Checkpoint - Verify model and service compile
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 3. Create BookingCategoriesListComponent
-  - [~] 3.1 Scaffold the list component files
+  - [ ] 3.1 Scaffold the list component files
     - Create `webapp/src/app/features/booking-categories/booking-categories-list.component.ts`
     - Create `webapp/src/app/features/booking-categories/booking-categories-list.component.html`
     - Create `webapp/src/app/features/booking-categories/booking-categories-list.component.scss`
@@ -53,13 +53,13 @@ This plan implements the Booking Categories CRUD feature incrementally: data mod
     - Inject `BookingCategoriesService` and `Router`
     - _Requirements: 8.1_
 
-  - [~] 3.2 Implement list columns and data binding
+  - [ ] 3.2 Implement list columns and data binding
     - Define columns: label (sortable, filterable), color (with formatter), appliesTo (with formatter mapping scope to display label), description
     - Map `getAll()` result to row data on init
     - Implement search filtering: match term against label, description, appliesTo display label, and color (case-insensitive)
     - _Requirements: 8.2, 8.3_
 
-  - [~] 3.3 Implement toolbar actions and row actions
+  - [ ] 3.3 Implement toolbar actions and row actions
     - Add toolbar action: click triggers `createNewCategory()` and refreshes list
     - Edit toolbar action: enables inline editing mode (set editableCell)
     - Save toolbar action: deactivates inline editing
@@ -73,7 +73,7 @@ This plan implements the Booking Categories CRUD feature incrementally: data mod
     - **Validates: Requirements 8.3**
 
 - [ ] 4. Create BookingCategoryCardComponent
-  - [~] 4.1 Scaffold the card component files
+  - [ ] 4.1 Scaffold the card component files
     - Create `webapp/src/app/features/booking-categories/booking-category-card.component.ts`
     - Create `webapp/src/app/features/booking-categories/booking-category-card.component.html`
     - Create `webapp/src/app/features/booking-categories/booking-category-card.component.scss`
@@ -81,35 +81,35 @@ This plan implements the Booking Categories CRUD feature incrementally: data mod
     - Inject `BookingCategoriesService`, `ActivatedRoute`, `Router`
     - _Requirements: 10.1_
 
-  - [~] 4.2 Implement category loading and redirect logic
+  - [ ] 4.2 Implement category loading and redirect logic
     - Read `categoryId` from route params
     - Load category via `getById(categoryId)`
     - If category not found, redirect to `/booking-categories`
     - Populate local form state from loaded category
     - _Requirements: 10.1, 10.2_
 
-  - [~] 4.3 Implement form fields with system category restrictions
+  - [ ] 4.3 Implement form fields with system category restrictions
     - Label input (always editable)
     - AppliesTo select dropdown with options: entry, booking-set, order (disabled for system categories)
     - Description textarea (always editable)
     - Color section (disabled for system categories)
     - _Requirements: 10.3, 10.4, 10.5_
 
-  - [~] 4.4 Implement color selection with predefined palette and custom mode
+  - [ ] 4.4 Implement color selection with predefined palette and custom mode
     - Define predefined color palette (Blue, Cyan, Magenta, Purple, Red, Teal, Green, Yellow, Orange) with derived tagBackground and tagText colors
     - Radio/dropdown selection for predefined colors
     - Custom mode: show hex inputs for tagBackgroundColor and tagTextColor
     - Live tag preview showing label with background/text colors
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
-  - [~] 4.5 Implement contrast ratio calculation and warning
+  - [ ] 4.5 Implement contrast ratio calculation and warning
     - Create utility function `computeContrastRatio(bg: string, text: string): number`
     - Parse hex colors to RGB, compute relative luminance, compute ratio
     - Display warning when ratio < 4.5:1
     - Use ARIA live region (role="alert") for warning accessibility
     - _Requirements: 11.5, 14.3_
 
-  - [~] 4.6 Implement save, save-and-close, and back/close navigation
+  - [ ] 4.6 Implement save, save-and-close, and back/close navigation
     - Save button: call `service.update(id, formState)` to persist
     - Save & Close button: persist then navigate to `/booking-categories`
     - Back/Close button: navigate to `/booking-categories` without saving
@@ -119,31 +119,31 @@ This plan implements the Booking Categories CRUD feature incrementally: data mod
     - **Property 8: Contrast ratio warning accuracy**
     - **Validates: Requirements 11.5**
 
-- [~] 5. Checkpoint - Verify list and card components compile
+- [ ] 5. Checkpoint - Verify list and card components compile
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. App shell integration
-  - [~] 6.1 Register routes in app.routes.ts
+  - [ ] 6.1 Register routes in app.routes.ts
     - Add route `{ path: 'booking-categories', component: BookingCategoriesListComponent }`
     - Add route `{ path: 'booking-categories/:categoryId', component: BookingCategoryCardComponent }`
     - Add necessary imports
     - _Requirements: 13.1, 13.2_
 
-  - [~] 6.2 Update App shell for title and navigation
+  - [ ] 6.2 Update App shell for title and navigation
     - Add page detection signals: `isBookingCategoriesListPage`, `isBookingCategoryCardPage`
     - In `updateShellForUrl()`: set title 'Booking categories' for list, 'Category' for card
     - In `closeCurrentSubpage()`: list → navigate to `/service-planner`; card → navigate to `/booking-categories`
     - _Requirements: 13.3, 13.4, 13.5, 13.6_
 
 - [ ] 7. Accessibility pass
-  - [~] 7.1 Ensure keyboard navigation and ARIA attributes
+  - [ ] 7.1 Ensure keyboard navigation and ARIA attributes
     - Verify GenericListComponent provides keyboard navigation for list rows (already built-in)
     - Add `aria-label` attributes to interactive elements in list toolbar
     - Add `for`/`aria-labelledby` associations on card form inputs
     - Ensure color dropdown is keyboard-operable (Enter/Space to open, arrows to navigate, Escape to close)
     - _Requirements: 14.1, 14.2, 14.4, 14.5_
 
-- [~] 8. Final checkpoint - Ensure all tests pass
+- [ ] 8. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

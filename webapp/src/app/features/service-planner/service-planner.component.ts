@@ -607,10 +607,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (!focusedOrder) return null;
     const resourceIds = this.getBookedResourceIdsForOrder(focusedOrder);
     if (!resourceIds.length) return null;
+    const source = this.plannerMode === 'order' ? 'global' : 'focused-order';
     return {
-      contextKey: `focused-order:${focusedOrder.id}`,
+      contextKey: `${source}:${focusedOrder.id}`,
       active: true,
-      source: 'focused-order',
+      source,
       resourceIds,
     };
   }
