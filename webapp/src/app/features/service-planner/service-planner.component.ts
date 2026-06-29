@@ -87,8 +87,8 @@ interface AutoBookingRangeNotice {
 type WorkOrderItemKind = 'job' | 'activity';
 type SchedulingRole = 'start-boundary' | 'work' | 'end-boundary' | 'span';
 type CanonicalWorkOrderItemStatus = Exclude<WorkorderItemStatus, 'started'>;
-type OrderPlanningState = 'unscheduled' | 'partiallyScheduled' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
-type OrderPanelGroup = 'pending' | 'scheduled' | 'in-progress' | 'completed';
+type OrderPlanningState = 'unscheduled' | 'partiallyScheduled' | 'reserved' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+type OrderPanelGroup = 'pending' | 'reserved' | 'scheduled' | 'in-progress' | 'completed';
 
 interface NormalizedWorkOrderItem {
   id: string;
@@ -874,6 +874,17 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       ? this.getPanelSearchOrders()
       : this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders());
     return orders.filter(order => this.getOrderPlanningState(order) === 'scheduled');
+  }
+
+  get visibleReservedOrders(): any[] {
+    const orders = this.isSearchActive
+      ? this.getPanelSearchOrders()
+      : this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders());
+    return orders.filter(order => this.getOrderPlanningState(order) === 'reserved');
+  }
+
+  get reservedSectionCount(): number {
+    return this.visibleReservedOrders.length;
   }
 
   get visibleScheduledBlocks(): ScheduleEntry[] {
@@ -1777,6 +1788,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private getVisibleOrdersForPanelGroup(group: OrderPanelGroup): any[] {
+    if (group === 'reserved') return this.visibleReservedOrders;
     if (group === 'scheduled') return [...this.visibleScheduledOrders, ...this.visibleScheduledBlocks];
     if (group === 'in-progress') return this.visibleInProgressOrders;
     if (group === 'completed') return this.visibleCompletedOrders;
@@ -2362,7 +2374,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private isOrderPlanned(order: any): boolean {
-    return ['scheduled', 'in-progress', 'completed'].includes(this.getOrderPlanningState(order));
+    return ['reserved', 'scheduled', 'in-progress', 'completed'].includes(this.getOrderPlanningState(order));
   }
 
   private getOrderPlanningState(order: any): OrderPlanningState {
@@ -2373,7 +2385,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (statuses.length > 0 && statuses.every(status => status === 'completed')) return 'completed';
     if (statuses.some(status => status === 'in-progress')) return 'in-progress';
     if (statuses.every(status => status === 'scheduled' || status === 'completed')) return 'scheduled';
-    if (statuses.some(status => status === 'scheduled' || status === 'completed')) return 'partiallyScheduled';
+    if (statuses.every(status => status === 'reserved' || status === 'scheduled' || status === 'completed')) return 'reserved';
+    if (statuses.some(status => status === 'scheduled' || status === 'completed' || status === 'reserved')) return 'partiallyScheduled';
     return 'unscheduled';
   }
 
@@ -2396,6 +2409,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private getStatusBackground(status: CanonicalWorkOrderItemStatus | OrderPlanningState): string {
     if (status === 'scheduled') return '#FFE8BF';
+    if (status === 'reserved') return '#E8DAFF';
     if (status === 'partiallyScheduled') return '#E0E0E0';
     if (status === 'in-progress') return '#D0E2FF';
     if (status === 'completed') return '#DEFBE6';
@@ -2405,6 +2419,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private getStatusColor(status: CanonicalWorkOrderItemStatus | OrderPlanningState): string {
     if (status === 'scheduled') return '#D38700';
+    if (status === 'reserved') return '#6929C4';
     if (status === 'partiallyScheduled') return '#525252';
     if (status === 'in-progress') return '#0F62FE';
     if (status === 'completed') return '#198038';
@@ -2483,7 +2498,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (item.kind === 'activity') return this.resolveActivityItemStatus(order, item);
     const explicitStatus = this.getCanonicalWorkOrderItemStatus(item.source?.workorderItemStatus ?? item.source?.status ?? item.executionStatus);
     if (explicitStatus !== 'unscheduled') return explicitStatus;
-    return this.hasWorkOrderItemAllocation(order, item) ? 'scheduled' : 'unscheduled';
+    if (!this.hasWorkOrderItemAllocation(order, item)) return 'unscheduled';
+    return this.isWorkOrderItemOnlyDayCapacity(order, item) ? 'reserved' : 'scheduled';
   }
 
   private resolveActivityItemStatus(order: any, item: NormalizedWorkOrderItem): CanonicalWorkOrderItemStatus {
@@ -2493,7 +2509,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const entryStatus = this.getActivityScheduleEntryStatus(order, item);
     if (entryStatus !== 'unscheduled') return entryStatus;
 
-    return this.hasWorkOrderItemAllocation(order, item) ? 'scheduled' : 'unscheduled';
+    if (!this.hasWorkOrderItemAllocation(order, item)) return 'unscheduled';
+    return this.isWorkOrderItemOnlyDayCapacity(order, item) ? 'reserved' : 'scheduled';
   }
 
   private getActivityScheduleEntryStatus(order: any, item: NormalizedWorkOrderItem): CanonicalWorkOrderItemStatus {
@@ -2510,11 +2527,22 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       : this.isJobScheduledForOrder(item.source, order);
   }
 
+  private isWorkOrderItemOnlyDayCapacity(order: any, item: NormalizedWorkOrderItem): boolean {
+    const jobId = item.id;
+    const orderRef = order.referenceNumber;
+    const entries = this.allScheduleEntries.filter(entry =>
+      (entry.jobId === jobId || this.getActivityTemplateId(entry.jobId) === this.getActivityTemplateId(jobId)) &&
+      entry.workOrderReference === orderRef
+    );
+    return entries.length > 0 && entries.every(entry => entry.workorderItemStatus === 'reserved');
+  }
+
   private getCanonicalWorkOrderItemStatus(status: unknown): CanonicalWorkOrderItemStatus {
     if (status === 'completed') return 'completed';
     if (status === 'in-progress' || status === 'started') return 'in-progress';
     if (status === 'cancelled') return 'cancelled';
     if (status === 'scheduled') return 'scheduled';
+    if (status === 'reserved') return 'reserved';
     return 'unscheduled';
   }
 
@@ -2588,6 +2616,22 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.selectedPanelOrderId = order.id;
     this.setFocusedPlanningOrder(order);
     this.restoreProposalStateForOrder(order.id);
+
+    // If the order has reserved (day-capacity) entries, use reserved day as search start
+    // and reserved resources as preferred
+    const reservedEntries = this.getExistingScheduleEntriesForOrder(order)
+      .filter(entry => entry.workorderItemStatus === 'reserved');
+    if (reservedEntries.length) {
+      const reservedDay = new Date(Math.min(...reservedEntries.map(e => e.start.getTime())));
+      reservedDay.setHours(9, 0, 0, 0);
+      const preferredResourceIds = [...new Set(reservedEntries.map(e => e.resourceId))];
+      this.applyProposal(this.getBookableSearchStart(reservedDay), true, false, {
+        orderId: order.id,
+        preferredResourceIds,
+      });
+      return;
+    }
+
     const searchFrom = this.getBookableSearchStart(this.viewStart);
     this.applyProposal(searchFrom, true);
   }
@@ -2610,7 +2654,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const order = this.allOrders.find(candidate => candidate.id === orderId || candidate.referenceNumber === orderId);
     if (!order || this.isOrderAutoBookingLocked(order)) return false;
     if ((this.proposalStateByOrder.get(orderId)?.index ?? -1) >= 0) return true;
-    return this.getExistingScheduleEntriesForOrder(order).length > 0;
+    const entries = this.getExistingScheduleEntriesForOrder(order);
+    return entries.some(entry => entry.workorderItemStatus !== 'reserved' && entry.kind !== 'day-capacity');
   }
 
   private isOrderAutoBookingLocked(order: any): boolean {
@@ -2799,6 +2844,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return this.getCanonicalWorkOrderItemStatus(entry?.workorderItemStatus) === 'completed';
   }
 
+  isBookingReserved(booking: JobBooking): boolean {
+    const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
+    return entry?.workorderItemStatus === 'reserved';
+  }
+
   isActivityCompleted(order: any, activity: ActivityTile): boolean {
     return this.getActivityExecutionStatus(order, activity) === 'completed';
   }
@@ -2830,6 +2880,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   getBookingScheduleSummary(booking: JobBooking): string {
     const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
     if (!entry) return '';
+    if (entry.workorderItemStatus === 'reserved') {
+      return `${this.formatOrderScheduleDate(entry.start)} | ${this.formatDuration(entry.start, entry.end)}`;
+    }
     return `${this.formatOrderScheduleDateTime(entry.start)} | ${this.formatDuration(entry.start, entry.end)}`;
   }
 
@@ -2885,6 +2938,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   scrollToBookingInAvailabilityView(order: any, booking: JobBooking): void {
     this.selectedPanelOrderId = order.id;
     this.setFocusedPlanningOrder(order);
+    const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
+    if (entry && (entry.start >= this.viewEnd || entry.end <= this.viewStart)) {
+      this.setViewWindowForMode(this.plannerViewMode, entry.start);
+      this.scheduleRepo.getEntries(this.viewStart, this.viewEnd).subscribe(entries => {
+        this.applyScheduleEntries(entries);
+        this.focusPlannerEvent(booking.entryId);
+      });
+      return;
+    }
     this.focusPlannerEvent(booking.entryId);
   }
 
@@ -3032,6 +3094,13 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return `${day}.${month}.${year} ${hours}:${minutes}`;
   }
 
+  private formatOrderScheduleDate(value: Date): string {
+    const day = String(value.getDate()).padStart(2, '0');
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const year = value.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
+
   private formatDuration(start: Date, end: Date): string {
     const totalMinutes = Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
     const hours = Math.floor(totalMinutes / 60);
@@ -3082,6 +3151,20 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.upsertAllScheduleEntries(entries);
     this.events = this.mapScheduleEntriesToEvents(entries);
     this.capacityBlocks = this.mapScheduleEntriesToCapacityBlocks(entries);
+    this.loadFullOrderEntries(entries);
+  }
+
+  private loadFullOrderEntries(visibleEntries: ScheduleEntry[]): void {
+    const orderReferences = new Set(
+      visibleEntries
+        .map(entry => entry.workOrderReference)
+        .filter((ref): ref is string => !!ref)
+    );
+    for (const orderRef of orderReferences) {
+      this.scheduleRepo.getEntriesForOrder(orderRef).subscribe(orderEntries => {
+        this.upsertAllScheduleEntries(orderEntries);
+      });
+    }
   }
 
   private getFreeViewWindowStart(anchor: Date): Date {
@@ -3275,8 +3358,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const order = this.findOrderForScheduleEntry(entry);
     if (!order) return;
     const category = entry.workorderItemCategory ?? (this.isActivityScheduleEntry(entry) ? 'activity' : 'job');
-    const status = this.hasRemainingEntryForWorkOrderItem(order, entry, category) ? 'scheduled' : 'unscheduled';
-    this.setWorkOrderItemExecutionStatus(order, entry.jobId, category, status);
+    if (!this.hasRemainingEntryForWorkOrderItem(order, entry, category)) {
+      this.setWorkOrderItemExecutionStatus(order, entry.jobId, category, 'unscheduled');
+    } else {
+      const status = entry.workorderItemStatus === 'reserved' ? 'reserved' : 'scheduled';
+      this.setWorkOrderItemExecutionStatus(order, entry.jobId, category, status);
+    }
   }
 
   private refreshWorkOrderItemStatusesForEntries(entries: ScheduleEntry[]): void {
@@ -3560,8 +3647,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private onDayCapacityDropped(payload: EventDropPayload, activeOrderId: string | undefined): void {
     if (payload.dropType === 'order') {
-      this.setSchedulingError('Drop a specific job to block day capacity.', 'Capacity block not possible');
-      this.clearManualInteractionState();
+      this.onOrderDayCapacityDropped(payload, activeOrderId);
       return;
     }
 
@@ -3642,6 +3728,196 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return start;
   }
 
+  private onOrderDayCapacityDropped(payload: EventDropPayload, activeOrderId: string | undefined): void {
+    const order = this.allOrders.find(candidate => candidate.id === activeOrderId);
+    if (!order) {
+      this.setSchedulingError('Order not found.', 'Capacity block not possible');
+      this.clearManualInteractionState();
+      return;
+    }
+
+    const droppedResource = this.resources.find(r => r.id === payload.resourceId);
+    if (!droppedResource || !this.bookingEligibleResources.some(resource => resource.id === payload.resourceId)) {
+      this.setSchedulingError('Choose a compatible resource.', 'Capacity block not possible');
+      this.clearManualInteractionState();
+      return;
+    }
+
+    const rawDroppedResource = droppedResource.meta as Resource | undefined;
+    if (!rawDroppedResource) {
+      this.setSchedulingError('Resource not available.', 'Capacity block not possible');
+      this.clearManualInteractionState();
+      return;
+    }
+
+    const dayStart = this.getDayCapacityStart(payload.date ?? payload.start);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setHours(21, 0, 0, 0);
+
+    // Gather all jobs and activities for this order
+    const jobs: any[] = order.jobs ?? [];
+    const rawResources = this.bookingEligibleResources.map(r => r.meta as Resource).filter(Boolean);
+
+    // Check that dropped resource matches at least one requirement
+    const allRequirements = jobs.flatMap((job: any) => this.getSchedulingRequirements(job));
+    const droppedResourceMatchesAny = allRequirements.some(req =>
+      rawDroppedResource.type === req.resourceType &&
+      req.requiredQualifications.every(q => rawDroppedResource.qualifications.some(rq => rq.id === q.id))
+    );
+    if (!droppedResourceMatchesAny) {
+      this.setSchedulingError(`${rawDroppedResource.name} is not compatible with any job in this order.`, 'Capacity block not possible');
+      this.clearManualInteractionState();
+      return;
+    }
+
+    // Track capacity consumed during this operation
+    const capacityConsumed = new Map<string, number>(); // resourceId → minutes consumed in this batch
+
+    const getAvailableMinutes = (resourceId: string): number => {
+      const usedMinutes = this.getMonthResourceUsedMinutes(resourceId, dayStart, dayEnd, this.scheduleEntries);
+      const batchConsumed = capacityConsumed.get(resourceId) ?? 0;
+      return Math.max(0, 720 - usedMinutes - batchConsumed);
+    };
+
+    const consumeCapacity = (resourceId: string, minutes: number): void => {
+      capacityConsumed.set(resourceId, (capacityConsumed.get(resourceId) ?? 0) + minutes);
+    };
+
+    // Find best resource for a requirement
+    const findBestResource = (requirement: JobResourceRequirement, durationMinutes: number, preferredId?: string): Resource | null => {
+      // Try preferred (dropped) resource first
+      if (preferredId) {
+        const preferred = rawResources.find(r => r.id === preferredId);
+        if (preferred &&
+          preferred.type === requirement.resourceType &&
+          requirement.requiredQualifications.every(q => preferred.qualifications.some(rq => rq.id === q.id)) &&
+          getAvailableMinutes(preferred.id) >= durationMinutes
+        ) {
+          return preferred;
+        }
+      }
+      // Find any compatible resource with capacity
+      const candidates = rawResources
+        .filter(r =>
+          r.type === requirement.resourceType &&
+          requirement.requiredQualifications.every(q => r.qualifications.some(rq => rq.id === q.id))
+        )
+        .sort((a, b) => getAvailableMinutes(b.id) - getAvailableMinutes(a.id));
+      return candidates.find(r => getAvailableMinutes(r.id) >= durationMinutes) ?? null;
+    };
+
+    // Build capacity entries for each job
+    const entriesToBook: ScheduleEntry[] = [];
+    const warnings: string[] = [];
+
+    for (const job of jobs) {
+      if (this.isActivityId(job.id) || job.workorderItemCategory === 'activity') continue;
+      const requirements = this.getSchedulingRequirements(job);
+      const durationMinutes = (job.estimatedDurationMinutes ?? job.fru * 60) || 60;
+      const bookingSetId = `${order.id}:${job.id}:capacity:${dayStart.getTime()}`;
+      let primaryBooked = false;
+
+      for (const requirement of requirements) {
+        const resource = findBestResource(requirement, durationMinutes, rawDroppedResource.id);
+        if (resource) {
+          consumeCapacity(resource.id, durationMinutes);
+          entriesToBook.push({
+            id: `se-cap-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            jobId: job.id,
+            resourceId: resource.id,
+            start: dayStart,
+            end: new Date(dayStart.getTime() + durationMinutes * 60000),
+            title: job.title,
+            color: '#4C68B1',
+            kind: 'day-capacity',
+            workOrderReference: order.referenceNumber,
+            workorderItemStatus: 'reserved',
+            workorderItemCategory: 'job',
+            bookingSetId,
+          });
+          if (resource.type === requirements[0]?.resourceType) primaryBooked = true;
+        } else {
+          if (requirement === requirements[0]) {
+            // Primary resource not available — can't book this job at all
+            warnings.push(`${job.title}: no ${this.formatMissingRequirement(requirement)} with capacity.`);
+          } else if (primaryBooked) {
+            // Secondary resource not available — warn but keep primary
+            warnings.push(`${job.title}: ${this.formatMissingRequirement(requirement)} could not be reserved.`);
+          }
+        }
+      }
+    }
+
+    // Book activities (Check-In, Handover, Mobility)
+    const activityDefs: Array<{ templateId: string; resourceType: ResourceType; label: string }> = [];
+    if (this.hasOrderActivity(order, 'act-checkin')) {
+      activityDefs.push({ templateId: 'act-checkin', resourceType: 'advisor', label: 'Check-In' });
+    }
+    if (this.hasOrderActivity(order, 'act-handover')) {
+      activityDefs.push({ templateId: 'act-handover', resourceType: 'advisor', label: 'Handover' });
+    }
+    if (this.hasOrderActivity(order, 'act-mobility')) {
+      activityDefs.push({ templateId: 'act-mobility', resourceType: 'driver', label: 'Mobility Service' });
+    }
+
+    for (const actDef of activityDefs) {
+      const activityId = this.getOrderActivityId(order.id, actDef.templateId);
+      const durationMinutes = this.getActivityDurationMinutes(activityId);
+      const requirement: JobResourceRequirement = { resourceType: actDef.resourceType, requiredQualifications: [], label: actDef.label };
+      const resource = findBestResource(requirement, durationMinutes);
+      if (resource) {
+        consumeCapacity(resource.id, durationMinutes);
+        entriesToBook.push({
+          id: `se-cap-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          jobId: activityId,
+          resourceId: resource.id,
+          start: dayStart,
+          end: new Date(dayStart.getTime() + durationMinutes * 60000),
+          title: actDef.label,
+          color: '#4C68B1',
+          kind: 'day-capacity',
+          workOrderReference: order.referenceNumber,
+          workorderItemStatus: 'reserved',
+          workorderItemCategory: 'activity',
+        });
+      } else {
+        warnings.push(`${actDef.label}: no ${actDef.resourceType} with capacity.`);
+      }
+    }
+
+    if (!entriesToBook.length) {
+      this.setSchedulingError('No resources with sufficient capacity for this day.', 'Capacity block not possible');
+      this.clearManualInteractionState();
+      return;
+    }
+
+    this.clearSchedulingError();
+    this.clearManualInteractionState();
+
+    if (warnings.length) {
+      this.setSchedulingError(warnings.join(' '), 'Partial booking');
+    }
+
+    // Persist all entries
+    for (const entry of entriesToBook) {
+      this.scheduleRepo.assign(entry).subscribe(assigned => {
+        const normalizedEntry = {
+          ...assigned,
+          kind: 'day-capacity' as const,
+          workOrderReference: assigned.workOrderReference ?? order.referenceNumber,
+          workorderItemStatus: assigned.workorderItemStatus ?? 'reserved' as const,
+          workorderItemCategory: assigned.workorderItemCategory ?? 'job' as const,
+        };
+        this.upsertScheduleEntry(normalizedEntry);
+        this.capacityBlocks = [
+          ...this.capacityBlocks.filter(block => block.id !== normalizedEntry.id),
+          this.mapScheduleEntryToCapacityBlock(normalizedEntry),
+        ];
+      });
+    }
+  }
+
+
   onUndoBooking(booking: JobBooking): void {
     const event = this.events.find(candidate => candidate.id === booking.entryId);
     const capacityBlock = this.capacityBlocks.find(candidate => candidate.id === booking.entryId);
@@ -3684,7 +3960,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.selectedPanelOrderId = order.id;
     this.expandedOrderIds = new Set([...this.expandedOrderIds, order.id]);
     const state = this.getOrderPlanningState(order);
-    const targetGroup: OrderPanelGroup = state === 'scheduled' || state === 'in-progress' || state === 'completed'
+    const targetGroup: OrderPanelGroup = state === 'reserved' || state === 'scheduled' || state === 'in-progress' || state === 'completed'
       ? state
       : 'pending';
     this.collapsedOrderGroups = new Set([...this.collapsedOrderGroups].filter(group => group !== targetGroup));

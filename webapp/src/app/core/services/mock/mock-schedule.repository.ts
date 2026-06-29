@@ -19,6 +19,10 @@ export class MockScheduleRepository extends ScheduleRepository {
     return of(this.entries.filter(e => e.start < to && e.end > from).map(entry => ({ ...entry })));
   }
 
+  getEntriesForOrder(orderReference: string): Observable<ScheduleEntry[]> {
+    return of(this.entries.filter(e => e.workOrderReference === orderReference).map(entry => ({ ...entry })));
+  }
+
   assign(entry: ScheduleEntry): Observable<ScheduleEntry> {
     const stored = this.normalizeActivityDuration({
       ...entry,

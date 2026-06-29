@@ -1,7 +1,7 @@
 import { ResourceType, Qualification } from './resource.model';
 
 export type JobStatus = 'unscheduled' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
-export type WorkorderItemStatus = JobStatus | 'started';
+export type WorkorderItemStatus = JobStatus | 'started' | 'reserved';
 export type WorkorderItemCategory = 'job' | 'activity';
 
 export interface JobResourceRequirement {
