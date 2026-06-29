@@ -348,7 +348,7 @@
                       @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                     }
                   </span>
-                  <span style="display:block;width:calc(100% - 176px);max-width:calc(100% - 176px);min-width:0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                  <span style="display:block;width:calc(100% - 176px);max-width:calc(100% - 188px);min-width:0;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                     @for (part of getSearchHighlightParts(order.customer?.name ?? 'Unknown customer'); track $index) {
                       @if (part.isMatch) {<span style="display:inline;border-radius:4px;background:rgba(76,104,177,.16);box-shadow:inset 0 0 0 .25px #4C68B1;padding:0">{{ part.text }}</span>} @else {{{ part.text }}}
                     }
