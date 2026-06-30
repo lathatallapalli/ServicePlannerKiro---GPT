@@ -365,11 +365,11 @@
 }
 
 .month-overview__availability-row {
-  --availability-color: var(--Support-support-success, #24A148);
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) 34px;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  height: 16px;
   color: var(--Text-text-secondary, #525252);
   font-size: 11px;
   line-height: 12px;
@@ -377,15 +377,12 @@
 }
 
 .month-overview__availability-row--medium {
-  --availability-color: var(--Support-support-warning, #F1C21B);
 }
 
 .month-overview__availability-row--low {
-  --availability-color: var(--Support-support-error, #DA1E28);
 }
 
 .month-overview__availability-row--muted {
-  --availability-color: var(--Border-border-subtle-01, #C6C6C6);
 }
 
 .month-overview__availability-label {
@@ -401,23 +398,27 @@
 }
 
 .month-overview__availability-track {
-  height: 4px;
+  height: 4px !important;
+  min-height: 4px !important;
+  max-height: 4px !important;
+  align-self: center;
+  flex-shrink: 0;
   overflow: hidden;
-  background: var(--Border-border-subtle-01, #C6C6C6);
+  background: #E0E0E0;
 }
 
 .month-overview__availability-fill {
   display: block;
-  height: 100%;
-  background: var(--availability-color);
+  height: 4px !important;
+  background: #8D8D8D;
 }
 
-.month-overview__availability-row--empty:not(.month-overview__availability-row--muted) .month-overview__availability-fill {
-  min-width: 4px;
+.month-overview__availability-row--muted .month-overview__availability-fill {
+  background: var(--Border-border-subtle-01, #C6C6C6);
 }
 
 .month-overview__availability-value {
-  text-align: right;
+  text-align: left;
   font-variant-numeric: tabular-nums;
 }
 
@@ -460,7 +461,7 @@
   padding: 12px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
 }
 
 .month-preview__availability-title {
@@ -472,11 +473,10 @@
 }
 
 .month-preview__availability-row {
-  --availability-color: var(--Support-support-success, #24A148);
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) 36px;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   color: var(--Text-text-secondary, #525252);
   font-size: 12px;
   line-height: 16px;
@@ -484,11 +484,9 @@
 }
 
 .month-preview__availability-row--medium {
-  --availability-color: var(--Support-support-warning, #F1C21B);
 }
 
 .month-preview__availability-row--low {
-  --availability-color: var(--Support-support-error, #DA1E28);
 }
 
 .month-preview__availability-label {
@@ -501,22 +499,22 @@
 .month-preview__availability-track {
   height: 4px;
   overflow: hidden;
-  background: var(--Layer-layer-accent-01, #E0E0E0);
+  background: #E0E0E0;
 }
 
 .month-preview__availability-fill {
   display: block;
   height: 100%;
-  background: var(--availability-color);
+  background: #8D8D8D;
 }
 
 .month-preview__availability-row--empty .month-preview__availability-fill {
-  min-width: 4px;
+  min-width: 0;
 }
 
 .month-preview__availability-value {
   color: var(--Text-text-secondary, #525252);
-  text-align: right;
+  text-align: left;
   font-variant-numeric: tabular-nums;
 }
 

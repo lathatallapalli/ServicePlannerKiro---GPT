@@ -30,99 +30,79 @@
   <div class="service-planner__content" style="display:flex;flex:1 1 auto;min-width:0;min-height:0;overflow:hidden">
   <main class="service-planner__main" style="display:flex;flex:1 1 auto;min-width:0;min-height:0;height:100%;overflow:hidden">
   @if (plannerViewMode === 'month') {
-    <section class="month-overview" aria-label="Month planner overview">
-      <div class="month-overview__body">
-        <div class="month-overview__calendar">
-          <div class="month-overview__header">
-            <div class="month-overview__title-row" aria-label="Month navigation">
-              <button type="button" class="month-overview__nav-button" aria-label="Previous month" (click)="goToPreviousMonth()">
-                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-                  <path d="M12.5 15 7.5 10 12.5 5 13.375 5.875 9.25 10 13.375 14.125 12.5 15Z" fill="currentColor"/>
-                </svg>
-              </button>
-              <h2>{{ monthOverviewTitle }}</h2>
-              <button type="button" class="month-overview__nav-button" aria-label="Next month" (click)="goToNextMonth()">
-                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-                  <path d="M7.5 5 12.5 10 7.5 15 6.625 14.125 10.75 10 6.625 5.875 7.5 5Z" fill="currentColor"/>
-                </svg>
-              </button>
-            </div>
-            <div class="month-overview__capacity-toggle">
-              <button
-                type="button"
-                class="month-overview__capacity-switch"
-                role="switch"
-                [attr.aria-checked]="showMonthCapacity"
-                aria-label="Capacity information"
-                (click)="toggleMonthCapacity()">
-                <span class="month-overview__capacity-switch-thumb" aria-hidden="true"></span>
-              </button>
-              <span class="month-overview__capacity-label">{{ showMonthCapacity ? 'Capacity visible' : 'Capacity hidden' }}</span>
-            </div>
-          </div>
-          <div class="month-overview__weekdays" aria-hidden="true">
-            <span>Mon</span>
-            <span>Tue</span>
-            <span>Wed</span>
-            <span>Thu</span>
-            <span>Fri</span>
-            <span>Sat</span>
-            <span>Sun</span>
-          </div>
-          <div class="month-overview__grid">
-            @for (day of monthOverviewDays; track day.date.getTime()) {
-              <button
-                type="button"
-                class="month-overview__day"
-                [class.month-overview__day--outside]="!day.isCurrentMonth"
-                [class.month-overview__day--past]="day.isPast"
-                [class.month-overview__day--today]="day.isToday"
-                [class.month-overview__day--selected]="day.isSelected"
-                [attr.aria-label]="'Preview ' + (day.date | date:'fullDate')"
-                (click)="selectMonthPreviewDay(day.date)">
-                <span class="month-overview__day-heading">
-                  <span>{{ day.date | date:'d' }}</span>
-                  @if (day.isToday) {
-                    <span class="month-overview__today-label">Today</span>
-                  }
-                </span>
-                @if (day.bookingCount) {
-                  <span class="month-overview__summary">
-                    <strong>{{ day.bookingCount }}</strong>
-                    <span>{{ day.bookingCount === 1 ? 'booking' : 'bookings' }}</span>
-                  </span>
-                } @else {
-                  <span class="month-overview__empty">No bookings</span>
-                }
-                @if (!day.isPast) {
-                  <span
-                    class="month-overview__availability"
-                    [class.month-overview__availability--hidden]="!showMonthCapacity"
-                    [attr.aria-hidden]="!showMonthCapacity"
-                    aria-label="Resource availability">
-                    @for (item of day.availability; track item.type) {
-                      <span
-                        class="month-overview__availability-row"
-                        [class.month-overview__availability-row--medium]="item.status === 'medium'"
-                        [class.month-overview__availability-row--low]="item.status === 'low'"
-                        [class.month-overview__availability-row--empty]="item.percentage === 0"
-                        [class.month-overview__availability-row--muted]="!day.isCurrentMonth"
-                        [attr.title]="showMonthCapacity ? getMonthAvailabilityTitle(item) : null">
-                        <span class="month-overview__availability-label">{{ item.shortLabel }}</span>
-                        <span class="month-overview__availability-track">
-                          <span class="month-overview__availability-fill" [style.width.%]="item.percentage"></span>
-                        </span>
-                        <span class="month-overview__availability-value">{{ item.percentage }}%</span>
-                      </span>
+    <div style="flex:1 1 auto;min-width:0;min-height:0;height:100%;display:flex;overflow:hidden">
+      <!-- Left panel: resource filters + day preview -->
+      <div style="width:360px;flex:0 0 360px;height:100%;display:flex;flex-direction:column;overflow:hidden;padding:16px;gap:16px;box-sizing:border-box">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <span style="color:var(--Text-text-secondary,#525252);font-size:12px;line-height:16px;letter-spacing:.32px">Resource groups</span>
+          <div style="align-self:stretch;min-width:0;height:34px;background:var(--Field-field-01,#F4F4F4);position:relative;display:flex;flex-direction:column;align-items:stretch" [style.outline]="isMonthViewDropdownOpen ? '2px solid var(--Focus-focus,#4C68B1)' : 'none'">
+            <button type="button" (click)="toggleMonthViewDropdown()" aria-label="Resource Views" style="height:34px;border:0;background:transparent;padding:8px 16px;display:inline-flex;align-items:center;gap:8px;text-align:left;cursor:pointer">
+              <span style="flex:1 1 0;min-width:0;height:18px;color:var(--Text-text-primary,#161616);font-size:14px;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ selectedResourceView?.label ?? 'All resources' }}</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path [attr.d]="isMonthViewDropdownOpen ? 'M8 5l5 5-.7.7L8 6.4l-4.3 4.3L3 10l5-5Z' : 'M8 11 3 6l.7-.7L8 9.6l4.3-4.3.7.7-5 5Z'" fill="#161616"/></svg>
+            </button>
+            @if (isMonthViewDropdownOpen) {
+              <div style="position:absolute;left:0;right:0;top:34px;z-index:1000;max-height:360px;overflow:auto;box-shadow:0 2px 6px rgba(0,0,0,.3);background:var(--Layer-layer-01,#F4F4F4);display:inline-flex;flex-direction:column;align-items:flex-start">
+                <button type="button" (click)="selectMonthResourceView(null)" style="align-self:stretch;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;display:inline-flex;align-items:center;gap:16px;text-align:left;cursor:pointer">
+                  <span style="width:16px;height:16px;color:#161616;display:inline-flex;flex:0 0 auto">
+                    @if (!selectedResourceView) {
+                      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM7 10.75 4.5 8.27 5.3 7.5 7 9.17l3.7-3.67.8.79L7 10.75Z" fill="currentColor"/></svg>
+                    } @else {
+                      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM3 13V3h10v10H3Z" fill="currentColor"/></svg>
                     }
                   </span>
+                  <span style="flex:1 1 0;min-width:0;color:var(--Text-text-secondary,#525252);font-size:14px;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">All resources</span>
+                </button>
+                @for (view of resourceViews; track view.label) {
+                  <button type="button" (click)="selectMonthResourceView(view)" style="align-self:stretch;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;display:inline-flex;align-items:center;gap:16px;text-align:left;cursor:pointer">
+                    <span style="position:absolute;left:16px;right:16px;top:0;height:0;outline:1px solid var(--Border-border-subtle-01,#C6C6C6);outline-offset:-.5px" aria-hidden="true"></span>
+                    <span style="width:16px;height:16px;color:#161616;display:inline-flex;flex:0 0 auto">
+                      @if (selectedResourceView?.label === view.label) {
+                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM7 10.75 4.5 8.27 5.3 7.5 7 9.17l3.7-3.67.8.79L7 10.75Z" fill="currentColor"/></svg>
+                      } @else {
+                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM3 13V3h10v10H3Z" fill="currentColor"/></svg>
+                      }
+                    </span>
+                    <span style="flex:1 1 0;min-width:0;color:#525252;font-size:14px;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ view.label }}</span>
+                  </button>
                 }
-              </button>
+              </div>
+            }
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0">
+          <div style="align-self:stretch;min-width:0;height:32px;background:var(--Field-field-01,#F4F4F4);position:relative;display:flex;flex-direction:column;align-items:stretch" [style.outline]="isMonthGroupDropdownOpen ? '2px solid var(--Focus-focus,#4C68B1)' : 'none'">
+            <button type="button" (click)="toggleMonthGroupDropdown()" aria-label="Resource type" style="height:32px;border:0;background:transparent;padding:7px 16px;display:inline-flex;align-items:center;gap:8px;text-align:left;cursor:pointer">
+              @if (areAllMonthResourceTypesSelected) {
+                <span style="height:18px;background:var(--Background-background-inverse,#393939);border-radius:1000px;display:inline-flex;align-items:center">
+                  <span style="padding:0 8px 2px;color:var(--Icon-icon-inverse,white);font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">All</span>
+                  <span role="button" tabindex="0" aria-label="Clear selected resource types" (click)="clearMonthGroupSelection($event)" style="padding:1px;color:white;display:inline-flex">
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M12 4.7 11.3 4 8 7.3 4.7 4 4 4.7 7.3 8 4 11.3l.7.7L8 8.7l3.3 3.3.7-.7L8.7 8 12 4.7Z" fill="currentColor"/></svg>
+                  </span>
+                </span>
+              }
+              <span style="flex:1 1 0;min-width:0;height:18px;color:var(--Text-text-primary,#161616);font-size:14px;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ monthSelectedGroupLabel }}</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path [attr.d]="isMonthGroupDropdownOpen ? 'M8 5l5 5-.7.7L8 6.4l-4.3 4.3L3 10l5-5Z' : 'M8 11 3 6l.7-.7L8 9.6l4.3-4.3.7.7-5 5Z'" fill="#161616"/></svg>
+            </button>
+            @if (isMonthGroupDropdownOpen) {
+              <div style="position:absolute;left:0;right:0;top:32px;z-index:1000;max-height:320px;overflow:auto;box-shadow:0 2px 6px rgba(0,0,0,.3);background:var(--Layer-layer-01,#F4F4F4)">
+                @for (group of visibleSchedulerGroups; track group.id) {
+                  <button type="button" (click)="toggleMonthGroupSelection(group.id, $event)" style="width:100%;height:40px;border:0;background:var(--Layer-layer-01,#F4F4F4);padding:11px 16px;display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer">
+                    <span style="width:16px;height:16px;color:#161616;display:inline-flex;flex:0 0 auto">
+                      @if (selectedResourceTypeGroupIds.includes(group.id)) {
+                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM7 10.75 4.5 8.27 5.3 7.5 7 9.17l3.7-3.67.8.79L7 10.75Z" fill="currentColor"/></svg>
+                      } @else {
+                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1ZM3 13V3h10v10H3Z" fill="currentColor"/></svg>
+                      }
+                    </span>
+                    <span style="flex:1 1 0;min-width:0;color:#525252;font-size:14px;font-weight:400;line-height:18px;letter-spacing:.16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ group.label }}</span>
+                  </button>
+                }
+              </div>
             }
           </div>
         </div>
         @if (selectedMonthPreviewDate) {
-          <aside class="month-preview" aria-label="Selected day preview">
+          <aside class="month-preview month-preview--inline" aria-label="Selected day preview" style="border-top:1px solid var(--Border-border-subtle-01,#C6C6C6);padding-top:16px">
             <header class="month-preview__header">
               <div>
                 <p class="month-preview__eyebrow">Day preview</p>
@@ -139,32 +119,24 @@
               </div>
             }
             <div class="month-preview__availability" aria-label="Selected day resource availability">
-              <span class="month-preview__availability-title">Resource availability</span>
+              <span class="month-preview__availability-title" style="display:flex;align-items:baseline;justify-content:space-between">Resource availability <span style="font-weight:400;font-size:12px;color:var(--Text-text-secondary,#525252)">Free</span></span>
               @for (item of monthPreviewAvailability; track item.type) {
-                <div
-                  class="month-preview__availability-row"
-                  [class.month-preview__availability-row--medium]="item.status === 'medium'"
-                  [class.month-preview__availability-row--low]="item.status === 'low'"
-                  [class.month-preview__availability-row--empty]="item.percentage === 0"
+                <div class="month-preview__availability-row"
                   [attr.title]="getMonthAvailabilityTitle(item)">
                   <span class="month-preview__availability-label">{{ item.label }}</span>
                   <span class="month-preview__availability-track">
-                    <span class="month-preview__availability-fill" [style.width.%]="item.percentage"></span>
+                    <span class="month-preview__availability-fill" [style.width.%]="100 - item.percentage"></span>
                   </span>
-                  <span class="month-preview__availability-value">{{ item.percentage }}%</span>
+                  <span class="month-preview__availability-value">{{ formatAvailableHoursShort(item.availableMinutes) }}</span>
                 </div>
               }
             </div>
             <div class="month-preview__axis-strip">
               <div class="month-preview__axis" aria-hidden="true">
-                <span>09:00</span>
-                <span>12:00</span>
-                <span>15:00</span>
-                <span>18:00</span>
-                <span>21:00</span>
+                <span>09:00</span><span>12:00</span><span>15:00</span><span>18:00</span><span>21:00</span>
               </div>
             </div>
-            <div class="month-preview__resources">
+            <div class="month-preview__resources" style="flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:auto">
               @for (row of monthPreviewResources; track getMonthPreviewResourceRowId(row)) {
                 @if (row.kind === 'heading') {
                   <div class="month-preview__resource-heading">{{ row.label }}</div>
@@ -187,7 +159,67 @@
           </aside>
         }
       </div>
-    </section>
+      <!-- Center: Calendar grid -->
+      <div style="flex:1 1 auto;min-width:0;height:100%;display:flex;flex-direction:column;overflow:hidden;padding:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <button type="button" class="month-overview__nav-button" aria-label="Previous month" (click)="goToPreviousMonth()">
+              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 15 7.5 10 12.5 5 13.375 5.875 9.25 10 13.375 14.125 12.5 15Z" fill="currentColor"/></svg>
+            </button>
+            <h2 style="margin:0;font-size:20px;font-weight:600;line-height:28px">{{ monthOverviewTitle }}</h2>
+            <button type="button" class="month-overview__nav-button" aria-label="Next month" (click)="goToNextMonth()">
+              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 5 12.5 10 7.5 15 6.625 14.125 10.75 10 6.625 5.875 7.5 5Z" fill="currentColor"/></svg>
+            </button>
+          </div>
+          <div class="month-overview__capacity-toggle">
+            <button type="button" class="month-overview__capacity-switch" role="switch" [attr.aria-checked]="showMonthCapacity" aria-label="Capacity information" (click)="toggleMonthCapacity()">
+              <span class="month-overview__capacity-switch-thumb" aria-hidden="true"></span>
+            </button>
+            <span class="month-overview__capacity-label">{{ showMonthCapacity ? 'Capacity visible' : 'Capacity hidden' }}</span>
+          </div>
+        </div>
+        <div class="month-overview__weekdays" aria-hidden="true">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+        </div>
+        <div class="month-overview__grid" style="flex:1 1 auto;overflow-y:auto">
+          @for (day of monthOverviewDays; track day.date.getTime()) {
+            <button type="button" class="month-overview__day"
+              [class.month-overview__day--outside]="!day.isCurrentMonth"
+              [class.month-overview__day--past]="day.isPast"
+              [class.month-overview__day--today]="day.isToday"
+              [class.month-overview__day--selected]="day.isSelected"
+              [attr.aria-label]="'Preview ' + (day.date | date:'fullDate')"
+              (click)="selectMonthPreviewDay(day.date)"
+              (dragover)="onMonthDayDragOver($event, day)"
+              (dragleave)="onMonthDayDragLeave($event)"
+              (drop)="onMonthDayDrop($event, day)">
+              <span class="month-overview__day-heading">
+                <span>{{ day.date | date:'d' }}</span>
+                @if (day.isToday) { <span class="month-overview__today-label">Today</span> }
+              </span>
+              @if (day.bookingCount) {
+                <span class="month-overview__summary"><strong>{{ day.bookingCount }}</strong> <span>{{ day.bookingCount === 1 ? 'booking' : 'bookings' }}</span></span>
+              } @else {
+                <span class="month-overview__empty">No bookings</span>
+              }
+              @if (!day.isPast) {
+                <span class="month-overview__availability" [class.month-overview__availability--hidden]="!showMonthCapacity" [attr.aria-hidden]="!showMonthCapacity" aria-label="Resource availability">
+                  @for (item of day.availability; track item.type) {
+                    <span class="month-overview__availability-row"
+                      [class.month-overview__availability-row--muted]="!day.isCurrentMonth"
+                      [attr.title]="showMonthCapacity ? getMonthAvailabilityTitle(item) : null">
+                      <span class="month-overview__availability-label">{{ item.shortLabel }}</span>
+                      <span class="month-overview__availability-track"><span class="month-overview__availability-fill" [style.width.%]="100 - item.percentage"></span></span>
+                      <span class="month-overview__availability-value">{{ formatAvailableHoursShort(item.availableMinutes) }}</span>
+                    </span>
+                  }
+                </span>
+              }
+            </button>
+          }
+        </div>
+      </div>
+    </div>
   } @else {
   <div style="flex:1 1 auto;min-width:0;min-height:0;height:100%;display:flex;flex-direction:column;overflow:hidden">
     @if (autoBookingRangeNotice) {
@@ -276,7 +308,7 @@
   }
   </main>
 
-  @if (!isFullPlanner() || isOrderPanelOpen) {
+  @if (!isFullPlanner() || isOrderPanelOpen || plannerViewMode === 'month') {
     <aside class="order-panel" aria-label="Orders panel" [style.width.px]="orderPanelWidth" [style.flex-basis.px]="orderPanelWidth" style="height:100%;padding-left:32px;padding-top:0;display:inline-flex;flex-direction:column;gap:16px;overflow:hidden;box-sizing:border-box;flex-shrink:0;position:relative">
       <div role="separator" aria-orientation="vertical" aria-label="Resize orders panel" (pointerdown)="startOrderPanelResize($event)" style="position:absolute;left:0;top:0;width:8px;height:100%;cursor:col-resize;z-index:1;display:flex;justify-content:center">
         <div style="width:1px;height:100%;background:transparent"></div>

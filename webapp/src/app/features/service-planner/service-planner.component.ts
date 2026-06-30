@@ -250,6 +250,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   autoBookingRangeNotice: AutoBookingRangeNotice | null = null;
   showBookingDetails = true;
   showMonthCapacity = false;
+  isMonthViewDropdownOpen = false;
+  isMonthGroupDropdownOpen = false;
   plannerMode: 'order' | 'full' = 'full';
   activeOrderId: string | null = null;
   hasPrevious = false;
@@ -473,14 +475,45 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private getMonthResourceAvailability(day: Date, entries: ScheduleEntry[] = this.scheduleEntries): MonthResourceAvailability[] {
     const dayStart = this.getDayBoundary(day, 9, 0);
     const dayEnd = this.getDayBoundary(day, 21, 0);
-    const resourceTypes: Array<{ type: ResourceType; label: string; shortLabel: string }> = [
-      { type: 'mechanic', label: 'Mechanics', shortLabel: 'M' },
-      { type: 'advisor', label: 'Service Advisors', shortLabel: 'A' },
-      { type: 'driver', label: 'Courtesy Cars', shortLabel: 'C' },
-    ];
 
-    return resourceTypes.map(({ type, label, shortLabel }) => {
-      const resources = this.resources.filter(resource => {
+    // Use filtered resources (same as day/week view) based on selected view + type groups
+    const filteredResources = this.visibleResourcePool;
+
+    // Dynamically determine resource types from filtered resources
+    const typeMap = new Map<ResourceType, { label: string; shortLabel: string }>();
+    const shortLabels: Record<ResourceType, string> = {
+      mechanic: 'M', advisor: 'S', driver: 'C', bay: 'B', device: 'D',
+    };
+    const fullLabels: Record<ResourceType, string> = {
+      mechanic: 'Mechanics', advisor: 'Service Advisors', driver: 'Courtesy Cars', bay: 'Bays', device: 'Devices',
+    };
+    for (const resource of filteredResources) {
+      const rawResource = resource.meta as Resource | undefined;
+      if (!rawResource) continue;
+      if (!typeMap.has(rawResource.type)) {
+        typeMap.set(rawResource.type, {
+          label: fullLabels[rawResource.type] ?? rawResource.type,
+          shortLabel: shortLabels[rawResource.type] ?? rawResource.type.charAt(0).toUpperCase(),
+        });
+      }
+    }
+
+    // Determine type order from visible scheduler groups
+    const typeOrder: ResourceType[] = [];
+    for (const group of this.visibleSchedulerGroups) {
+      const groupResource = filteredResources.find(r => r.groupId === group.id);
+      const groupType = (groupResource?.meta as Resource | undefined)?.type;
+      if (groupType && !typeOrder.includes(groupType)) typeOrder.push(groupType);
+    }
+
+    return [...typeMap.entries()]
+      .sort(([a], [b]) => {
+        const indexA = typeOrder.indexOf(a);
+        const indexB = typeOrder.indexOf(b);
+        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+      })
+      .map(([type, { label, shortLabel }]) => {
+      const resources = filteredResources.filter(resource => {
         const rawResource = resource.meta as Resource | undefined;
         return rawResource?.type === type;
       });
@@ -536,6 +569,89 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private formatDurationHours(minutes: number): string {
     const hours = minutes / 60;
     return `${Number.isInteger(hours) ? hours.toFixed(0) : hours.toFixed(1)}h`;
+  }
+
+  formatAvailableHours(minutes: number): string {
+    const hours = minutes / 60;
+    if (Number.isInteger(hours)) return `${hours}h free`;
+    return `${hours.toFixed(1)}h free`;
+  }
+
+  formatAvailableHoursShort(minutes: number): string {
+    const hours = minutes / 60;
+    if (Number.isInteger(hours)) return `${hours}h`;
+    return `${hours.toFixed(1)}h`;
+  }
+
+  getTotalFreeHours(): string {
+    const totalFree = this.monthPreviewAvailability.reduce((sum, item) => sum + item.availableMinutes, 0);
+    const hours = totalFree / 60;
+    if (Number.isInteger(hours)) return `${hours}h`;
+    return `${hours.toFixed(1)}h`;
+  }
+
+  onMonthDayDragOver(event: DragEvent, day: any): void {
+    if (day.isPast) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  }
+
+  onMonthDayDragLeave(event: DragEvent): void {
+    // No-op for now, could clear visual feedback
+  }
+
+  onMonthDayDrop(event: DragEvent, day: any): void {
+    event.preventDefault();
+    if (day.isPast) return;
+
+    const orderId = event.dataTransfer?.getData('orderId');
+    if (!orderId) return;
+
+    const order = this.allOrders.find((o: any) => o.id === orderId || o.referenceNumber === orderId);
+    if (!order) return;
+
+    // Use the same logic as day-capacity drop but without a specific dropped resource
+    // Find the best resource for each job requirement from the visible pool
+    const targetDate = new Date(day.date);
+    targetDate.setHours(9, 0, 0, 0);
+
+    // Create a synthetic payload and route to the order day capacity handler
+    const payload: any = {
+      dropType: 'order',
+      dropMode: 'day-capacity',
+      orderId: order.id,
+      resourceId: this.getBestResourceForMonthDrop(order),
+      date: targetDate,
+      start: targetDate,
+      end: new Date(targetDate.getTime() + 12 * 60 * 60000),
+    };
+
+    if (!payload.resourceId) {
+      this.setSchedulingError('No compatible resource available.', 'Capacity block not possible');
+      return;
+    }
+
+    this.onEventDropped(payload);
+    this.selectMonthPreviewDay(day.date);
+  }
+
+  private getBestResourceForMonthDrop(order: any): string | null {
+    const jobs: any[] = order.jobs ?? [];
+    const rawResources = this.visibleResourcePool.map(r => r.meta as Resource).filter(Boolean);
+
+    // Find a resource that matches the first job's primary requirement
+    for (const job of jobs) {
+      if (this.isActivityId(job.id) || job.workorderItemCategory === 'activity') continue;
+      const requirements = this.getSchedulingRequirements(job);
+      if (!requirements.length) continue;
+      const primaryReq = requirements[0];
+      const match = rawResources.find(r =>
+        r.type === primaryReq.resourceType &&
+        primaryReq.requiredQualifications.every(q => r.qualifications.some(rq => rq.id === q.id))
+      );
+      if (match) return match.id;
+    }
+    return rawResources[0]?.id ?? null;
   }
 
   get manualDropSnapMinutes(): number {
@@ -803,7 +919,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private getCurrentPlannerScopeRange(): { start: Date; end: Date } | null {
-    if (this.plannerViewMode === 'free' || this.plannerViewMode === 'month') return null;
+    if (this.plannerViewMode === 'month') {
+      if (!this.selectedMonthPreviewDate) return null;
+      const start = new Date(this.selectedMonthPreviewDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(this.selectedMonthPreviewDate);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    if (this.plannerViewMode === 'free') return null;
     return { start: this.viewStart, end: this.viewEnd };
   }
 
@@ -1165,6 +1289,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
           ...this.capacityBlocks.filter(candidate => candidate.id !== payload.eventId),
           this.mapScheduleEntryToCapacityBlock(normalized),
         ];
+        // Sync booking set siblings to day capacity
+        this.syncCapacityBlockSiblings(entry, normalized, 'day-capacity');
       });
     });
   }
@@ -1224,8 +1350,53 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
             this.mapScheduleEntryToEvent(normalized),
           ];
         }
+        // Sync booking set siblings (bay, device, etc.)
+        this.syncCapacityBlockSiblings(entry, normalized, nextKind);
       });
     });
+  }
+
+  private syncCapacityBlockSiblings(originalEntry: ScheduleEntry, movedEntry: ScheduleEntry, nextKind: 'day-capacity' | 'scheduled'): void {
+    const bookingSetId = this.getEntryBookingSetId(originalEntry);
+    const siblings = this.allScheduleEntries.filter(entry =>
+      entry.id !== movedEntry.id &&
+      this.isJobScheduleEntry(entry) &&
+      this.getEntryBookingSetId(entry) === bookingSetId
+    );
+
+    for (const sibling of siblings) {
+      const updatedSibling: ScheduleEntry = {
+        ...sibling,
+        start: movedEntry.start,
+        end: movedEntry.end,
+        kind: nextKind,
+        workorderItemStatus: nextKind === 'day-capacity' ? 'reserved' : 'scheduled',
+      };
+
+      this.scheduleRepo.unassign(sibling.id).subscribe(() => {
+        this.scheduleRepo.assign(updatedSibling).subscribe(assigned => {
+          const normalizedSibling: ScheduleEntry = { ...updatedSibling, ...assigned, kind: nextKind };
+          this.upsertAllScheduleEntries([normalizedSibling]);
+          this.scheduleEntries = [
+            ...this.scheduleEntries.filter(e => e.id !== sibling.id),
+            normalizedSibling,
+          ];
+          if (nextKind === 'day-capacity') {
+            this.events = this.events.filter(e => e.id !== sibling.id);
+            this.capacityBlocks = [
+              ...this.capacityBlocks.filter(b => b.id !== sibling.id),
+              this.mapScheduleEntryToCapacityBlock(normalizedSibling),
+            ];
+          } else {
+            this.capacityBlocks = this.capacityBlocks.filter(b => b.id !== sibling.id);
+            this.events = [
+              ...this.events.filter(e => e.id !== sibling.id),
+              this.mapScheduleEntryToEvent(normalizedSibling),
+            ];
+          }
+        });
+      });
+    }
   }
 
   onSchedulerEventDragStarted(eventId: string, pointerOffsetMinutes = 0): void {
@@ -1621,6 +1792,76 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (this.plannerMode === 'order') {
       this.isAutoProposalVisible = false;
     }
+  }
+
+  onMonthResourceViewChange(event: Event): void {
+    const label = (event.target as HTMLSelectElement).value;
+    const view = label ? this.resourceViews.find(v => v.label === label) ?? null : null;
+    this.onResourceViewChange(view);
+  }
+
+  onMonthResourceTypeChange(event: Event): void {
+    const groupId = (event.target as HTMLSelectElement).value;
+    this.selectedResourceTypeGroupIds = groupId ? [groupId] : this.getDefaultResourceTypeGroupIds();
+    this.updatePlannerResourceContext();
+  }
+
+  onMonthResourceTypeMultiChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const selected = Array.from(select.selectedOptions).map(opt => opt.value);
+    this.selectedResourceTypeGroupIds = selected.length ? selected : this.getDefaultResourceTypeGroupIds();
+    this.updatePlannerResourceContext();
+  }
+
+  toggleMonthViewDropdown(): void {
+    this.isMonthViewDropdownOpen = !this.isMonthViewDropdownOpen;
+    this.isMonthGroupDropdownOpen = false;
+  }
+
+  toggleMonthGroupDropdown(): void {
+    this.isMonthGroupDropdownOpen = !this.isMonthGroupDropdownOpen;
+    this.isMonthViewDropdownOpen = false;
+  }
+
+  selectMonthResourceView(view: ResourceFavoriteView | null): void {
+    this.isMonthViewDropdownOpen = false;
+    this.onResourceViewChange(view);
+  }
+
+  toggleMonthGroupSelection(groupId: string, event: Event): void {
+    event.stopPropagation();
+    const current = [...this.selectedResourceTypeGroupIds];
+    const index = current.indexOf(groupId);
+    if (index >= 0) {
+      current.splice(index, 1);
+    } else {
+      current.push(groupId);
+    }
+    this.selectedResourceTypeGroupIds = current.length ? current : this.getDefaultResourceTypeGroupIds();
+    this.updatePlannerResourceContext();
+  }
+
+  clearMonthGroupSelection(event: Event): void {
+    event.stopPropagation();
+    this.selectedResourceTypeGroupIds = this.getDefaultResourceTypeGroupIds();
+    this.updatePlannerResourceContext();
+  }
+
+  get monthSelectedGroupLabel(): string {
+    const visibleGroups = this.visibleSchedulerGroups;
+    const selectedVisibleCount = visibleGroups.filter(g => this.selectedResourceTypeGroupIds.includes(g.id)).length;
+    if (selectedVisibleCount === visibleGroups.length || selectedVisibleCount === 0) return 'All resource types';
+    if (selectedVisibleCount === 1) {
+      const selectedGroup = visibleGroups.find(g => this.selectedResourceTypeGroupIds.includes(g.id));
+      return selectedGroup?.label ?? 'Resource types';
+    }
+    return `${selectedVisibleCount} types selected`;
+  }
+
+  get areAllMonthResourceTypesSelected(): boolean {
+    const visibleGroups = this.visibleSchedulerGroups;
+    const selectedVisibleCount = visibleGroups.filter(g => this.selectedResourceTypeGroupIds.includes(g.id)).length;
+    return selectedVisibleCount === visibleGroups.length;
   }
 
   private retainVisibleResourceSelection(): void {
@@ -3783,6 +4024,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       capacityConsumed.set(resourceId, (capacityConsumed.get(resourceId) ?? 0) + minutes);
     };
 
+    // Track consecutive resource preferences per type+qualification
+    const consecutiveResourceByKey = new Map<string, string>();
+
     // Find best resource for a requirement
     const findBestResource = (requirement: JobResourceRequirement, durationMinutes: number, preferredId?: string): Resource | null => {
       // Try preferred (dropped) resource first
@@ -3794,6 +4038,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
           getAvailableMinutes(preferred.id) >= durationMinutes
         ) {
           return preferred;
+        }
+      }
+      // Try consecutive (same resource as last job for this type)
+      const key = `${requirement.resourceType}:${requirement.requiredQualifications.map(q => q.id).sort().join(',')}`;
+      const consecutiveId = consecutiveResourceByKey.get(key);
+      if (consecutiveId) {
+        const consecutive = rawResources.find(r => r.id === consecutiveId);
+        if (consecutive && getAvailableMinutes(consecutive.id) >= durationMinutes) {
+          return consecutive;
         }
       }
       // Find any compatible resource with capacity
@@ -3821,6 +4074,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         const resource = findBestResource(requirement, durationMinutes, rawDroppedResource.id);
         if (resource) {
           consumeCapacity(resource.id, durationMinutes);
+          const key = `${requirement.resourceType}:${requirement.requiredQualifications.map(q => q.id).sort().join(',')}`;
+          consecutiveResourceByKey.set(key, resource.id);
           entriesToBook.push({
             id: `se-cap-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             jobId: job.id,

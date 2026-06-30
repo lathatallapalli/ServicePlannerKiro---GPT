@@ -149,6 +149,28 @@ app-root {
   box-sizing: border-box;
 }
 
+.month-preview--inline .month-preview__resource-row {
+  grid-template-columns: 80px minmax(0, 1fr);
+}
+
+.month-preview--inline .month-preview__axis {
+  margin-left: 80px;
+}
+
+.month-preview--inline .month-preview__resources {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.month-preview--inline {
+  flex: 1 1 auto;
+  min-width: 0;
+  order: unset;
+  border: 0;
+  overflow: hidden;
+}
+
 .month-preview__header {
   padding: 16px;
   display: flex;
