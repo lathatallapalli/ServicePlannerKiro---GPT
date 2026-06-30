@@ -213,6 +213,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   isResourceViewDropdownOpen = false;
   showSelectedOnlyResources = false;
   showBookedOnlyResources = false;
+  showCapacityOnlyMode = false;
   collapsedGroupIds = new Set<string>();
   copiedContactKey: string | null = null;
   private lastBookedContextKey: string | null = null;
@@ -2060,6 +2061,32 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   toggleBookedOnlyResources(): void {
     if (!this.bookedResourceFilterContext) return;
     this.showBookedOnlyResources = !this.showBookedOnlyResources;
+  }
+
+  toggleCapacityOnlyMode(): void {
+    this.showCapacityOnlyMode = !this.showCapacityOnlyMode;
+  }
+
+  get effectiveTotalWidth(): number {
+    if (this.showCapacityOnlyMode) {
+      return this.daySlots.length * this.effectiveCapacityLaneWidth;
+    }
+    return this.totalWidth;
+  }
+
+  get effectiveCapacityLaneWidth(): number {
+    if (this.showCapacityOnlyMode && this.timelineViewportWidth) {
+      return Math.max(DAY_CAPACITY_LANE_WIDTH, Math.floor(this.timelineViewportWidth / Math.max(1, this.daySlots.length)));
+    }
+    return DAY_CAPACITY_LANE_WIDTH;
+  }
+
+  getEffectiveCapacityLaneLeft(day: Date): number {
+    if (this.showCapacityOnlyMode) {
+      const dayIndex = this.daySlots.findIndex(d => d.toDateString() === day.toDateString());
+      return dayIndex * this.effectiveCapacityLaneWidth;
+    }
+    return this.getCapacityLaneLeft(day);
   }
 
   hasSelectedResources(): boolean {

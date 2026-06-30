@@ -156,12 +156,15 @@
                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2 3h12v1H2V3Zm0 4h12v1H2V7Zm0 4h8v1H2v-1Zm11.5-2.5L16 11h-5l2.5-2.5Z" fill="currentColor"/></svg>
               }
             </button>
+            <button type="button" [attr.aria-pressed]="showCapacityOnlyMode" [attr.aria-label]="showCapacityOnlyMode ? 'Show resources and timelines' : 'Show day capacity only'" [attr.title]="showCapacityOnlyMode ? 'Show resources and timelines' : 'Show day capacity only'" (click)="toggleCapacityOnlyMode()" [style.background]="showCapacityOnlyMode ? 'var(--Button-button-primary,#0F62FE)' : 'var(--Button-button-secondary,#626469)'" style="width:32px;height:32px;border:0;color:var(--Icon-icon-on-color,white);padding:8px;display:flex;align-items:center;justify-content:center;cursor:pointer">
+              <svg width="16" height="16" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M30 30h-2v-5a5.006 5.006 0 0 0-5-5v-2a7.008 7.008 0 0 1 7 7zM22 30h-2v-5a5.006 5.006 0 0 0-5-5H9a5.006 5.006 0 0 0-5 5v5H2v-5a7.008 7.008 0 0 1 7-7h6a7.008 7.008 0 0 1 7 7zM12 4a5 5 0 1 1-5 5 5 5 0 0 1 5-5m0-2a7 7 0 1 0 7 7 7 7 0 0 0-7-7zM25 16a5 5 0 1 1 5-5 5 5 0 0 1-5 5zm0-8a3 3 0 1 0 3 3 3 3 0 0 0-3-3z" fill="currentColor"/></svg>
+            </button>
           </div>
         </div>
       </div>
     </div>
     <div class="scheduler__header-scroll" #headerScroll (pointerdown)="onTimeRangePointerDown($event)" style="margin-right:32px">
-      <div [style.width.px]="totalWidth">
+      <div [style.width.px]="effectiveTotalWidth">
         <div class="scheduler__navigation-row" [style.width.px]="navigationRowWidth">
           <button type="button" class="scheduler__navigation-button" [attr.aria-label]="previousNavigationLabel" (click)="previousPeriod.emit()">
             <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
@@ -215,21 +218,23 @@
             </div>
           }
         </div>
-        <div class="scheduler__hour-row" [style.height.px]="HOUR_ROW_HEIGHT">
+        <div class="scheduler__hour-row" [style.height.px]="showCapacityOnlyMode ? 32 : HOUR_ROW_HEIGHT">
           @for (day of daySlots; track day.getTime()) {
             @if (showDayCapacityLane) {
-              <div class="scheduler__capacity-hour-slot" [style.width.px]="DAY_CAPACITY_LANE_WIDTH">
+              <div class="scheduler__capacity-hour-slot" [style.width.px]="effectiveCapacityLaneWidth">
                 <span class="scheduler__time-slot-separator" aria-hidden="true"></span>
                 <span class="scheduler__capacity-hour-label">Day capacity</span>
               </div>
             }
-            @for (slot of timeSlots; track slot.getTime()) {
-              <div class="scheduler__time-slot" [style.width.px]="slotDurationMinutes / 60 * HOUR_WIDTH">
-                <span class="scheduler__time-slot-separator" aria-hidden="true"></span>
-                <span class="scheduler__time-slot-content">
-                  <span class="scheduler__time-slot-label">{{ formatSlot(slot) }}</span>
-                </span>
-              </div>
+            @if (!showCapacityOnlyMode) {
+              @for (slot of timeSlots; track slot.getTime()) {
+                <div class="scheduler__time-slot" [style.width.px]="slotDurationMinutes / 60 * HOUR_WIDTH">
+                  <span class="scheduler__time-slot-separator" aria-hidden="true"></span>
+                  <span class="scheduler__time-slot-content">
+                    <span class="scheduler__time-slot-label">{{ formatSlot(slot) }}</span>
+                  </span>
+                </div>
+              }
             }
           }
         </div>
@@ -241,7 +246,7 @@
   </div>
 
   <!-- Body -->
-  <div class="scheduler__body" #bodyScroll style="position:relative" (scroll)="onBodyScroll()">
+  <div class="scheduler__body" [class.scheduler__body--capacity-only]="showCapacityOnlyMode" #bodyScroll style="position:relative" (scroll)="onBodyScroll()">
 
     @for (group of visibleGroups; track group.id; let isFirstGroup = $first) {
       <div class="scheduler__group-row">
@@ -272,7 +277,7 @@
               </svg>
             </button>
         </div>
-        <div class="scheduler__group-fill" [style.width.px]="totalWidth" [style.height.px]="GROUP_ROW_HEIGHT"></div>
+        <div class="scheduler__group-fill" [style.width.px]="effectiveTotalWidth" [style.height.px]="GROUP_ROW_HEIGHT"></div>
       </div>
 
       @for (resource of getExpandedResourcesForGroup(group.id); track resource.id) {
@@ -309,7 +314,7 @@
               }
             </div>
           </div>
-          <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
+          <div class="scheduler__timeline-cell" [style.width.px]="effectiveTotalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
             @if (getActiveTimeRange(); as bookingRange) {
               <div class="scheduler__booking-window-band"
                 [style.left.px]="getTimeRangeLeft(bookingRange)"
@@ -326,8 +331,8 @@
                   class="scheduler__capacity-lane"
                   [class.scheduler__capacity-lane--drop-target]="isCapacityDropPreviewForResourceDay(resource.id, day)"
                   [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
-                  [style.left.px]="getCapacityLaneLeft(day)"
-                  [style.width.px]="DAY_CAPACITY_LANE_WIDTH"
+                  [style.left.px]="getEffectiveCapacityLaneLeft(day)"
+                  [style.width.px]="effectiveCapacityLaneWidth"
                   [attr.aria-label]="getCapacityLaneTitle(resource.id, day)"
                   (dragover)="onCapacityDragOver($event, resource.id, day)"
                   (dragleave)="onDragLeave()"
@@ -654,7 +659,7 @@
             }
           </div>
         </div>
-        <div class="scheduler__timeline-cell" [style.width.px]="totalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
+        <div class="scheduler__timeline-cell" [style.width.px]="effectiveTotalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
           @if (getActiveTimeRange(); as bookingRange) {
             <div class="scheduler__booking-window-band"
               [style.left.px]="getTimeRangeLeft(bookingRange)"
@@ -671,8 +676,8 @@
                 class="scheduler__capacity-lane"
                 [class.scheduler__capacity-lane--drop-target]="isCapacityDropPreviewForResourceDay(resource.id, day)"
                 [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
-                [style.left.px]="getCapacityLaneLeft(day)"
-                [style.width.px]="DAY_CAPACITY_LANE_WIDTH"
+                [style.left.px]="getEffectiveCapacityLaneLeft(day)"
+                [style.width.px]="effectiveCapacityLaneWidth"
                 [attr.title]="getCapacityLaneTitle(resource.id, day)"
                 (dragover)="onCapacityDragOver($event, resource.id, day)"
                 (dragleave)="onDragLeave()"

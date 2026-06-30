@@ -411,6 +411,65 @@ $month-bar-height: 60px;
     min-width: 0;
   }
 
+  &__body--capacity-only {
+    .scheduler__timeline-cell {
+      display: flex !important;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 4px;
+      padding: 4px;
+      overflow: hidden;
+    }
+
+    .scheduler__event {
+      position: static !important;
+      left: auto !important;
+      top: auto !important;
+      width: auto !important;
+      height: auto !important;
+      min-height: 28px;
+      max-width: 100%;
+      flex: 0 0 auto;
+    }
+
+    .scheduler__capacity-lane {
+      position: static !important;
+      left: auto !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 36px;
+    }
+
+    .scheduler__slot-line,
+    .scheduler__day-line,
+    .scheduler__booking-window-band,
+    .scheduler__unavailable,
+    .scheduler__order-run,
+    .scheduler__order-run-shadow,
+    .scheduler__drop-preview,
+    .scheduler__event-handle {
+      display: none !important;
+    }
+
+    .scheduler__capacity-block {
+      max-width: none;
+    }
+
+    .scheduler__row {
+      height: auto !important;
+      min-height: 48px;
+    }
+
+    .scheduler__group-row {
+      width: auto !important;
+      min-width: 100% !important;
+    }
+
+    .scheduler__group-fill {
+      display: none;
+    }
+  }
+
 
   &__group-row {
     display: flex;
