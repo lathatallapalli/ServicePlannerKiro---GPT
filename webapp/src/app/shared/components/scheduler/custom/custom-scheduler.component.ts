@@ -991,6 +991,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   shouldReserveOrderRunSpace(event: SchedulerEvent): boolean {
+    if (this.showCapacityOnlyMode) return false;
     const orderKey = this.getEventOrderKey(event);
     return this.shouldShowEventDetails(event)
       && this.isInContiguousOrderRun(event)

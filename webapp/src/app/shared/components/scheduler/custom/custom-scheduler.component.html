@@ -210,7 +210,7 @@
             <div
               class="scheduler__day-cell"
               [class.scheduler__day-cell--single]="isSingleDayView"
-              [style.width.px]="getDayWidth()">
+              [style.width.px]="showCapacityOnlyMode ? effectiveCapacityLaneWidth : getDayWidth()">
               <span class="scheduler__day-label">
                 <span class="scheduler__day-num">{{ formatDay(day) }}</span>
                 <span class="scheduler__day-name">{{ formatWeekday(day) }}</span>
