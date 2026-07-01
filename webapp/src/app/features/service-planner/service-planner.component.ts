@@ -5580,6 +5580,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private isVehicleConflictEvent(event: SchedulerEvent, context: ManualDragContext): boolean {
     if (!this.isJobEvent(event) || this.isSameManualDraggedItem(event, context)) return false;
+    // Split siblings of the same job should not trigger vehicle conflicts —
+    // a different resource CAN work on another split part at the same time.
+    if (this.isSplitSiblingOfDraggedItem(event, context)) return false;
     const draggedOrder = context.orderId
       ? this.allOrders.find(order => order.id === context.orderId || order.referenceNumber === context.orderId)
       : null;
@@ -5587,6 +5590,19 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const draggedVehicleId = draggedOrder?.vehicle?.id ?? draggedOrder?.vehicle?.licensePlate;
     const eventVehicleId = eventOrder?.vehicle?.id ?? eventOrder?.vehicle?.licensePlate;
     return !!draggedVehicleId && draggedVehicleId === eventVehicleId;
+  }
+
+  /** Returns true if the event is a sibling split part of the same job being dragged. */
+  private isSplitSiblingOfDraggedItem(event: SchedulerEvent, context: ManualDragContext): boolean {
+    const contextEntry = context.entryId
+      ? this.scheduleEntries.find(entry => entry.id === context.entryId)
+      : undefined;
+    if (!contextEntry || !this.isJobScheduleEntry(contextEntry) || !this.isSplitScheduleEntry(contextEntry)) return false;
+    const eventEntry = event.meta?.entry;
+    if (!eventEntry || !this.isJobScheduleEntry(eventEntry) || !this.isSplitScheduleEntry(eventEntry)) return false;
+    // Same job and share the same split root means they are siblings
+    return eventEntry.jobId === contextEntry.jobId &&
+      this.getSplitRootId(eventEntry) === this.getSplitRootId(contextEntry);
   }
 
   private isSameManualDraggedItem(event: SchedulerEvent, context: ManualDragContext): boolean {
