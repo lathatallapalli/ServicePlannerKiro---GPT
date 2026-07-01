@@ -3792,10 +3792,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       b.jobId === payload.jobId &&
       (!activeOrderId || b.orderId === activeOrderId)
     );
+    // For split jobs, each part gets its own booking set and timing.
+    // Only anchor to existing booking for non-split multi-resource jobs.
+    const isSplitJob = this.isJobSplit(payload.jobId, activeOrderId);
     const bookingSetId = this.isActivityId(payload.jobId)
       ? undefined
-      : existingJobBooking?.bookingSetId ?? `${activeOrderId ?? 'order'}:${payload.jobId}:${start.getTime()}-${end.getTime()}`;
-    if (existingJobBooking) {
+      : isSplitJob
+        ? `${activeOrderId ?? 'order'}:${payload.jobId}:${start.getTime()}-${end.getTime()}`
+        : existingJobBooking?.bookingSetId ?? `${activeOrderId ?? 'order'}:${payload.jobId}:${start.getTime()}-${end.getTime()}`;
+    if (existingJobBooking && !isSplitJob) {
       const existingEvent = this.events.find(e => e.id === existingJobBooking.entryId);
       if (existingEvent) {
         start = existingEvent.start;
@@ -5005,6 +5010,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private getExistingJobPlacementAnchor(jobId: string, orderId?: string): { start: Date; end: Date } | null {
+    // Split jobs don't anchor — each part can be placed independently.
+    if (this.isJobSplit(jobId, orderId)) return null;
+
     const existingBooking = this.bookings.find(booking =>
       booking.jobId === jobId &&
       (!orderId || booking.orderId === orderId)
@@ -5153,11 +5161,42 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   ): boolean {
     if (this.isActivityId(jobId)) return false;
 
-    return this.bookings.some(booking =>
+    const matchingBookings = this.bookings.filter(booking =>
       booking.jobId === jobId &&
       booking.resourceType === resourceType &&
       (!orderId || booking.orderId === orderId)
     );
+    if (!matchingBookings.length) return false;
+
+    // Split jobs allow multiple bookings of the same resource type (one per split part).
+    // Only block if all split parts already have a booking of this type.
+    if (this.isJobSplit(jobId, orderId)) {
+      const splitPartCount = this.getSplitPartCount(jobId, orderId);
+      return matchingBookings.length >= splitPartCount;
+    }
+
+    return true;
+  }
+
+  /** Returns true if the given job has been split into multiple parts. */
+  private isJobSplit(jobId: string, orderId?: string): boolean {
+    return this.allScheduleEntries.some(entry =>
+      entry.jobId === jobId &&
+      (!orderId || entry.workOrderReference === this.getOrderReference(orderId) || entry.workOrderReference === orderId) &&
+      this.isSplitScheduleEntry(entry)
+    );
+  }
+
+  /** Returns the number of distinct split parts for a given job. */
+  private getSplitPartCount(jobId: string, orderId?: string): number {
+    const entries = this.allScheduleEntries.filter(entry =>
+      entry.jobId === jobId &&
+      (!orderId || entry.workOrderReference === this.getOrderReference(orderId) || entry.workOrderReference === orderId) &&
+      this.isSplitScheduleEntry(entry)
+    );
+    // Count distinct booking set IDs — each represents a split part
+    const distinctSetIds = new Set(entries.map(entry => this.getEntryBookingSetId(entry)));
+    return Math.max(distinctSetIds.size, 1);
   }
 
   private isExternalJobAlreadyBookedForResourceType(
@@ -5580,6 +5619,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private isVehicleConflictEvent(event: SchedulerEvent, context: ManualDragContext): boolean {
     if (!this.isJobEvent(event) || this.isSameManualDraggedItem(event, context)) return false;
+    // Split siblings of the same job should not trigger vehicle conflicts —
+    // a different resource CAN work on another split part at the same time.
+    if (this.isSplitSiblingOfDraggedItem(event, context)) return false;
     const draggedOrder = context.orderId
       ? this.allOrders.find(order => order.id === context.orderId || order.referenceNumber === context.orderId)
       : null;
@@ -5587,6 +5629,29 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const draggedVehicleId = draggedOrder?.vehicle?.id ?? draggedOrder?.vehicle?.licensePlate;
     const eventVehicleId = eventOrder?.vehicle?.id ?? eventOrder?.vehicle?.licensePlate;
     return !!draggedVehicleId && draggedVehicleId === eventVehicleId;
+  }
+
+  /** Returns true if the event is a sibling split part of the same job being dragged. */
+  private isSplitSiblingOfDraggedItem(event: SchedulerEvent, context: ManualDragContext): boolean {
+    const eventEntry = event.meta?.entry;
+    if (!eventEntry || !this.isJobScheduleEntry(eventEntry) || !this.isSplitScheduleEntry(eventEntry)) return false;
+
+    // When dragging an existing split event (entryId is set)
+    const contextEntry = context.entryId
+      ? this.scheduleEntries.find(entry => entry.id === context.entryId)
+      : undefined;
+    if (contextEntry && this.isJobScheduleEntry(contextEntry) && this.isSplitScheduleEntry(contextEntry)) {
+      return eventEntry.jobId === contextEntry.jobId &&
+        this.getSplitRootId(eventEntry) === this.getSplitRootId(contextEntry);
+    }
+
+    // When dragging from the panel (no entryId) for a split job — all split parts
+    // of the same job are siblings and should not trigger vehicle conflicts.
+    if (!context.entryId && context.itemId && eventEntry.jobId === context.itemId) {
+      return true;
+    }
+
+    return false;
   }
 
   private isSameManualDraggedItem(event: SchedulerEvent, context: ManualDragContext): boolean {
