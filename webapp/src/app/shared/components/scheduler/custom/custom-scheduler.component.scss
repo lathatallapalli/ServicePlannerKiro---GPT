@@ -413,31 +413,35 @@ $month-bar-height: 60px;
 
   &__body--capacity-only {
     .scheduler__timeline-cell {
-      display: flex !important;
-      flex-wrap: wrap;
-      align-content: flex-start;
-      gap: 4px;
+      display: grid !important;
+      grid-auto-flow: row;
+      gap: 2px 8px;
       padding: 4px;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .scheduler__event {
       position: static !important;
       left: auto !important;
       top: auto !important;
+      bottom: auto !important;
       width: auto !important;
       height: auto !important;
-      min-height: 28px;
+      min-height: 24px;
       max-width: 100%;
-      flex: 0 0 auto;
+      box-shadow: none !important;
     }
 
     .scheduler__capacity-lane {
       position: static !important;
       left: auto !important;
-      width: 100% !important;
+      width: auto !important;
       height: auto !important;
-      min-height: 36px;
+      min-height: 28px;
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: wrap;
+      gap: 4px;
     }
 
     .scheduler__slot-line,
@@ -447,7 +451,8 @@ $month-bar-height: 60px;
     .scheduler__order-run,
     .scheduler__order-run-shadow,
     .scheduler__drop-preview,
-    .scheduler__event-handle {
+    .scheduler__event-handle,
+    .scheduler__event--resize-preview {
       display: none !important;
     }
 

@@ -314,7 +314,7 @@
               }
             </div>
           </div>
-          <div class="scheduler__timeline-cell" [style.width.px]="effectiveTotalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
+          <div class="scheduler__timeline-cell" [style.width.px]="effectiveTotalWidth" [style.grid-template-columns]="showCapacityOnlyMode ? 'repeat(' + daySlots.length + ', 1fr)' : null" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
             @if (getActiveTimeRange(); as bookingRange) {
               <div class="scheduler__booking-window-band"
                 [style.left.px]="getTimeRangeLeft(bookingRange)"
@@ -331,7 +331,7 @@
                   class="scheduler__capacity-lane"
                   [class.scheduler__capacity-lane--drop-target]="isCapacityDropPreviewForResourceDay(resource.id, day)"
                   [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
-                  [style.left.px]="getEffectiveCapacityLaneLeft(day)"
+                  [style.left.px]="getEffectiveCapacityLaneLeft(day)" [style.grid-column]="showCapacityOnlyMode ? getCapacityLaneDayColumn(day) : null"
                   [style.width.px]="effectiveCapacityLaneWidth"
                   [attr.aria-label]="getCapacityLaneTitle(resource.id, day)"
                   (dragover)="onCapacityDragOver($event, resource.id, day)"
@@ -452,7 +452,7 @@
                 [class.scheduler__event--scheduled]="getWorkorderItemStatus(event) === 'scheduled'"
                 [class.scheduler__event--started]="getWorkorderItemStatus(event) === 'in-progress' || getWorkorderItemStatus(event) === 'started'"
                 [class.scheduler__event--completed]="getWorkorderItemStatus(event) === 'completed'"
-                [style.left.px]="getRenderedEventLeft(event)"
+                [style.left.px]="getRenderedEventLeft(event)" [style.grid-column]="showCapacityOnlyMode ? getEventDayColumn(event) : null"
                 [style.width.px]="getRenderedEventWidth(event)"
                 [style.top.px]="shouldShowEventDetails(event) ? getRenderedEventTop(event) : 0"
                 [style.bottom]="shouldShowEventDetails(event) ? 'auto' : null"
@@ -659,7 +659,7 @@
             }
           </div>
         </div>
-        <div class="scheduler__timeline-cell" [style.width.px]="effectiveTotalWidth" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
+        <div class="scheduler__timeline-cell" [style.width.px]="effectiveTotalWidth" [style.grid-template-columns]="showCapacityOnlyMode ? 'repeat(' + daySlots.length + ', 1fr)' : null" [style.background]="isDropTargetResource(resource.id) ? 'rgba(76, 104, 177, 0.08)' : null" (pointerdown)="onResourceTimeRangePointerDown($event, resource.id)" (contextmenu)="onResourceSlotContextMenu($event, resource.id)">
           @if (getActiveTimeRange(); as bookingRange) {
             <div class="scheduler__booking-window-band"
               [style.left.px]="getTimeRangeLeft(bookingRange)"
@@ -676,7 +676,7 @@
                 class="scheduler__capacity-lane"
                 [class.scheduler__capacity-lane--drop-target]="isCapacityDropPreviewForResourceDay(resource.id, day)"
                 [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
-                [style.left.px]="getEffectiveCapacityLaneLeft(day)"
+                [style.left.px]="getEffectiveCapacityLaneLeft(day)" [style.grid-column]="showCapacityOnlyMode ? getCapacityLaneDayColumn(day) : null"
                 [style.width.px]="effectiveCapacityLaneWidth"
                 [attr.title]="getCapacityLaneTitle(resource.id, day)"
                 (dragover)="onCapacityDragOver($event, resource.id, day)"
@@ -791,7 +791,7 @@
               [class.scheduler__event--scheduled]="getWorkorderItemStatus(event) === 'scheduled'"
               [class.scheduler__event--started]="getWorkorderItemStatus(event) === 'in-progress' || getWorkorderItemStatus(event) === 'started'"
               [class.scheduler__event--completed]="getWorkorderItemStatus(event) === 'completed'"
-              [style.left.px]="getRenderedEventLeft(event)"
+              [style.left.px]="getRenderedEventLeft(event)" [style.grid-column]="showCapacityOnlyMode ? getEventDayColumn(event) : null"
               [style.width.px]="getRenderedEventWidth(event)"
               [style.top.px]="shouldShowEventDetails(event) ? getRenderedEventTop(event) : 0"
               [style.bottom]="shouldShowEventDetails(event) ? 'auto' : null"

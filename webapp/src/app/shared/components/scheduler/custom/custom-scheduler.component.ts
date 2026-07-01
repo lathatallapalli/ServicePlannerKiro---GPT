@@ -1019,6 +1019,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return event.resourceId === resourceId;
   }
   shouldShowEventDetails(event: SchedulerEvent): boolean {
+    if (this.showCapacityOnlyMode) return true;
     return this.showOrderTiles || this.detailedEventIds.includes(this.getSourceEventId(event));
   }
 
@@ -2065,6 +2066,18 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   toggleCapacityOnlyMode(): void {
     this.showCapacityOnlyMode = !this.showCapacityOnlyMode;
+  }
+
+  getEventDayColumn(event: SchedulerEvent): number {
+    const eventDay = new Date(event.start);
+    eventDay.setHours(0, 0, 0, 0);
+    const dayIndex = this.daySlots.findIndex(d => d.toDateString() === eventDay.toDateString());
+    return Math.max(1, (dayIndex >= 0 ? dayIndex : 0) + 1);
+  }
+
+  getCapacityLaneDayColumn(day: Date): number {
+    const dayIndex = this.daySlots.findIndex(d => d.toDateString() === day.toDateString());
+    return Math.max(1, (dayIndex >= 0 ? dayIndex : 0) + 1);
   }
 
   get effectiveTotalWidth(): number {
