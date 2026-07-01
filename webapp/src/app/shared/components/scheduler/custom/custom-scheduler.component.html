@@ -441,7 +441,7 @@
             @for (event of getRenderedEventsForResource(resource.id); track event.id) {
               @if (shouldRenderEventForResource(event, resource.id)) {
               <div class="scheduler__event"
-                [attr.draggable]="isEventResizeActive(event) ? null : 'true'"
+                [attr.draggable]="showCapacityOnlyMode ? null : (isEventResizeActive(event) ? null : 'true')"
                 [class.scheduler__event--compact]="!shouldShowEventDetails(event)"
                 [class.scheduler__event--show-tag]="shouldShowEventTag(event)"
                 [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(event)"
@@ -781,7 +781,7 @@
           @for (event of getRenderedEventsForResource(resource.id); track event.id) {
             @if (shouldRenderEventForResource(event, resource.id)) {
             <div class="scheduler__event"
-              [attr.draggable]="isEventResizeActive(event) ? null : 'true'"
+              [attr.draggable]="showCapacityOnlyMode ? null : (isEventResizeActive(event) ? null : 'true')"
               [class.scheduler__event--compact]="!shouldShowEventDetails(event)"
               [class.scheduler__event--show-tag]="shouldShowEventTag(event)"
               [class.scheduler__event--icon-tag]="shouldShowEventTagIconOnly(event)"
