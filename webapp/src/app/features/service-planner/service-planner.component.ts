@@ -749,7 +749,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.capacityBlocks
       .filter(block => this.isEntryForOrder(block.meta?.entry as ScheduleEntry | undefined, order))
       .forEach(block => resourceIds.add(block.resourceId));
-    this.allScheduleEntries
+    this.scheduleEntries
       .filter(entry => this.isEntryForOrder(entry, order))
       .forEach(entry => resourceIds.add(entry.resourceId));
     return [...resourceIds];
@@ -5967,15 +5967,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const bookedJobEvents = jobBookings
       .map(booking => this.events.find(event => event.id === booking.entryId))
       .filter((event): event is SchedulerEvent => !!event);
-    const orderReference = this.getOrderReference(orderId);
-    const existingJobEntries = this.allScheduleEntries.filter(entry =>
-      (!orderReference || entry.workOrderReference === orderReference) &&
-      this.isJobScheduleEntry(entry)
-    );
-    const endTimes = [
-      ...bookedJobEvents.map(event => event.end.getTime()),
-      ...existingJobEntries.map(entry => entry.end.getTime()),
-    ];
+    const endTimes = bookedJobEvents.map(event => event.end.getTime());
     if (!endTimes.length) return null;
     return new Date(Math.max(...endTimes));
   }
