@@ -30,6 +30,7 @@ export class PlannerSettingsService {
   isSettingsModalOpen = signal<boolean>(false);
   viewPersonalCalendarOnTop = signal<boolean>(true);
   optimizeAdvisorActivityBookingForPersonalCalendar = signal<boolean>(true);
+  monthlyBookingTarget = signal<'resource' | 'group'>('resource');
 
   // Incremented each time the user triggers undo from the ribbon.
   // The service planner watches this and pops the last booking.
@@ -76,6 +77,10 @@ export class PlannerSettingsService {
 
   setOptimizeAdvisorActivityBookingForPersonalCalendar(enabled: boolean): void {
     this.optimizeAdvisorActivityBookingForPersonalCalendar.set(enabled);
+  }
+
+  setMonthlyBookingTarget(target: 'resource' | 'group'): void {
+    this.monthlyBookingTarget.set(target);
   }
 }
 

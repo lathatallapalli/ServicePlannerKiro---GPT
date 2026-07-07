@@ -93,7 +93,7 @@ export interface EventDropPayload {
   jobId: string;
   orderId?: string;
   dropType?: 'job' | 'order' | 'activity';
-  dropMode?: 'timed' | 'day-capacity';
+  dropMode?: 'timed' | 'day-capacity' | 'group-capacity';
   resourceId: string;
   resourceType?: string;
   droppedResourceType?: string;
@@ -101,6 +101,7 @@ export interface EventDropPayload {
   end: Date;
   date?: Date;
   durationMinutes?: number;
+  groupId?: string;
 }
 
 export interface EventClickPayload {

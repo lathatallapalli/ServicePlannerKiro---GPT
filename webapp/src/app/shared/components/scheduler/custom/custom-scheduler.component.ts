@@ -27,9 +27,9 @@ const HEADER_HEIGHT = 80;     // date row (32) + hour row (48)
 const DATE_ROW_HEIGHT = 32;
 const HOUR_ROW_HEIGHT = 48;
 const MONTH_BAR_HEIGHT = 40;
-const RESOURCE_COL_WIDTH = 310;
+const RESOURCE_COL_WIDTH = 360;
 const GROUP_ROW_HEIGHT = 48;
-const DAY_CAPACITY_LANE_WIDTH = 96;
+const DAY_CAPACITY_LANE_WIDTH = 160;
 const CAPACITY_COLLAPSED_VISIBLE_COUNT = 2;
 const CAPACITY_OVERFLOW_VISIBLE_COUNT = 1;
 const CAPACITY_BLOCK_HEIGHT = 36;
@@ -219,6 +219,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   private lastBookedContextKey: string | null = null;
   private copiedContactResetId: ReturnType<typeof setTimeout> | null = null;
   private expandedCapacityLane: { resourceId: string; dayKey: string } | null = null;
+  private groupCapacityDropTarget: { groupId: string; dayKey: string } | null = null;
 
   get selectedYear(): number { return this.viewStart.getFullYear(); }
 
@@ -547,15 +548,117 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getVisibleCapacityBlocksForResourceDay(resourceId: string, day: Date): SchedulerCapacityBlock[] {
     const blocks = this.getCapacityBlocksForResourceDay(resourceId, day);
+    if (this.showCapacityOnlyMode) return blocks;
     return this.isCapacityLaneExpandedForBlocks(resourceId, day, blocks.length)
       ? blocks
       : blocks.slice(0, this.getCollapsedCapacityVisibleCount(blocks.length));
   }
 
   getHiddenCapacityBlockCount(resourceId: string, day: Date): number {
+    if (this.showCapacityOnlyMode) return 0;
     const blockCount = this.getCapacityBlocksForResourceDay(resourceId, day).length;
     if (this.isCapacityLaneExpandedForBlocks(resourceId, day, blockCount)) return 0;
     return Math.max(blockCount - this.getCollapsedCapacityVisibleCount(blockCount), 0);
+  }
+
+  getScheduledEventsForResourceDay(resourceId: string, day: Date): SchedulerEvent[] {
+    return this.getRenderedEventsForResource(resourceId).filter(event => {
+      const eventDay = new Date(event.start);
+      eventDay.setHours(0, 0, 0, 0);
+      const targetDay = new Date(day);
+      targetDay.setHours(0, 0, 0, 0);
+      return eventDay.getTime() === targetDay.getTime();
+    });
+  }
+
+  eventAsCapacityBlock(evt: SchedulerEvent): SchedulerCapacityBlock {
+    return {
+      id: evt.id,
+      resourceId: evt.resourceId,
+      date: evt.start,
+      durationMinutes: Math.max(1, Math.round((evt.end.getTime() - evt.start.getTime()) / 60000)),
+      title: evt.title,
+      color: evt.color,
+      meta: evt.meta,
+    };
+  }
+
+  getCapacityOrderRuns(resourceId: string, day: Date): { orderRef: string; count: number }[] {
+    if (!this.showCapacityOnlyMode) return [];
+    const blocks = this.getCapacityBlocksForResourceDay(resourceId, day);
+    const events = this.getScheduledEventsForResourceDay(resourceId, day);
+    const orderMap = new Map<string, number>();
+    for (const block of blocks) {
+      const ref = this.getCapacityBlockOrderReference(block);
+      orderMap.set(ref, (orderMap.get(ref) ?? 0) + 1);
+    }
+    for (const evt of events) {
+      const ref = this.getEventOrderReference(evt);
+      orderMap.set(ref, (orderMap.get(ref) ?? 0) + 1);
+    }
+    return [...orderMap.entries()]
+      .map(([orderRef, count]) => ({ orderRef, count }));
+  }
+
+  getCapacityBlocksForOrder(resourceId: string, day: Date, orderRef: string): SchedulerCapacityBlock[] {
+    return this.getCapacityBlocksForResourceDay(resourceId, day)
+      .filter(block => this.getCapacityBlockOrderReference(block) === orderRef);
+  }
+
+  getFirstBlockForOrder(resourceId: string, day: Date, orderRef: string): SchedulerCapacityBlock | null {
+    return this.getCapacityBlocksForOrder(resourceId, day, orderRef)[0]
+      ?? this.getScheduledEventsForOrder(resourceId, day, orderRef).map(evt => this.eventAsCapacityBlock(evt))[0]
+      ?? null;
+  }
+
+  isBlockInOrderRun(resourceId: string, day: Date, block: SchedulerCapacityBlock): boolean {
+    const runs = this.getCapacityOrderRuns(resourceId, day);
+    const ref = this.getCapacityBlockOrderReference(block);
+    return runs.some(run => run.orderRef === ref);
+  }
+
+  onOrderRunDragStart(e: DragEvent, orderRef: string, resourceId: string): void {
+    e.stopPropagation();
+    this.lastValidDropPreview = null;
+    const orderId = this.getOrderIdFromReference(orderRef);
+    e.dataTransfer?.setData('orderId', orderId ?? orderRef);
+    e.dataTransfer?.setData('dropType', 'order');
+    e.dataTransfer?.setData('droptype', 'order');
+    e.dataTransfer?.setData('text/plain', orderId ?? orderRef);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    this.nativeDraggedEventId = null;
+    this.nativeDropHandled = false;
+  }
+
+  onOrderRunDragEnd(e: DragEvent, orderRef: string): void {
+    e.stopPropagation();
+    this.dropPreview = null;
+    this.lastValidDropPreview = null;
+    this.nativeDraggedEventId = null;
+  }
+
+  private getOrderIdFromReference(orderRef: string): string | null {
+    const ref = orderRef.startsWith('SOW') ? orderRef.slice(3) : orderRef;
+    return ref || null;
+  }
+
+  getScheduledEventsForOrder(resourceId: string, day: Date, orderRef: string): SchedulerEvent[] {
+    return this.getScheduledEventsForResourceDay(resourceId, day)
+      .filter(evt => this.getEventOrderReference(evt) === orderRef);
+  }
+
+  getUngroupedCapacityBlocks(resourceId: string, day: Date): SchedulerCapacityBlock[] {
+    const runs = this.getCapacityOrderRuns(resourceId, day);
+    const groupedRefs = new Set(runs.map(r => r.orderRef));
+    return this.getVisibleCapacityBlocksForResourceDay(resourceId, day)
+      .filter(block => !groupedRefs.has(this.getCapacityBlockOrderReference(block)));
+  }
+
+  getUngroupedScheduledEvents(resourceId: string, day: Date): SchedulerEvent[] {
+    const runs = this.getCapacityOrderRuns(resourceId, day);
+    const groupedRefs = new Set(runs.map(r => r.orderRef));
+    return this.getScheduledEventsForResourceDay(resourceId, day)
+      .filter(evt => !groupedRefs.has(this.getEventOrderReference(evt)));
   }
 
   private getCollapsedCapacityVisibleCount(blockCount: number): number {
@@ -682,6 +785,13 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   getCapacityBlockAriaLabel(block: SchedulerCapacityBlock): string {
     return `${this.getCapacityBlockOrderReference(block)} ${block.title}, day capacity, ${this.getCapacityBlockDetail(block)}`;
+  }
+
+  isCapacityBlockUnfocused(block: SchedulerCapacityBlock): boolean {
+    if (!this.detailedOrderIds.length) return false;
+    const ref = this.getCapacityBlockOrderReference(block);
+    const orderId = this.getCapacityBlockOrderId(block);
+    return !this.detailedOrderIds.some(id => id === ref || id === orderId);
   }
 
   showCapacityOverflowPreview(event: MouseEvent | FocusEvent, resource: SchedulerResource, day: Date, hiddenCount: number): void {
@@ -828,6 +938,25 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     }
 
     return Math.max(visibleHours * this.HOUR_WIDTH, 20);
+  }
+
+  getFreeHoursForResource(resourceId: string): number {
+    const workingRanges = this.getWorkingRangesForCurrentView();
+    const totalWorkingMs = workingRanges.reduce((sum, r) => sum + (r.end.getTime() - r.start.getTime()), 0);
+
+    const bookedMs = this.events
+      .filter(e => e.resourceId === resourceId)
+      .reduce((sum, e) => {
+        // Intersect with each working range
+        return sum + workingRanges.reduce((wSum, r) => {
+          const start = Math.max(e.start.getTime(), r.start.getTime());
+          const end = Math.min(e.end.getTime(), r.end.getTime());
+          return wSum + Math.max(0, end - start);
+        }, 0);
+      }, 0);
+
+    const freeMs = Math.max(0, totalWorkingMs - bookedMs);
+    return Math.round((freeMs / 3600000) * 10) / 10;
   }
 
   hasContiguousPreviousEvent(event: SchedulerEvent): boolean {
@@ -1012,6 +1141,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   shouldRenderEventForResource(event: SchedulerEvent, resourceId: string): boolean {
+    if (this.showCapacityOnlyMode) return false;
     const eventId = this.getSourceEventId(event);
     if (this.resizePreview?.event.id === eventId) return false;
     if (this.isDragFeedbackActive() && this.nativeDraggedEventId !== eventId) return false;
@@ -2262,6 +2392,70 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return null;
   }
 
+  // Group-level capacity lane (qualification-level booking)
+
+  isGroupCapacityDropTarget(groupId: string, day: Date): boolean {
+    return this.groupCapacityDropTarget?.groupId === groupId &&
+      this.groupCapacityDropTarget?.dayKey === day.toDateString();
+  }
+
+  onGroupCapacityDragOver(e: DragEvent, groupId: string, day: Date): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    this.groupCapacityDropTarget = { groupId, dayKey: day.toDateString() };
+  }
+
+  onGroupCapacityDrop(e: DragEvent, groupId: string, day: Date): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this.groupCapacityDropTarget = null;
+
+    const dropType = this.getDragData(e, 'dropType') || undefined;
+    const jobId = e.dataTransfer?.getData('jobId');
+    const orderId = e.dataTransfer?.getData('orderId') || undefined;
+    if (!jobId && !orderId) return;
+
+    const durationFru = parseFloat(e.dataTransfer?.getData('fru') ?? '1');
+    const durationMinutes = Number.isFinite(durationFru) && durationFru > 0
+      ? durationFru * MINUTES_PER_FRU
+      : MINUTES_PER_FRU;
+    const date = new Date(day);
+    date.setHours(0, 0, 0, 0);
+    const start = new Date(date);
+    start.setHours(9, 0, 0, 0);
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+
+    const externalDropType = (dropType || (orderId ? 'order' : 'job')) as 'job' | 'order' | 'activity';
+    const resourceType = e.dataTransfer?.getData('resourceType') || undefined;
+    const group = this.groups.find(g => g.id === groupId);
+
+    this.nativeDropHandled = true;
+    this.zone.run(() => {
+      this.eventDropped.emit({
+        jobId: jobId || `order-${orderId}`,
+        orderId,
+        dropType: externalDropType,
+        dropMode: 'group-capacity',
+        resourceId: groupId,
+        resourceType,
+        droppedResourceType: (group as any)?.resourceType,
+        start,
+        end,
+        date,
+        durationMinutes,
+        groupId,
+      });
+    });
+  }
+
+  getGroupCapacityBlocksForDay(groupId: string, day: Date): SchedulerCapacityBlock[] {
+    return this.capacityBlocks.filter(block =>
+      block.resourceId === groupId &&
+      this.isSameDay(block.date, day)
+    );
+  }
+
   private getResourceTop(resourceId: string): number {
     let currentY = 0;
     for (const group of this.visibleGroups) {
@@ -2421,6 +2615,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   onDragLeave(): void {
     this.dropPreview = null;
     this.dropTargetResourceId = null;
+    this.groupCapacityDropTarget = null;
   }
 
   onDrop(e: DragEvent, resourceId: string): void {

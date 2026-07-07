@@ -88,7 +88,7 @@ type WorkOrderItemKind = 'job' | 'activity';
 type SchedulingRole = 'start-boundary' | 'work' | 'end-boundary' | 'span';
 type CanonicalWorkOrderItemStatus = Exclude<WorkorderItemStatus, 'started'>;
 type OrderPlanningState = 'unscheduled' | 'partiallyScheduled' | 'reserved' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
-type OrderPanelGroup = 'pending' | 'reserved' | 'scheduled' | 'in-progress' | 'completed';
+type OrderPanelGroup = 'pending' | 'reserved' | 'group-reserved' | 'scheduled' | 'in-progress' | 'completed';
 
 interface NormalizedWorkOrderItem {
   id: string;
@@ -183,7 +183,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private readonly monthCapacityPreferenceKey = 'service-planner.month-capacity-visible';
-  private readonly personalCalendarGroup: SchedulerGroup = { id: 'group-personal-calendar', label: 'Calendar' };
+  private readonly personalCalendarGroup: SchedulerGroup = { id: 'group-personal-calendar', label: 'Calendar', resourceType: 'advisor' } as any;
 
   resources: SchedulerResource[] = [];
   events: SchedulerEvent[] = [];
@@ -610,12 +610,17 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const order = this.allOrders.find((o: any) => o.id === orderId || o.referenceNumber === orderId);
     if (!order) return;
 
-    // Use the same logic as day-capacity drop but without a specific dropped resource
-    // Find the best resource for each job requirement from the visible pool
     const targetDate = new Date(day.date);
     targetDate.setHours(9, 0, 0, 0);
 
-    // Create a synthetic payload and route to the order day capacity handler
+    // Group-level booking: book to ALL matching groups
+    if (this.monthlyBookingTarget === 'group') {
+      this.applyGroupLevelProposal(targetDate, true, { orderId: order.id });
+      this.selectMonthPreviewDay(day.date);
+      return;
+    }
+
+    // Resource-level booking: reserve all required resources for the day (no time)
     const payload: any = {
       dropType: 'order',
       dropMode: 'day-capacity',
@@ -624,6 +629,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       date: targetDate,
       start: targetDate,
       end: new Date(targetDate.getTime() + 12 * 60 * 60000),
+      bookAllTypes: true,
     };
 
     if (!payload.resourceId) {
@@ -633,6 +639,18 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
     this.onEventDropped(payload);
     this.selectMonthPreviewDay(day.date);
+  }
+
+  private getFirstMatchingGroupForOrder(order: any): string | null {
+    const jobs: any[] = (order.jobs ?? []).filter((job: any) => !this.isActivityId(job.id) && job.workorderItemCategory !== 'activity');
+    for (const job of jobs) {
+      const requirements = this.getSchedulingRequirements(job);
+      if (requirements.length) {
+        const group = this.visibleSchedulerGroups.find(g => (g as any).resourceType === requirements[0].resourceType);
+        if (group) return group.id;
+      }
+    }
+    return this.visibleSchedulerGroups[0]?.id ?? null;
   }
 
   private getBestResourceForMonthDrop(order: any): string | null {
@@ -673,6 +691,10 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   get optimizeAdvisorActivityBookingForPersonalCalendar(): boolean {
     return this.plannerSettings.optimizeAdvisorActivityBookingForPersonalCalendar();
+  }
+
+  get monthlyBookingTarget(): 'resource' | 'group' {
+    return this.plannerSettings.monthlyBookingTarget();
   }
 
   get bookings(): JobBooking[] {
@@ -997,7 +1019,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const orders = this.isSearchActive
       ? this.getPanelSearchOrders()
       : this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders());
-    return orders.filter(order => this.getOrderPlanningState(order) === 'scheduled');
+    return orders.filter(order => this.getOrderPlanningState(order) === 'scheduled' && !this.isOrderGroupReserved(order));
   }
 
   get visibleReservedOrders(): any[] {
@@ -1009,6 +1031,279 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   get reservedSectionCount(): number {
     return this.visibleReservedOrders.length;
+  }
+
+  get visibleGroupReservedOrders(): any[] {
+    const orders = this.isSearchActive
+      ? this.getPanelSearchOrders()
+      : this.filterOrdersByCurrentPlannerScope(this.getPanelBaseOrders());
+    return orders.filter(order => this.isOrderGroupReserved(order));
+  }
+
+  get groupReservedOrderCount(): number {
+    return this.visibleGroupReservedOrders.length;
+  }
+
+  private isOrderGroupReserved(order: any): boolean {
+    return this.allScheduleEntries.some(entry =>
+      entry.workOrderReference === order.referenceNumber &&
+      entry.kind === 'day-capacity' &&
+      this.isGroupResourceId(entry.resourceId)
+    );
+  }
+
+  private isGroupResourceId(resourceId: string): boolean {
+    return this.groups.some(group => group.id === resourceId) || resourceId === this.personalCalendarGroup.id;
+  }
+
+  private getEntryResourceType(entry: ScheduleEntry): string | undefined {
+    const resource = this.resources.find(r => r.id === entry.resourceId);
+    if (resource) return (resource.meta as Resource | undefined)?.type;
+    const group = this.groups.find(g => g.id === entry.resourceId) ?? (entry.resourceId === this.personalCalendarGroup.id ? this.personalCalendarGroup : undefined);
+    return (group as any)?.resourceType;
+  }
+
+  private bookActivitiesOnAdvisorResource(order: any, advisorResource: Resource, dayStart: Date): void {
+    const activityTemplates = [
+      { templateId: 'act-checkin', title: 'Check-In', duration: 30 },
+      { templateId: 'act-handover', title: 'Handover', duration: 30 },
+    ];
+
+    // Remove existing advisor entries for this order
+    const existingAdvisorEntries = this.allScheduleEntries.filter(entry =>
+      entry.workOrderReference === order.referenceNumber &&
+      (entry.kind === 'day-capacity' || entry.kind === 'scheduled' || entry.kind === 'blocked-order') &&
+      this.getEntryResourceType(entry) === 'advisor'
+    );
+    for (const existing of existingAdvisorEntries) {
+      this.scheduleRepo.unassign(existing.id).subscribe(() => {});
+      this.allScheduleEntries = this.allScheduleEntries.filter(e => e.id !== existing.id);
+      this.scheduleEntries = this.scheduleEntries.filter(e => e.id !== existing.id);
+      this.capacityBlocks = this.capacityBlocks.filter(block => block.id !== existing.id);
+      this.events = this.events.filter(e => e.id !== existing.id);
+    }
+
+    this.clearSchedulingError();
+    this.clearManualInteractionState();
+
+    for (const actDef of activityTemplates) {
+      if (!this.hasOrderActivity(order, actDef.templateId)) continue;
+      const activityId = this.getOrderActivityId(order.id, actDef.templateId);
+      const end = new Date(dayStart.getTime() + actDef.duration * 60000);
+      const entry: ScheduleEntry = {
+        id: `se-act-${Date.now()}-${actDef.templateId}`,
+        jobId: activityId,
+        resourceId: advisorResource.id,
+        start: dayStart,
+        end,
+        title: actDef.title,
+        color: '#4C68B1',
+        kind: 'day-capacity',
+        workOrderReference: order.referenceNumber,
+        workorderItemStatus: 'reserved',
+        workorderItemCategory: 'activity',
+      };
+      this.scheduleRepo.assign(entry).subscribe(assigned => {
+        const normalizedEntry = {
+          ...assigned,
+          kind: 'day-capacity' as const,
+          resourceId: advisorResource.id,
+          workOrderReference: assigned.workOrderReference ?? order.referenceNumber,
+          workorderItemStatus: assigned.workorderItemStatus ?? 'reserved' as const,
+          workorderItemCategory: 'activity' as const,
+        };
+        this.upsertScheduleEntry(normalizedEntry);
+        this.capacityBlocks = [
+          ...this.capacityBlocks.filter(block => block.id !== normalizedEntry.id),
+          this.mapScheduleEntryToCapacityBlock(normalizedEntry),
+        ];
+      });
+    }
+  }
+
+  private applyGroupLevelProposal(
+    searchFrom: Date,
+    resetHistory: boolean,
+    options: { orderId?: string; preferredResourceIds?: string[]; scrollToFirstEntry?: boolean; revealOrder?: boolean } = {},
+  ): void {
+    const targetWorkOrderId = options.orderId ?? this.getActiveWorkOrderId();
+    const targetOrder = this.allOrders.find(order => order.id === targetWorkOrderId);
+    if (!targetOrder) return;
+
+    const dayStart = this.getDayCapacityStart(searchFrom);
+    const jobs: any[] = (targetOrder.jobs ?? []).filter((job: any) => !this.isActivityId(job.id) && job.workorderItemCategory !== 'activity');
+
+    // Find matching group for each resource type + qualification
+    const findGroupForRequirement = (requirement: { resourceType: string; requiredQualifications?: any[] }): any => {
+      const candidates = this.visibleSchedulerGroups.filter(g => (g as any).resourceType === requirement.resourceType);
+      if (candidates.length <= 1) return candidates[0] ?? this.groups.find(g => (g as any).resourceType === requirement.resourceType);
+      // Multiple groups of same type — find one with resources matching qualifications
+      if (requirement.requiredQualifications?.length) {
+        for (const group of candidates) {
+          const groupResources = this.resources.filter(r => r.groupId === group.id);
+          const hasQualifiedResource = groupResources.some(r => {
+            const raw = r.meta as Resource | undefined;
+            return raw && requirement.requiredQualifications!.every(q =>
+              raw.qualifications.some(rq => rq.id === q.id)
+            );
+          });
+          if (hasQualifiedResource) return group;
+        }
+      }
+      return candidates[0];
+    };
+    const findGroupForType = (resourceType: string): any => {
+      return this.visibleSchedulerGroups.find(g => (g as any).resourceType === resourceType)
+        ?? this.groups.find(g => (g as any).resourceType === resourceType);
+    };
+
+    this.clearSchedulingError();
+    this.clearManualInteractionState();
+
+    // Remove existing day-capacity entries for this order
+    const existingEntries = this.allScheduleEntries.filter(entry =>
+      entry.workOrderReference === targetOrder.referenceNumber &&
+      entry.kind === 'day-capacity'
+    );
+    for (const existing of existingEntries) {
+      this.scheduleRepo.unassign(existing.id).subscribe(() => {});
+      this.allScheduleEntries = this.allScheduleEntries.filter(e => e.id !== existing.id);
+      this.scheduleEntries = this.scheduleEntries.filter(e => e.id !== existing.id);
+      this.capacityBlocks = this.capacityBlocks.filter(block => block.id !== existing.id);
+      this.events = this.events.filter(e => e.id !== existing.id);
+    }
+
+    // Book each job to its matching group(s)
+    for (const job of jobs) {
+      const requirements = this.getSchedulingRequirements(job);
+      const durationMinutes = (job.estimatedDurationMinutes ?? job.fru * 60) || 60;
+
+      for (const requirement of requirements) {
+        const group = findGroupForRequirement(requirement);
+        if (!group) continue;
+
+        const end = new Date(dayStart.getTime() + durationMinutes * 60000);
+        const entry: ScheduleEntry = {
+          id: `se-grp-${Date.now()}-${job.id}-${requirement.resourceType}`,
+          jobId: job.id,
+          resourceId: group.id,
+          start: dayStart,
+          end,
+          title: job.title,
+          color: '#8A3FFC',
+          kind: 'day-capacity',
+          workOrderReference: targetOrder.referenceNumber,
+          workorderItemStatus: 'scheduled',
+          workorderItemCategory: 'job',
+        };
+        this.scheduleRepo.assign(entry).subscribe(assigned => {
+          const normalizedEntry = {
+            ...assigned,
+            kind: 'day-capacity' as const,
+            resourceId: group.id,
+            workOrderReference: assigned.workOrderReference ?? targetOrder.referenceNumber,
+            workorderItemStatus: assigned.workorderItemStatus ?? 'scheduled' as const,
+            workorderItemCategory: 'job' as const,
+          };
+          this.upsertScheduleEntry(normalizedEntry);
+          this.capacityBlocks = [
+            ...this.capacityBlocks.filter(block => block.id !== normalizedEntry.id),
+            this.mapScheduleEntryToCapacityBlock(normalizedEntry),
+          ];
+        });
+      }
+    }
+
+    // Book activities to advisor group
+    const advisorGroup = findGroupForType('advisor');
+    if (advisorGroup) {
+      const activityTemplates = [
+        { templateId: 'act-checkin', title: 'Check-In', duration: 30 },
+        { templateId: 'act-handover', title: 'Handover', duration: 30 },
+      ];
+      for (const actDef of activityTemplates) {
+        if (!this.hasOrderActivity(targetOrder, actDef.templateId)) continue;
+        const activityId = this.getOrderActivityId(targetOrder.id, actDef.templateId);
+        const end = new Date(dayStart.getTime() + actDef.duration * 60000);
+        const entry: ScheduleEntry = {
+          id: `se-grp-${Date.now()}-${actDef.templateId}`,
+          jobId: activityId,
+          resourceId: advisorGroup.id,
+          start: dayStart,
+          end,
+          title: actDef.title,
+          color: '#8A3FFC',
+          kind: 'day-capacity',
+          workOrderReference: targetOrder.referenceNumber,
+          workorderItemStatus: 'scheduled',
+          workorderItemCategory: 'activity',
+        };
+        this.scheduleRepo.assign(entry).subscribe(assigned => {
+          const normalizedEntry = {
+            ...assigned,
+            kind: 'day-capacity' as const,
+            resourceId: advisorGroup.id,
+            workOrderReference: assigned.workOrderReference ?? targetOrder.referenceNumber,
+            workorderItemStatus: assigned.workorderItemStatus ?? 'scheduled' as const,
+            workorderItemCategory: 'activity' as const,
+          };
+          this.upsertScheduleEntry(normalizedEntry);
+          this.capacityBlocks = [
+            ...this.capacityBlocks.filter(block => block.id !== normalizedEntry.id),
+            this.mapScheduleEntryToCapacityBlock(normalizedEntry),
+          ];
+        });
+      }
+    }
+
+    // Mobility to courtesy car group
+    if (this.requiresMobility(targetOrder)) {
+      const driverGroup = findGroupForType('driver');
+      if (driverGroup && this.hasOrderActivity(targetOrder, 'act-mobility')) {
+        const activityId = this.getOrderActivityId(targetOrder.id, 'act-mobility');
+        const end = new Date(dayStart.getTime() + 60 * 60000);
+        const entry: ScheduleEntry = {
+          id: `se-grp-${Date.now()}-act-mobility`,
+          jobId: activityId,
+          resourceId: driverGroup.id,
+          start: dayStart,
+          end,
+          title: 'Mobility Service',
+          color: '#8A3FFC',
+          kind: 'day-capacity',
+          workOrderReference: targetOrder.referenceNumber,
+          workorderItemStatus: 'scheduled',
+          workorderItemCategory: 'activity',
+        };
+        this.scheduleRepo.assign(entry).subscribe(assigned => {
+          const normalizedEntry = {
+            ...assigned,
+            kind: 'day-capacity' as const,
+            resourceId: driverGroup.id,
+            workOrderReference: assigned.workOrderReference ?? targetOrder.referenceNumber,
+            workorderItemStatus: assigned.workorderItemStatus ?? 'scheduled' as const,
+            workorderItemCategory: 'activity' as const,
+          };
+          this.upsertScheduleEntry(normalizedEntry);
+          this.capacityBlocks = [
+            ...this.capacityBlocks.filter(block => block.id !== normalizedEntry.id),
+            this.mapScheduleEntryToCapacityBlock(normalizedEntry),
+          ];
+        });
+      }
+    }
+
+    if (resetHistory) {
+      this.proposalHistory = [searchFrom];
+      this.proposalEndHistory = [new Date(dayStart.getTime() + 12 * 60 * 60000)];
+      this.currentProposalIndex = 0;
+    }
+
+    if (options.revealOrder !== false) {
+      this.selectedPanelOrderId = targetOrder.id;
+      this.expandedOrderIds = new Set([...this.expandedOrderIds, targetOrder.id]);
+      this.collapsedOrderGroups = new Set([...this.collapsedOrderGroups].filter(g => g !== 'group-reserved'));
+    }
   }
 
   get visibleScheduledBlocks(): ScheduleEntry[] {
@@ -1179,7 +1474,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
           .map((job: any) => ({ workOrder: order, job }))
       );
 
-      this.groups = groups.map(g => ({ id: g.id, label: g.name }));
+      this.groups = groups.map(g => ({ id: g.id, label: g.name, resourceType: (g as any).resourceType }));
       if (!this.selectedResourceTypeGroupIds.length) {
         this.selectedResourceTypeGroupIds = this.getDefaultResourceTypeGroupIds();
       } else if (this.viewPersonalCalendarOnTop && !this.selectedResourceTypeGroupIds.includes(this.personalCalendarGroup.id)) {
@@ -1324,7 +1619,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       start,
       end,
       kind: nextKind,
-      workorderItemStatus: entry.workorderItemStatus ?? 'scheduled',
+      workorderItemStatus: nextKind === 'scheduled' ? 'scheduled' : (entry.workorderItemStatus ?? 'scheduled'),
     };
 
     this.clearSchedulingError();
@@ -1774,6 +2069,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   onOptimizeAdvisorActivityBookingChange(event: Event): void {
     const checked = (event.target as HTMLInputElement).checked;
     this.plannerSettings.setOptimizeAdvisorActivityBookingForPersonalCalendar(checked);
+  }
+
+  onMonthlyBookingTargetChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value as 'resource' | 'group';
+    this.plannerSettings.setMonthlyBookingTarget(value);
   }
 
   onResourceTypeSelectionChange(payload: ResourceTypeSelectionChangePayload): void {
@@ -2553,6 +2853,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getOrderPlanningStateLabel(order: any): string {
+    if (this.isOrderGroupReserved(order)) return 'Group Reserved';
     const state = this.getOrderPlanningState(order);
     if (state === 'unscheduled') return `${this.formatHours(this.getOrderFru(order))} hrs`;
     if (state === 'partiallyScheduled') return `${this.formatHours(this.getRemainingOrderFru(order))} hrs`;
@@ -2560,6 +2861,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getOrderPlanningStateBackground(order: any): string {
+    if (this.isOrderGroupReserved(order)) return '#E8DAFF';
     const state = this.getOrderPlanningState(order);
     return state === 'unscheduled' || state === 'partiallyScheduled'
       ? 'white'
@@ -2567,6 +2869,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getOrderPlanningStateColor(order: any): string {
+    if (this.isOrderGroupReserved(order)) return '#6929C4';
     const state = this.getOrderPlanningState(order);
     return state === 'unscheduled' || state === 'partiallyScheduled'
       ? '#161616'
@@ -2581,37 +2884,63 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getJobExecutionStatusLabel(order: any, job: any): string {
+    if (this.isJobGroupReserved(job)) return 'Group Reserved';
     const status = this.getJobExecutionStatus(order, job);
     return status === 'unscheduled' ? `${this.formatHours(this.getJobFru(job))} hrs` : this.getStatusLabel(status);
   }
 
   getJobExecutionStatusBackground(order: any, job: any): string {
+    if (this.isJobGroupReserved(job)) return '#E8DAFF';
     return this.getStatusBackground(this.getJobExecutionStatus(order, job));
   }
 
   getJobExecutionStatusColor(order: any, job: any): string {
+    if (this.isJobGroupReserved(job)) return '#6929C4';
     return this.getStatusColor(this.getJobExecutionStatus(order, job));
   }
 
   getJobExecutionStatusOutline(order: any, job: any): string {
+    if (this.isJobGroupReserved(job)) return 'none';
     return this.getStatusOutline(this.getJobExecutionStatus(order, job));
   }
 
+  private isJobGroupReserved(job: any): boolean {
+    return this.bookings.some(booking =>
+      booking.jobId === job.id && this.isGroupResourceId(
+        this.allScheduleEntries.find(e => e.id === booking.entryId)?.resourceId ?? ''
+      )
+    );
+  }
+
   getActivityExecutionStatusLabel(order: any, activity: ActivityTile): string {
+    if (this.isActivityGroupReserved(activity)) return 'Group Reserved';
     const status = this.getActivityExecutionStatus(order, activity);
     return status === 'unscheduled' ? `${this.formatHours(this.getActivityFru(activity))} hrs` : this.getStatusLabel(status);
   }
 
   getActivityExecutionStatusBackground(order: any, activity: ActivityTile): string {
+    if (this.isActivityGroupReserved(activity)) return '#E8DAFF';
     return this.getStatusBackground(this.getActivityExecutionStatus(order, activity));
   }
 
   getActivityExecutionStatusColor(order: any, activity: ActivityTile): string {
+    if (this.isActivityGroupReserved(activity)) return '#6929C4';
     return this.getStatusColor(this.getActivityExecutionStatus(order, activity));
   }
 
   getActivityExecutionStatusOutline(order: any, activity: ActivityTile): string {
+    if (this.isActivityGroupReserved(activity)) return 'none';
     return this.getStatusOutline(this.getActivityExecutionStatus(order, activity));
+  }
+
+  private isActivityGroupReserved(activity: ActivityTile): boolean {
+    const activityId = activity.id;
+    const activityTemplateId = this.getActivityTemplateId(activityId);
+    return this.allScheduleEntries.some(entry =>
+      entry.kind === 'day-capacity' &&
+      this.isGroupResourceId(entry.resourceId) &&
+      (entry.jobId === activityId || this.getActivityTemplateId(entry.jobId) === activityTemplateId)
+    );
   }
 
   private isOrderPlanned(order: any): boolean {
@@ -2622,7 +2951,20 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const items = this.getWorkOrderItems(order).filter(item => item.executionStatus !== 'cancelled');
     if (!items.length) return 'unscheduled';
 
-    const statuses = items.map(item => this.getEffectiveWorkOrderItemStatus(order, item));
+    const statuses = items.map(item => {
+      const baseStatus = this.getEffectiveWorkOrderItemStatus(order, item);
+      // Upgrade reserved → scheduled if the item has a timed entry
+      if (baseStatus === 'reserved') {
+        const jobId = item.id;
+        const hasTimedEntry = this.allScheduleEntries.some(entry =>
+          (entry.jobId === jobId || this.getActivityTemplateId(entry.jobId) === this.getActivityTemplateId(jobId)) &&
+          entry.workOrderReference === order.referenceNumber &&
+          (entry.kind === 'scheduled' || entry.kind === 'blocked-order')
+        );
+        if (hasTimedEntry) return 'scheduled' as CanonicalWorkOrderItemStatus;
+      }
+      return baseStatus;
+    });
     if (statuses.length > 0 && statuses.every(status => status === 'completed')) return 'completed';
     if (statuses.some(status => status === 'in-progress')) return 'in-progress';
     if (statuses.every(status => status === 'scheduled' || status === 'completed')) return 'scheduled';
@@ -2633,13 +2975,34 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private getJobExecutionStatus(order: any, job: any): CanonicalWorkOrderItemStatus {
     const item = this.getWorkOrderJobItems(order).find(candidate => candidate.id === job.id);
-    return item ? this.getEffectiveWorkOrderItemStatus(order, item) : this.getCanonicalWorkOrderItemStatus(job.workorderItemStatus ?? job.status);
+    const baseStatus = item ? this.getEffectiveWorkOrderItemStatus(order, item) : this.getCanonicalWorkOrderItemStatus(job.workorderItemStatus ?? job.status);
+    // If job has a timed entry (kind: 'scheduled'), it's been given a time → upgrade to 'scheduled'
+    if (baseStatus === 'reserved') {
+      const hasTimedEntry = this.allScheduleEntries.some(entry =>
+        entry.jobId === job.id &&
+        entry.workOrderReference === order.referenceNumber &&
+        (entry.kind === 'scheduled' || entry.kind === 'blocked-order')
+      );
+      if (hasTimedEntry) return 'scheduled';
+    }
+    return baseStatus;
   }
 
   private getActivityExecutionStatus(order: any, activity: ActivityTile): CanonicalWorkOrderItemStatus {
     const item = this.getWorkOrderActivityItems(order).find(candidate => candidate.id === activity.id || candidate.templateId === this.getActivityTemplateId(activity.id));
     const activitySource = activity as ActivityTile & { workorderItemStatus?: WorkorderItemStatus; status?: WorkorderItemStatus };
-    return item ? this.resolveActivityItemStatus(order, item) : this.getCanonicalWorkOrderItemStatus(activitySource.workorderItemStatus ?? activitySource.status);
+    const baseStatus = item ? this.resolveActivityItemStatus(order, item) : this.getCanonicalWorkOrderItemStatus(activitySource.workorderItemStatus ?? activitySource.status);
+    // If activity has a timed entry, upgrade from reserved to scheduled
+    if (baseStatus === 'reserved') {
+      const activityTemplateId = this.getActivityTemplateId(activity.id);
+      const hasTimedEntry = this.allScheduleEntries.some(entry =>
+        (entry.jobId === activity.id || this.getActivityTemplateId(entry.jobId) === activityTemplateId) &&
+        entry.workOrderReference === order.referenceNumber &&
+        (entry.kind === 'scheduled' || entry.kind === 'blocked-order')
+      );
+      if (hasTimedEntry) return 'scheduled';
+    }
+    return baseStatus;
   }
 
   private getStatusLabel(status: CanonicalWorkOrderItemStatus | OrderPlanningState): string {
@@ -2971,7 +3334,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       entry.jobId === job.id &&
       entry.workOrderReference === order.referenceNumber &&
       this.isJobScheduleEntry(entry) &&
-      (entry.kind === 'blocked-order' || entry.kind === 'scheduled')
+      (entry.kind === 'blocked-order' || entry.kind === 'scheduled' || entry.kind === 'day-capacity')
     );
     return this.groupBookingsByTime(this.getPersistedBookingsFromEntries(entries, this.allOrders));
   }
@@ -2980,6 +3343,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const bookedTypes = new Set(
       bookingSets.flatMap(set => set.bookings.map(booking => booking.resourceType).filter(Boolean))
     );
+    // Also check all bookings for this job (including group-level day-capacity)
+    for (const booking of this.bookings) {
+      if (booking.jobId === job.id && booking.resourceType) {
+        bookedTypes.add(booking.resourceType);
+      }
+    }
     return this.getJobRequirements(job).filter(requirement =>
       !requirement.resourceType || !bookedTypes.has(requirement.resourceType)
     );
@@ -3088,6 +3457,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   isBookingReserved(booking: JobBooking): boolean {
     const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
     return entry?.workorderItemStatus === 'reserved';
+  }
+
+  isBookingGroupReserved(booking: JobBooking): boolean {
+    const entry = this.allScheduleEntries.find(candidate => candidate.id === booking.entryId);
+    return !!entry && entry.kind === 'day-capacity' && this.isGroupResourceId(entry.resourceId);
   }
 
   isActivityCompleted(order: any, activity: ActivityTile): boolean {
@@ -3369,10 +3743,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
         if (!order) return null;
 
         const resource = this.resources.find(candidate => candidate.id === entry.resourceId);
+        const group = !resource ? (this.groups.find(g => g.id === entry.resourceId) ?? (entry.resourceId === this.personalCalendarGroup.id ? this.personalCalendarGroup : undefined)) : undefined;
+        const groupMeta = group as any;
         return {
           jobId: entry.jobId,
-          resourceType: (resource?.meta as any)?.type ?? 'mechanic',
-          resourceName: resource?.label ?? entry.resourceId,
+          resourceType: (resource?.meta as any)?.type ?? groupMeta?.resourceType ?? 'mechanic',
+          resourceName: resource?.label ?? group?.label ?? entry.resourceId,
           entryId: entry.id,
           orderId: order.id,
           bookingSetId: this.getEntryBookingSetId(entry),
@@ -3746,6 +4122,10 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   onEventDropped(payload: EventDropPayload): void {
     this.isAutoProposalVisible = false;
     const activeOrderId = payload.orderId ?? this.getOrderIdForJob(payload.jobId) ?? this.getActiveWorkOrderId() ?? undefined;
+    if (payload.dropMode === 'group-capacity') {
+      this.onGroupCapacityDropped(payload, activeOrderId);
+      return;
+    }
     if (payload.dropMode === 'day-capacity') {
       this.onDayCapacityDropped(payload, activeOrderId);
       return;
@@ -3886,6 +4266,83 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     });
   }
 
+  private onGroupCapacityDropped(payload: EventDropPayload, activeOrderId: string | undefined): void {
+    const groupId = payload.groupId ?? payload.resourceId;
+    const group = this.visibleSchedulerGroups.find(g => g.id === groupId);
+    if (!group) {
+      this.setSchedulingError('Invalid resource group.', 'Booking not possible');
+      this.clearManualInteractionState();
+      return;
+    }
+
+    // For order-level drops, book ALL required groups using the group-level proposal
+    if (payload.dropType === 'order' && activeOrderId) {
+      const date = payload.date ?? payload.start;
+      const start = this.getDayCapacityStart(date);
+      this.applyGroupLevelProposal(start, true, { orderId: activeOrderId });
+      return;
+    }
+
+    const durationMinutes = Math.max(1, Math.round(payload.durationMinutes ?? (payload.end.getTime() - payload.start.getTime()) / 60000));
+    const date = payload.date ?? payload.start;
+    const start = this.getDayCapacityStart(date);
+    const end = new Date(start.getTime() + durationMinutes * 60000);
+
+    // Validate: group's resourceType must match a requirement of the dropped job
+    const groupResourceType = (group as any)?.resourceType;
+    if (groupResourceType && !this.isActivityId(payload.jobId)) {
+      const job = this.allOrders.flatMap((o: any) => o.jobs ?? []).find((j: any) => j.id === payload.jobId);
+      if (job) {
+        const requirements = this.getSchedulingRequirements(job);
+        const matches = requirements.some(req => req.resourceType === groupResourceType);
+        if (!matches) {
+          this.setSchedulingError(`This job does not require a ${this.formatResourceType(groupResourceType)}.`, 'Drop not possible');
+          this.clearManualInteractionState();
+          return;
+        }
+      }
+    }
+
+    const activityTemplateId = this.getActivityTemplateId(payload.jobId);
+    const order = this.allOrders.find(candidate => candidate.id === activeOrderId || candidate.referenceNumber === activeOrderId);
+    const found = this.isActivityId(payload.jobId)
+      ? undefined
+      : this.allOrders.flatMap((candidate: any) => candidate.jobs).find((job: any) => job.id === payload.jobId);
+    const activity = this.getActivityTemplate(activityTemplateId);
+
+    const entry: ScheduleEntry = {
+      id: `se-grp-${Date.now()}`,
+      jobId: payload.jobId,
+      resourceId: groupId,
+      start,
+      end,
+      title: activity?.title ?? found?.title,
+      color: '#8A3FFC',
+      kind: 'day-capacity',
+      workOrderReference: order?.referenceNumber,
+      workorderItemStatus: 'scheduled',
+      workorderItemCategory: this.isActivityId(payload.jobId) ? 'activity' : 'job',
+    };
+
+    this.clearSchedulingError();
+    this.clearManualInteractionState();
+    this.scheduleRepo.assign(entry).subscribe(assigned => {
+      const normalizedEntry = {
+        ...assigned,
+        kind: 'day-capacity' as const,
+        resourceId: groupId,
+        workOrderReference: assigned.workOrderReference ?? order?.referenceNumber,
+        workorderItemStatus: assigned.workorderItemStatus ?? 'scheduled' as const,
+        workorderItemCategory: assigned.workorderItemCategory ?? (this.isActivityId(payload.jobId) ? 'activity' as const : 'job' as const),
+      };
+      this.upsertScheduleEntry(normalizedEntry);
+      this.capacityBlocks = [
+        ...this.capacityBlocks.filter(block => block.id !== normalizedEntry.id),
+        this.mapScheduleEntryToCapacityBlock(normalizedEntry),
+      ];
+    });
+  }
+
   private onDayCapacityDropped(payload: EventDropPayload, activeOrderId: string | undefined): void {
     if (payload.dropType === 'order') {
       this.onOrderDayCapacityDropped(payload, activeOrderId);
@@ -3915,9 +4372,19 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     }
 
     if (this.hasExistingManualBookingForResourceType(payload.jobId, activeOrderId, bookingResourceType)) {
-      this.setSchedulingError(`${this.formatResourceType(bookingResourceType)} is already booked for this job.`, 'Capacity block not possible');
-      this.clearManualInteractionState();
-      return;
+      // Remove existing booking for this resource type to allow the move
+      const existingEntries = this.allScheduleEntries.filter(entry =>
+        entry.jobId === payload.jobId &&
+        (!activeOrderId || entry.workOrderReference === this.getOrderReference(activeOrderId) || entry.workOrderReference === activeOrderId) &&
+        this.getEntryResourceType(entry) === bookingResourceType
+      );
+      for (const existing of existingEntries) {
+        this.scheduleRepo.unassign(existing.id).subscribe(() => {});
+        this.allScheduleEntries = this.allScheduleEntries.filter(e => e.id !== existing.id);
+        this.scheduleEntries = this.scheduleEntries.filter(e => e.id !== existing.id);
+        this.capacityBlocks = this.capacityBlocks.filter(block => block.id !== existing.id);
+        this.events = this.events.filter(e => e.id !== existing.id);
+      }
     }
 
     const activityTemplateId = this.getActivityTemplateId(payload.jobId);
@@ -3970,7 +4437,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   private onOrderDayCapacityDropped(payload: EventDropPayload, activeOrderId: string | undefined): void {
-    const order = this.allOrders.find(candidate => candidate.id === activeOrderId);
+    const order = this.allOrders.find(candidate => candidate.id === activeOrderId || candidate.referenceNumber === activeOrderId);
     if (!order) {
       this.setSchedulingError('Order not found.', 'Capacity block not possible');
       this.clearManualInteractionState();
@@ -4006,8 +4473,19 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       req.requiredQualifications.every(q => rawDroppedResource.qualifications.some(rq => rq.id === q.id))
     );
     if (!droppedResourceMatchesAny) {
+      // If dropped on an advisor, book activities instead of jobs
+      if ((rawDroppedResource.type as string) === 'advisor') {
+        this.bookActivitiesOnAdvisorResource(order, rawDroppedResource, dayStart);
+        return;
+      }
       this.setSchedulingError(`${rawDroppedResource.name} is not compatible with any job in this order.`, 'Capacity block not possible');
       this.clearManualInteractionState();
+      return;
+    }
+
+    // If resource is an advisor, book activities rather than jobs
+    if ((rawDroppedResource.type as string) === 'advisor') {
+      this.bookActivitiesOnAdvisorResource(order, rawDroppedResource, dayStart);
       return;
     }
 
@@ -4059,13 +4537,17 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       return candidates.find(r => getAvailableMinutes(r.id) >= durationMinutes) ?? null;
     };
 
-    // Build capacity entries for each job
+    // Build capacity entries for each job — only for the dropped resource type (unless bookAllTypes)
     const entriesToBook: ScheduleEntry[] = [];
     const warnings: string[] = [];
+    const bookAllTypes = true;
 
     for (const job of jobs) {
       if (this.isActivityId(job.id) || job.workorderItemCategory === 'activity') continue;
-      const requirements = this.getSchedulingRequirements(job);
+      const requirements = bookAllTypes
+        ? this.getSchedulingRequirements(job)
+        : this.getSchedulingRequirements(job).filter(req => req.resourceType === rawDroppedResource.type);
+      if (!requirements.length) continue;
       const durationMinutes = (job.estimatedDurationMinutes ?? job.fru * 60) || 60;
       const bookingSetId = `${order.id}:${job.id}:capacity:${dayStart.getTime()}`;
       let primaryBooked = false;
@@ -4103,16 +4585,20 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Book activities (Check-In, Handover, Mobility)
+    // Book activities only if dropped resource type matches (or booking all types)
     const activityDefs: Array<{ templateId: string; resourceType: ResourceType; label: string }> = [];
-    if (this.hasOrderActivity(order, 'act-checkin')) {
-      activityDefs.push({ templateId: 'act-checkin', resourceType: 'advisor', label: 'Check-In' });
+    if (rawDroppedResource.type === 'advisor' || bookAllTypes) {
+      if (this.hasOrderActivity(order, 'act-checkin')) {
+        activityDefs.push({ templateId: 'act-checkin', resourceType: 'advisor', label: 'Check-In' });
+      }
+      if (this.hasOrderActivity(order, 'act-handover')) {
+        activityDefs.push({ templateId: 'act-handover', resourceType: 'advisor', label: 'Handover' });
+      }
     }
-    if (this.hasOrderActivity(order, 'act-handover')) {
-      activityDefs.push({ templateId: 'act-handover', resourceType: 'advisor', label: 'Handover' });
-    }
-    if (this.hasOrderActivity(order, 'act-mobility')) {
-      activityDefs.push({ templateId: 'act-mobility', resourceType: 'driver', label: 'Mobility Service' });
+    if (rawDroppedResource.type === 'driver' || bookAllTypes) {
+      if (this.hasOrderActivity(order, 'act-mobility')) {
+        activityDefs.push({ templateId: 'act-mobility', resourceType: 'driver', label: 'Mobility Service' });
+      }
     }
 
     for (const actDef of activityDefs) {
@@ -4153,6 +4639,21 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       this.setSchedulingError(warnings.join(' '), 'Partial booking');
     }
 
+    // Remove existing entries for this order matching the dropped resource type
+    // This covers both day-capacity and timed (scheduled/blocked-order) entries
+    const existingOrderEntries = this.allScheduleEntries.filter(entry =>
+      entry.workOrderReference === order.referenceNumber &&
+      (entry.kind === 'day-capacity' || entry.kind === 'scheduled' || entry.kind === 'blocked-order') &&
+      (bookAllTypes || this.getEntryResourceType(entry) === rawDroppedResource.type)
+    );
+    for (const existing of existingOrderEntries) {
+      this.scheduleRepo.unassign(existing.id).subscribe(() => {});
+      this.allScheduleEntries = this.allScheduleEntries.filter(e => e.id !== existing.id);
+      this.scheduleEntries = this.scheduleEntries.filter(e => e.id !== existing.id);
+      this.capacityBlocks = this.capacityBlocks.filter(block => block.id !== existing.id);
+      this.events = this.events.filter(e => e.id !== existing.id);
+    }
+
     // Persist all entries
     for (const entry of entriesToBook) {
       this.scheduleRepo.assign(entry).subscribe(assigned => {
@@ -4189,6 +4690,28 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       if (this.latestAutoBookingEntryIds.size === 0) {
         this.isAutoProposalVisible = false;
       }
+
+      // If this was the last job booking for a group-reserved order, also remove activity entries
+      if (removedEntry && orderToReveal) {
+        const remainingJobEntries = this.allScheduleEntries.filter(entry =>
+          entry.workOrderReference === orderToReveal.referenceNumber &&
+          this.isJobScheduleEntry(entry)
+        );
+        if (remainingJobEntries.length === 0) {
+          const activityEntries = this.allScheduleEntries.filter(entry =>
+            entry.workOrderReference === orderToReveal.referenceNumber &&
+            entry.kind === 'day-capacity' &&
+            this.isActivityScheduleEntry(entry)
+          );
+          for (const actEntry of activityEntries) {
+            this.scheduleRepo.unassign(actEntry.id).subscribe(() => {});
+          }
+          if (activityEntries.length) {
+            this.removeScheduleEntriesById(new Set(activityEntries.map(e => e.id)));
+          }
+        }
+      }
+
       this.revealOrderInPanel(orderToReveal);
     });
   }
@@ -4360,6 +4883,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     isReplay = false,
     options: { orderId?: string; preferredResourceIds?: string[]; scrollToFirstEntry?: boolean; revealOrder?: boolean } = {},
   ): void {
+    // Group-level booking: assign to groups instead of specific resources
+    if (this.monthlyBookingTarget === 'group') {
+      this.applyGroupLevelProposal(searchFrom, resetHistory, options);
+      return;
+    }
+
     searchFrom = this.getBookableSearchStart(searchFrom);
     const targetWorkOrderId = options.orderId ?? this.getActiveWorkOrderId();
     const unscheduledTiles = this.jobTiles.filter(t => t.workOrder.id === targetWorkOrderId);

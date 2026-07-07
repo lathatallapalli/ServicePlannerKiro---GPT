@@ -445,7 +445,7 @@
                                   </svg>
                                 </span>
                               }
-                              <span [class]="isBookingReserved(booking) ? '' : 'service-planner__block-tile-booked'" [style.color]="isBookingReserved(booking) ? '#6929C4' : null" style="font-size:12px;line-height:16px;letter-spacing:.32px">{{ isBookingReserved(booking) ? 'RESERVED' : 'BOOKED' }}</span>
+                              <span [class]="isBookingReserved(booking) || isBookingGroupReserved(booking) ? '' : 'service-planner__block-tile-booked'" [style.color]="isBookingGroupReserved(booking) ? '#8A3FFC' : isBookingReserved(booking) ? '#6929C4' : null" style="font-size:12px;line-height:16px;letter-spacing:.32px">{{ isBookingGroupReserved(booking) ? 'GROUP RESERVED' : isBookingReserved(booking) ? 'RESERVED' : 'BOOKED' }}</span>
                               <button type="button" aria-label="Open booking details" (click)="openBookingFromSearch(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2Zm0 1a5 5 0 1 0 0 10A5 5 0 0 0 8 3Zm-.5 4h1v4h-1V7Zm0-2h1v1h-1V5Z" fill="currentColor"/></svg>
                               </button>
@@ -502,7 +502,7 @@
                             </span>
                           }
                           @if (!isBookingCompleted(booking)) {
-                            <span [style.color]="isBookingReserved(booking) ? '#6929C4' : '#32523B'" style="text-align:right;font-size:12px;line-height:16px;letter-spacing:.32px">{{ isBookingReserved(booking) ? 'RESERVED' : 'BOOKED' }}</span>
+                            <span [style.color]="isBookingGroupReserved(booking) ? '#8A3FFC' : isBookingReserved(booking) ? '#6929C4' : '#32523B'" style="text-align:right;font-size:12px;line-height:16px;letter-spacing:.32px">{{ isBookingGroupReserved(booking) ? 'GROUP RESERVED' : isBookingReserved(booking) ? 'RESERVED' : 'BOOKED' }}</span>
                           }
                           <button type="button" aria-label="Open booking details" (click)="openBookingFromSearch(order, booking); $event.stopPropagation()" style="width:16px;height:16px;border:0;background:transparent;color:var(--Icon-icon-secondary,#525252);padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer">
                             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2Zm0 1a5 5 0 1 0 0 10A5 5 0 0 0 8 3Zm-.5 4h1v4h-1V7Zm0-2h1v1h-1V5Z" fill="currentColor"/></svg>
@@ -555,6 +555,22 @@
                   <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
                 } @empty {
                   <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">{{ emptyOrderSectionMessage }}</div>
+                }
+              </div>
+            }
+
+            <button type="button" aria-controls="group-reserved-orders" [attr.aria-expanded]="!isOrderGroupCollapsed('group-reserved')" (click)="toggleOrderGroup('group-reserved')" style="align-self:stretch;width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--Border-border-subtle-01,#C6C6C6);background:var(--Background-background,white);padding:8px 12px 8px 6px;display:flex;align-items:center;gap:2px;cursor:pointer;text-align:left;color:#161616">
+              <span style="font-size:16px;font-weight:600;line-height:22px;letter-spacing:0">Group Reserved</span>
+              <span style="width:32px;height:32px;color:#161616;padding:8px;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" [style.transform]="isOrderGroupCollapsed('group-reserved') ? 'rotate(180deg)' : 'none'"><path d="M8 5 13 10 12.3 10.7 8 6.4 3.7 10.7 3 10 8 5Z" fill="currentColor"/></svg></span>
+              <span style="margin-left:auto;min-height:24px;padding:4px 8px;background:#E8DAFF;color:#6929C4;border-radius:999px;font-size:12px;font-weight:400;line-height:16px;letter-spacing:.32px">{{ groupReservedOrderCount }} {{ groupReservedOrderCount === 1 ? 'Order' : 'Orders' }}</span>
+            </button>
+            @if (!isOrderGroupCollapsed('group-reserved')) {
+              <div id="group-reserved-orders" style="align-self:stretch;display:flex;flex-direction:column;gap:16px">
+                @for (order of visibleGroupReservedOrders; track order.id) {
+                  <ng-container [ngTemplateOutlet]="orderCard" [ngTemplateOutletContext]="{ $implicit: order }"></ng-container>
+                }
+                @if (groupReservedOrderCount === 0) {
+                  <div style="align-self:stretch;width:100%;background:var(--Layer-layer-01,#F4F4F4);padding:12px 16px;box-sizing:border-box;color:#161616;font-size:14px;line-height:18px;letter-spacing:.16px">No group reserved orders</div>
                 }
               </div>
             }
@@ -1139,6 +1155,13 @@
           />
           <span>Optimize Advisor activity booking for personal calendar</span>
         </label>
+        <div class="settings-modal__field-row" style="display:flex;align-items:center;gap:8px;padding:8px 0">
+          <span style="font-size:14px;line-height:18px">Monthly view booking target</span>
+          <select [value]="monthlyBookingTarget" (change)="onMonthlyBookingTargetChange($event)" style="padding:4px 8px;border:1px solid var(--Border-border-subtle-01,#C6C6C6);border-radius:4px;font-size:14px;background:#fff">
+            <option value="resource">Specific resources</option>
+            <option value="group">Group resources (qualification level)</option>
+          </select>
+        </div>
       </div>
 
       <footer class="settings-modal__footer">
