@@ -293,7 +293,7 @@
                 (dragover)="onGroupCapacityDragOver($event, group.id, day)"
                 (dragleave)="onDragLeave()"
                 (drop)="onGroupCapacityDrop($event, group.id, day)">
-                @for (run of getCapacityOrderRuns(group.id, day); track run.orderRef) {
+                @for (run of getVisibleGroupOrderRuns(group.id, day); track run.orderRef) {
                   <div class="scheduler__capacity-order-group">
                     <div class="scheduler__capacity-order-run" draggable="true" (dragstart)="onOrderRunDragStart($event, run.orderRef, group.id)" (dragend)="onOrderRunDragEnd($event, run.orderRef)">
                       <span class="scheduler__capacity-order-run-ref">{{ run.orderRef }}</span>

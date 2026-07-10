@@ -2496,7 +2496,16 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const blocks = this.getGroupCapacityBlocksForDay(groupId, day);
     if (this.showCapacityOnlyMode) return blocks;
     if (this.isCapacityLaneExpanded(groupId, day)) return blocks;
-    return blocks.slice(0, 1);
+    // In collapsed state, only show blocks not in any run (runs handle their own visibility)
+    const runs = this.getCapacityOrderRuns(groupId, day);
+    const groupedRefs = new Set(runs.map(r => r.orderRef));
+    return blocks.filter(block => !groupedRefs.has(this.getCapacityBlockOrderReference(block))).slice(0, 1);
+  }
+
+  getVisibleGroupOrderRuns(groupId: string, day: Date): { orderRef: string; count: number }[] {
+    const runs = this.getCapacityOrderRuns(groupId, day);
+    if (this.showCapacityOnlyMode || this.isCapacityLaneExpanded(groupId, day)) return runs;
+    return runs.slice(0, 1);
   }
 
   getHiddenGroupCapacityCount(groupId: string, day: Date): number {
@@ -2504,7 +2513,14 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const blockCount = this.getGroupCapacityBlocksForDay(groupId, day).length;
     if (blockCount <= 1) return 0;
     if (this.isCapacityLaneExpanded(groupId, day)) return 0;
-    return blockCount - 1;
+    // Count blocks in hidden runs + hidden ungrouped
+    const runs = this.getCapacityOrderRuns(groupId, day);
+    const visibleRuns = runs.slice(0, 1);
+    const visibleRunRefs = new Set(visibleRuns.map(r => r.orderRef));
+    const hiddenRunBlocks = runs.slice(1).reduce((sum, r) => sum + r.count, 0);
+    const ungroupedBlocks = this.getGroupCapacityBlocksForDay(groupId, day)
+      .filter(block => !runs.some(r => r.orderRef === this.getCapacityBlockOrderReference(block)));
+    return hiddenRunBlocks + Math.max(0, ungroupedBlocks.length - 1);
   }
 
   private getResourceTop(resourceId: string): number {
