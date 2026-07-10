@@ -2476,6 +2476,22 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     );
   }
 
+  getGroupRowHeight(groupId: string): number {
+    if (!this.showDayCapacityLane || this.showCapacityOnlyMode) return GROUP_ROW_HEIGHT;
+    // Check if any day's capacity lane for this group is expanded
+    for (const day of this.daySlots) {
+      if (this.isCapacityLaneExpanded(groupId, day)) {
+        const blockCount = this.getGroupCapacityBlocksForDay(groupId, day).length;
+        const runs = this.getCapacityOrderRuns(groupId, day);
+        const runHeaderHeight = runs.length * 20;
+        const blockHeight = blockCount * 40;
+        const buttonHeight = 24;
+        return Math.max(GROUP_ROW_HEIGHT, runHeaderHeight + blockHeight + buttonHeight + 16);
+      }
+    }
+    return GROUP_ROW_HEIGHT;
+  }
+
   getVisibleGroupCapacityItems(groupId: string, day: Date): SchedulerCapacityBlock[] {
     const blocks = this.getGroupCapacityBlocksForDay(groupId, day);
     if (this.showCapacityOnlyMode) return blocks;

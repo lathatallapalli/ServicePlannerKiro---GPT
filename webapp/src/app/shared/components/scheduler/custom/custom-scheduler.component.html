@@ -252,7 +252,7 @@
 
     @for (group of visibleGroups; track group.id; let isFirstGroup = $first) {
       <div class="scheduler__group-row">
-        <div class="scheduler__group-label" [style.width.px]="RESOURCE_COL_WIDTH" [style.height.px]="GROUP_ROW_HEIGHT">
+        <div class="scheduler__group-label" [style.width.px]="RESOURCE_COL_WIDTH" [style.height.px]="getGroupRowHeight(group.id)">
           <label class="scheduler__resource-checkbox scheduler__group-checkbox" (mousedown)="$event.stopPropagation()" (click)="$event.stopPropagation()">
             <input class="scheduler__resource-checkbox-input" type="checkbox"
               [checked]="areAllGroupResourcesSelected(group.id)"
@@ -279,7 +279,7 @@
               </svg>
             </button>
         </div>
-        <div class="scheduler__group-fill" [style.width.px]="effectiveTotalWidth" [style.height.px]="showDayCapacityLane ? null : GROUP_ROW_HEIGHT" [style.min-height.px]="GROUP_ROW_HEIGHT" [style.display]="showCapacityOnlyMode && showDayCapacityLane ? 'grid' : null" [style.grid-template-columns]="showCapacityOnlyMode && showDayCapacityLane ? 'repeat(' + daySlots.length + ', 1fr)' : null" [style.gap]="showCapacityOnlyMode && showDayCapacityLane ? '0' : null" [style.padding]="showCapacityOnlyMode && showDayCapacityLane ? '0' : null">
+        <div class="scheduler__group-fill" [style.width.px]="effectiveTotalWidth" [style.height.px]="showDayCapacityLane ? getGroupRowHeight(group.id) : GROUP_ROW_HEIGHT" [style.min-height.px]="GROUP_ROW_HEIGHT" [style.display]="showCapacityOnlyMode && showDayCapacityLane ? 'grid' : null" [style.grid-template-columns]="showCapacityOnlyMode && showDayCapacityLane ? 'repeat(' + daySlots.length + ', 1fr)' : null" [style.gap]="showCapacityOnlyMode && showDayCapacityLane ? '0' : null" [style.padding]="showCapacityOnlyMode && showDayCapacityLane ? '0' : null">
           @if (showDayCapacityLane) {
             @for (day of daySlots; track day.getTime()) {
               <div

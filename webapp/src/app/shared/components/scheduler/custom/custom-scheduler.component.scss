@@ -872,6 +872,18 @@ $month-bar-height: 60px;
     gap: 6px;
   }
 
+  &__capacity-lane:not(.scheduler__capacity-lane--group) &__capacity-order-group-tiles,
+  &__capacity-lane--group &__capacity-order-group-tiles {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__body--capacity-only &__capacity-order-group-tiles {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
   &__capacity-order-run-ref {
     font-weight: 600;
     font-size: 12px;
@@ -903,6 +915,7 @@ $month-bar-height: 60px;
     position: relative;
     top: auto;
     bottom: auto;
+    height: auto;
     overflow: visible;
     z-index: 35;
   }
