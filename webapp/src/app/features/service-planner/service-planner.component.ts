@@ -1124,7 +1124,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private applyGroupLevelProposal(
     searchFrom: Date,
     resetHistory: boolean,
-    options: { orderId?: string; preferredResourceIds?: string[]; scrollToFirstEntry?: boolean; revealOrder?: boolean } = {},
+    options: { orderId?: string; preferredResourceIds?: string[]; scrollToFirstEntry?: boolean; revealOrder?: boolean; preferredGroupId?: string } = {},
   ): void {
     const targetWorkOrderId = options.orderId ?? this.getActiveWorkOrderId();
     const targetOrder = this.allOrders.find(order => order.id === targetWorkOrderId);
@@ -1137,6 +1137,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const findGroupForRequirement = (requirement: { resourceType: string; requiredQualifications?: any[] }): any => {
       const candidates = this.visibleSchedulerGroups.filter(g => (g as any).resourceType === requirement.resourceType);
       if (candidates.length <= 1) return candidates[0] ?? this.groups.find(g => (g as any).resourceType === requirement.resourceType);
+      // If user dropped on a specific group of this type, prefer it
+      if (options.preferredGroupId) {
+        const preferred = candidates.find(g => g.id === options.preferredGroupId);
+        if (preferred) return preferred;
+      }
       // Multiple groups of same type — find one with resources matching qualifications
       if (requirement.requiredQualifications?.length) {
         for (const group of candidates) {
@@ -4279,7 +4284,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     if (payload.dropType === 'order' && activeOrderId) {
       const date = payload.date ?? payload.start;
       const start = this.getDayCapacityStart(date);
-      this.applyGroupLevelProposal(start, true, { orderId: activeOrderId });
+      this.applyGroupLevelProposal(start, true, { orderId: activeOrderId, preferredGroupId: groupId });
       return;
     }
 

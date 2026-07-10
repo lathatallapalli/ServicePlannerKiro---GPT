@@ -27,9 +27,9 @@ const HEADER_HEIGHT = 80;     // date row (32) + hour row (48)
 const DATE_ROW_HEIGHT = 32;
 const HOUR_ROW_HEIGHT = 48;
 const MONTH_BAR_HEIGHT = 40;
-const RESOURCE_COL_WIDTH = 360;
-const GROUP_ROW_HEIGHT = 48;
-const DAY_CAPACITY_LANE_WIDTH = 160;
+const RESOURCE_COL_WIDTH = 310;
+const GROUP_ROW_HEIGHT = 80;
+const DAY_CAPACITY_LANE_WIDTH = 280;
 const CAPACITY_COLLAPSED_VISIBLE_COUNT = 2;
 const CAPACITY_OVERFLOW_VISIBLE_COUNT = 1;
 const CAPACITY_BLOCK_HEIGHT = 36;
@@ -584,9 +584,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   getCapacityOrderRuns(resourceId: string, day: Date): { orderRef: string; count: number }[] {
-    if (!this.showCapacityOnlyMode) return [];
     const blocks = this.getCapacityBlocksForResourceDay(resourceId, day);
-    const events = this.getScheduledEventsForResourceDay(resourceId, day);
+    const events = this.showCapacityOnlyMode ? this.getScheduledEventsForResourceDay(resourceId, day) : [];
     const orderMap = new Map<string, number>();
     for (const block of blocks) {
       const ref = this.getCapacityBlockOrderReference(block);
@@ -597,6 +596,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       orderMap.set(ref, (orderMap.get(ref) ?? 0) + 1);
     }
     return [...orderMap.entries()]
+      .filter(([, count]) => count > 1)
       .map(([orderRef, count]) => ({ orderRef, count }));
   }
 
@@ -668,11 +668,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   isCapacityLaneExpanded(resourceId: string, day: Date): boolean {
-    return this.isCapacityLaneExpandedForBlocks(
-      resourceId,
-      day,
-      this.getCapacityBlocksForResourceDay(resourceId, day).length,
-    );
+    return this.expandedCapacityLane?.resourceId === resourceId &&
+      this.expandedCapacityLane.dayKey === this.getCapacityDayKey(day);
   }
 
   toggleCapacityLaneExpansion(event: MouseEvent, resourceId: string, day: Date): void {
@@ -755,6 +752,14 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return `+${hiddenCount} more \u00b7 ${this.getHiddenCapacityBlockedDurationShortLabel(resourceId, day)}`;
   }
 
+  getGroupCapacityOverflowLabel(groupId: string, day: Date, hiddenCount: number): string {
+    const blocks = this.getGroupCapacityBlocksForDay(groupId, day);
+    const hiddenDurationMinutes = blocks
+      .slice(1)
+      .reduce((sum, block) => sum + block.durationMinutes, 0);
+    return `+${hiddenCount} more \u00b7 ${this.formatCapacityDurationShort(hiddenDurationMinutes)}`;
+  }
+
   getCapacityBlockTitle(block: SchedulerCapacityBlock): string {
     return block.title;
   }
@@ -814,6 +819,21 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
 
   hideCapacityOverflowPreview(): void {
     this.capacityOverflowPreview = null;
+  }
+
+  showGroupCapacityOverflowPreview(event: MouseEvent | FocusEvent, groupId: string, groupLabel: string, day: Date, hiddenCount: number): void {
+    const blocks = this.getGroupCapacityBlocksForDay(groupId, day);
+    const totalDurationMinutes = blocks.reduce((sum, block) => sum + block.durationMinutes, 0);
+    const durationLabel = this.formatCapacityDurationShort(totalDurationMinutes);
+    const point = this.getCapacityPreviewPoint(event);
+    this.capacityOverflowPreview = {
+      blocks,
+      hiddenCount,
+      blockedDurationLabel: durationLabel,
+      jobCountLabel: this.getCapacityJobCountLabel(blocks.length),
+      x: point.x,
+      y: point.y,
+    };
   }
 
   private getCapacityPreviewPoint(event: MouseEvent | FocusEvent): { x: number; y: number } {
@@ -2454,6 +2474,21 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       block.resourceId === groupId &&
       this.isSameDay(block.date, day)
     );
+  }
+
+  getVisibleGroupCapacityItems(groupId: string, day: Date): SchedulerCapacityBlock[] {
+    const blocks = this.getGroupCapacityBlocksForDay(groupId, day);
+    if (this.showCapacityOnlyMode) return blocks;
+    if (this.isCapacityLaneExpanded(groupId, day)) return blocks;
+    return blocks.slice(0, 1);
+  }
+
+  getHiddenGroupCapacityCount(groupId: string, day: Date): number {
+    if (this.showCapacityOnlyMode) return 0;
+    const blockCount = this.getGroupCapacityBlocksForDay(groupId, day).length;
+    if (blockCount <= 1) return 0;
+    if (this.isCapacityLaneExpanded(groupId, day)) return 0;
+    return blockCount - 1;
   }
 
   private getResourceTop(resourceId: string): number {
