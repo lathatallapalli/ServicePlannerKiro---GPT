@@ -284,6 +284,7 @@
             @for (day of daySlots; track day.getTime()) {
               <div
                 class="scheduler__capacity-lane scheduler__capacity-lane--group"
+                [class.scheduler__capacity-lane--group-expanded]="isCapacityLaneExpanded(group.id, day)"
                 [class.scheduler__capacity-lane--drop-target]="isGroupCapacityDropTarget(group.id, day)"
                 [style.left.px]="showCapacityOnlyMode ? null : getEffectiveCapacityLaneLeft(day)"
                 [style.grid-column]="showCapacityOnlyMode ? getCapacityLaneDayColumn(day) : null"

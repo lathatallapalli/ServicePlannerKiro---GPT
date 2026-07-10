@@ -899,6 +899,14 @@ $month-bar-height: 60px;
     transition: border-color 0.15s, background 0.15s;
   }
 
+  &__capacity-lane--group-expanded {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    overflow: visible;
+    z-index: 35;
+  }
+
   &__capacity-lane--group#{&}--drop-target,
   &__capacity-lane--group.scheduler__capacity-lane--drop-target {
     border-color: #8A3FFC;
