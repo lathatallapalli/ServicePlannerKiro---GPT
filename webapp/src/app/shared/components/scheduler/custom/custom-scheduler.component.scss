@@ -816,8 +816,8 @@ $month-bar-height: 60px;
   }
 
   &__capacity-block--group {
-    border-left: 2px solid #8A3FFC;
-    background: #F6F2FF;
+    border-left: 2px solid #8A3FFC !important;
+    background: #F6F2FF !important;
     cursor: grab;
 
     &:active {
@@ -939,8 +939,8 @@ $month-bar-height: 60px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 11px;
-    line-height: 14px;
+    font-size: 12px;
+    line-height: 16px;
     font-weight: 600;
   }
 
@@ -950,8 +950,8 @@ $month-bar-height: 60px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 10px;
-    line-height: 12px;
+    font-size: 11px;
+    line-height: 14px;
   }
 
   &__capacity-block-detail {
@@ -959,16 +959,16 @@ $month-bar-height: 60px;
   }
 
   &__capacity-overflow {
-    flex: 0 0 12px;
-    min-height: 12px;
+    flex: 0 0 16px;
+    min-height: 16px;
     width: 100%;
     border: 0;
     padding: 0 4px;
     background: transparent;
     color: #4C68B1;
     font: inherit;
-    font-size: 10px;
-    line-height: 12px;
+    font-size: 11px;
+    line-height: 16px;
     text-align: center;
     cursor: pointer;
     box-sizing: border-box;

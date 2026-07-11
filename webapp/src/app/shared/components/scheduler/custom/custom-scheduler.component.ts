@@ -670,9 +670,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   private getCollapsedCapacityVisibleCount(blockCount: number): number {
-    return blockCount > CAPACITY_COLLAPSED_VISIBLE_COUNT
-      ? CAPACITY_OVERFLOW_VISIBLE_COUNT
-      : CAPACITY_COLLAPSED_VISIBLE_COUNT;
+    return 1;
   }
 
   isCapacityLaneExpanded(resourceId: string, day: Date): boolean {
@@ -718,7 +716,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   }
 
   private isCapacityLaneExpandable(blockCount: number): boolean {
-    return blockCount > CAPACITY_COLLAPSED_VISIBLE_COUNT;
+    return blockCount > 1;
   }
 
   private reconcileExpandedCapacityLane(): void {

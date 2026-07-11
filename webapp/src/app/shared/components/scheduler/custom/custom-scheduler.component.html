@@ -1230,6 +1230,7 @@
               <div
                 class="scheduler__capacity-block scheduler__capacity-preview-block"
                 [style.border-left-color]="block.color ?? '#4C68B1'"
+                [style.background]="block.color === '#8A3FFC' ? '#F6F2FF' : '#E9ECF5'"
                 [attr.aria-label]="getCapacityBlockAriaLabel(block)">
                 <span class="scheduler__capacity-block-header">
                   <span class="scheduler__capacity-block-order">{{ getCapacityBlockOrderReference(block) }}</span>
