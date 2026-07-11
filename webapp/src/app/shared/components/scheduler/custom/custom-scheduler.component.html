@@ -303,7 +303,7 @@
                       </button>
                     </div>
                     <div class="scheduler__capacity-order-group-tiles">
-                      @if (isCapacityLaneExpanded(group.id, day)) {
+                      @if (showCapacityOnlyMode || isCapacityLaneExpanded(group.id, day)) {
                         @for (block of getCapacityBlocksForOrder(group.id, day, run.orderRef); track block.id) {
                           <div class="scheduler__capacity-block scheduler__capacity-block--group" draggable="true" [attr.aria-label]="getCapacityBlockAriaLabel(block)" (dragstart)="onCapacityBlockDragStart($event, block)" (dragend)="onCapacityBlockDragEnd($event, block)">
                             <span class="scheduler__capacity-block-title">{{ getCapacityBlockTitle(block) }}</span>
