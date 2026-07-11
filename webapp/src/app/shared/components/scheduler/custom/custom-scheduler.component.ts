@@ -609,8 +609,8 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const blocks = this.getCapacityBlocksForOrder(resourceId, day, orderRef);
     if (this.showCapacityOnlyMode) return blocks;
     if (this.isCapacityLaneExpanded(resourceId, day)) return blocks;
-    // In collapsed timeline mode, show up to 2 tiles per order run
-    return blocks.slice(0, CAPACITY_COLLAPSED_VISIBLE_COUNT);
+    // In collapsed timeline mode, show only 1 tile per order run
+    return blocks.slice(0, 1);
   }
 
   getFirstBlockForOrder(resourceId: string, day: Date, orderRef: string): SchedulerCapacityBlock | null {
