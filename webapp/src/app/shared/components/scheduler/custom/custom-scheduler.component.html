@@ -303,11 +303,20 @@
                       </button>
                     </div>
                     <div class="scheduler__capacity-order-group-tiles">
-                      @for (block of getCapacityBlocksForOrder(group.id, day, run.orderRef); track block.id) {
-                        <div class="scheduler__capacity-block scheduler__capacity-block--group" draggable="true" [attr.aria-label]="getCapacityBlockAriaLabel(block)" (dragstart)="onCapacityBlockDragStart($event, block)" (dragend)="onCapacityBlockDragEnd($event, block)">
-                          <span class="scheduler__capacity-block-title">{{ getCapacityBlockTitle(block) }}</span>
-                          <span class="scheduler__capacity-block-detail">{{ getCapacityBlockDetail(block) }}</span>
-                        </div>
+                      @if (isCapacityLaneExpanded(group.id, day)) {
+                        @for (block of getCapacityBlocksForOrder(group.id, day, run.orderRef); track block.id) {
+                          <div class="scheduler__capacity-block scheduler__capacity-block--group" draggable="true" [attr.aria-label]="getCapacityBlockAriaLabel(block)" (dragstart)="onCapacityBlockDragStart($event, block)" (dragend)="onCapacityBlockDragEnd($event, block)">
+                            <span class="scheduler__capacity-block-title">{{ getCapacityBlockTitle(block) }}</span>
+                            <span class="scheduler__capacity-block-detail">{{ getCapacityBlockDetail(block) }}</span>
+                          </div>
+                        }
+                      } @else {
+                        @if (getFirstBlockForOrder(group.id, day, run.orderRef); as firstBlock) {
+                          <div class="scheduler__capacity-block scheduler__capacity-block--group" draggable="true" [attr.aria-label]="getCapacityBlockAriaLabel(firstBlock)" (dragstart)="onCapacityBlockDragStart($event, firstBlock)" (dragend)="onCapacityBlockDragEnd($event, firstBlock)">
+                            <span class="scheduler__capacity-block-title">{{ getCapacityBlockTitle(firstBlock) }}</span>
+                            <span class="scheduler__capacity-block-detail">{{ getCapacityBlockDetail(firstBlock) }}</span>
+                          </div>
+                        }
                       }
                     </div>
                   </div>
@@ -322,9 +331,6 @@
                     (dragend)="onCapacityBlockDragEnd($event, block)">
                     <span class="scheduler__capacity-block-header" style="display:flex;align-items:center">
                       <span class="scheduler__capacity-block-order" style="flex:1 1 0;min-width:0">{{ getCapacityBlockOrderReference(block) }}</span>
-                      <button class="scheduler__event-order-focus scheduler__capacity-block-focus" type="button" data-scheduler-action="focus-order" [attr.aria-label]="'Focus order ' + getCapacityBlockOrderReference(block) + ' in panel'" (mousedown)="suppressEventAction($event)" (click)="onCapacityOrderFocusClick($event, block)" (contextmenu)="suppressEventAction($event)">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="16" height="16" fill="white" style="mix-blend-mode:multiply"/><path d="M1 3V13C1 13.5522 1.44775 14 2 14H14C14.5522 14 15 13.5522 15 13V3C15 2.44775 14.5522 2 14 2H2C1.44775 2 1 2.44775 1 3ZM11 3H14V13H11V3ZM2 3H10V13H2V8.5H7.08495L5.2949 10.2949L6 11L9 8L6 5L5.2949 5.7051L7.08495 7.5H2V3Z" fill="currentColor"/></svg>
-                      </button>
                     </span>
                     <span class="scheduler__capacity-block-title">{{ getCapacityBlockSummary(block) }}</span>
                   </div>
@@ -411,6 +417,7 @@
               @if (showDayCapacityLane) {
                 <div
                   class="scheduler__capacity-lane"
+                  [class.scheduler__capacity-lane--expanded]="isCapacityLaneExpanded(resource.id, day)"
                   [class.scheduler__capacity-lane--drop-target]="isCapacityDropPreviewForResourceDay(resource.id, day)"
                   [class.scheduler__capacity-lane--drop-invalid]="isCapacityDropPreviewInvalidForResourceDay(resource.id, day)"
                   [style.left.px]="getEffectiveCapacityLaneLeft(day)" [style.grid-column]="showCapacityOnlyMode ? getCapacityLaneDayColumn(day) : null"
@@ -477,7 +484,7 @@
                         </button>
                       </div>
                       <div class="scheduler__capacity-order-group-tiles">
-                        @for (block of getCapacityBlocksForOrder(resource.id, day, run.orderRef); track block.id) {
+                        @for (block of getVisibleCapacityBlocksForOrder(resource.id, day, run.orderRef); track block.id) {
                           <div class="scheduler__capacity-block" [class.scheduler__capacity-block--unfocused]="isCapacityBlockUnfocused(block)" draggable="true" [style.border-left-color]="block.color ?? '#4C68B1'" [attr.aria-label]="getCapacityBlockAriaLabel(block)" (dragstart)="onCapacityBlockDragStart($event, block)" (dragend)="onCapacityBlockDragEnd($event, block)">
                             <span class="scheduler__capacity-block-title">{{ getCapacityBlockTitle(block) }}</span>
                             <span class="scheduler__capacity-block-detail">{{ getCapacityBlockDetail(block) }}</span>
@@ -1217,16 +1224,19 @@
           <span>{{ capacityOverflowPreview.blockedDurationLabel }} · {{ capacityOverflowPreview.jobCountLabel }}</span>
         </div>
         <div class="scheduler__capacity-preview-list">
-          @for (block of capacityOverflowPreview.blocks; track block.id) {
-            <div
-              class="scheduler__capacity-block scheduler__capacity-preview-block"
-              [style.border-left-color]="block.color ?? '#4C68B1'"
-              [attr.aria-label]="getCapacityBlockAriaLabel(block)">
-              <span class="scheduler__capacity-block-header">
-                <span class="scheduler__capacity-block-order">{{ getCapacityBlockOrderReference(block) }}</span>
-              </span>
-              <span class="scheduler__capacity-block-title">{{ getCapacityBlockSummary(block) }}</span>
-            </div>
+          @for (group of getCapacityPreviewOrderGroups(); track group.orderRef) {
+            <div class="scheduler__capacity-preview-order-header">{{ group.orderRef }}</div>
+            @for (block of group.blocks; track block.id) {
+              <div
+                class="scheduler__capacity-block scheduler__capacity-preview-block"
+                [style.border-left-color]="block.color ?? '#4C68B1'"
+                [attr.aria-label]="getCapacityBlockAriaLabel(block)">
+                <span class="scheduler__capacity-block-header">
+                  <span class="scheduler__capacity-block-order">{{ getCapacityBlockOrderReference(block) }}</span>
+                </span>
+                <span class="scheduler__capacity-block-title">{{ getCapacityBlockSummary(block) }}</span>
+              </div>
+            }
           }
         </div>
       </div>

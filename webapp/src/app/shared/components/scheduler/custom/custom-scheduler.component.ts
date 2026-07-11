@@ -605,6 +605,14 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
       .filter(block => this.getCapacityBlockOrderReference(block) === orderRef);
   }
 
+  getVisibleCapacityBlocksForOrder(resourceId: string, day: Date, orderRef: string): SchedulerCapacityBlock[] {
+    const blocks = this.getCapacityBlocksForOrder(resourceId, day, orderRef);
+    if (this.showCapacityOnlyMode) return blocks;
+    if (this.isCapacityLaneExpanded(resourceId, day)) return blocks;
+    // In collapsed timeline mode, show up to 2 tiles per order run
+    return blocks.slice(0, CAPACITY_COLLAPSED_VISIBLE_COUNT);
+  }
+
   getFirstBlockForOrder(resourceId: string, day: Date, orderRef: string): SchedulerCapacityBlock | null {
     return this.getCapacityBlocksForOrder(resourceId, day, orderRef)[0]
       ?? this.getScheduledEventsForOrder(resourceId, day, orderRef).map(evt => this.eventAsCapacityBlock(evt))[0]
@@ -691,9 +699,12 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     const blockCount = this.getCapacityBlocksForResourceDay(resourceId, day).length;
     if (!this.isCapacityLaneExpandable(blockCount)) return ROW_HEIGHT;
 
-    const visibleItemCount = blockCount + 1;
+    const runs = this.getCapacityOrderRuns(resourceId, day);
+    const runHeaderCount = runs.length;
+    const visibleItemCount = blockCount + runHeaderCount + 1;
     const expandedHeight = CAPACITY_LANE_PADDING_Y +
       blockCount * CAPACITY_BLOCK_HEIGHT +
+      runHeaderCount * 20 +
       CAPACITY_OVERFLOW_BUTTON_HEIGHT +
       Math.max(visibleItemCount - 1, 0) * CAPACITY_LANE_GAP;
 
@@ -846,6 +857,20 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     return rect
       ? { x: rect.right + 8, y: rect.top }
       : { x: 12, y: 12 };
+  }
+
+  getCapacityPreviewOrderGroups(): { orderRef: string; blocks: SchedulerCapacityBlock[] }[] {
+    if (!this.capacityOverflowPreview) return [];
+    const blocks = this.capacityOverflowPreview.blocks;
+    const orderMap = new Map<string, SchedulerCapacityBlock[]>();
+    for (const block of blocks) {
+      const ref = this.getCapacityBlockOrderReference(block);
+      if (!orderMap.has(ref)) {
+        orderMap.set(ref, []);
+      }
+      orderMap.get(ref)!.push(block);
+    }
+    return [...orderMap.entries()].map(([orderRef, blocks]) => ({ orderRef, blocks }));
   }
 
   private getCapacityBlockedDurationMinutes(resourceId: string, day: Date): number {
@@ -2511,16 +2536,21 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   getHiddenGroupCapacityCount(groupId: string, day: Date): number {
     if (this.showCapacityOnlyMode) return 0;
     const blockCount = this.getGroupCapacityBlocksForDay(groupId, day).length;
-    if (blockCount <= 1) return 0;
+    if (blockCount === 0) return 0;
     if (this.isCapacityLaneExpanded(groupId, day)) return 0;
-    // Count blocks in hidden runs + hidden ungrouped
+    // In collapsed state: 1 run shown with 1 tile visible, plus up to 1 ungrouped block visible
     const runs = this.getCapacityOrderRuns(groupId, day);
     const visibleRuns = runs.slice(0, 1);
-    const visibleRunRefs = new Set(visibleRuns.map(r => r.orderRef));
     const hiddenRunBlocks = runs.slice(1).reduce((sum, r) => sum + r.count, 0);
+    const visibleRunBlocksTotal = visibleRuns.reduce((sum, r) => sum + r.count, 0);
+    // We show 1 tile from the visible run
+    const hiddenFromVisibleRun = Math.max(0, visibleRunBlocksTotal - 1);
     const ungroupedBlocks = this.getGroupCapacityBlocksForDay(groupId, day)
       .filter(block => !runs.some(r => r.orderRef === this.getCapacityBlockOrderReference(block)));
-    return hiddenRunBlocks + Math.max(0, ungroupedBlocks.length - 1);
+    // We show up to 1 ungrouped block
+    const hiddenUngrouped = Math.max(0, ungroupedBlocks.length - 1);
+    const totalHidden = hiddenFromVisibleRun + hiddenRunBlocks + hiddenUngrouped;
+    return totalHidden;
   }
 
   private getResourceTop(resourceId: string): number {

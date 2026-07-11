@@ -816,7 +816,7 @@ $month-bar-height: 60px;
   }
 
   &__capacity-block--group {
-    border-left-color: #8A3FFC;
+    border-left: 2px solid #8A3FFC;
     background: #F6F2FF;
     cursor: grab;
 
@@ -840,7 +840,7 @@ $month-bar-height: 60px;
   }
 
   &__capacity-order-run {
-    flex: 1 0 100%;
+    flex: 0 0 16px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -851,6 +851,7 @@ $month-bar-height: 60px;
     line-height: 14px;
     letter-spacing: .32px;
     height: 16px;
+    max-height: 16px;
     cursor: grab;
 
     &:active {
@@ -862,7 +863,8 @@ $month-bar-height: 60px;
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    overflow: hidden;
   }
 
   &__capacity-order-group-tiles {
@@ -916,8 +918,12 @@ $month-bar-height: 60px;
     top: auto;
     bottom: auto;
     height: auto;
-    overflow: visible;
+    overflow: visible !important;
     z-index: 35;
+  }
+
+  &__capacity-lane--expanded {
+    overflow: visible !important;
   }
 
   &__capacity-lane--group#{&}--drop-target,
@@ -1022,6 +1028,19 @@ $month-bar-height: 60px;
     width: 100%;
     flex-basis: 40px;
     min-height: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  &__capacity-preview-order-header {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 14px;
+    color: var(--Text-text-primary, #161616);
+    padding: 4px 0 2px;
+    border-bottom: 1px solid var(--Border-border-subtle-01, #E0E0E0);
+    margin-bottom: 2px;
   }
 
   &__capacity-preview-block &__capacity-block-header {
