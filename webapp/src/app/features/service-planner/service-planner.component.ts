@@ -4896,8 +4896,8 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
     searchFrom = this.getBookableSearchStart(searchFrom);
     const targetWorkOrderId = options.orderId ?? this.getActiveWorkOrderId();
-    const unscheduledTiles = this.jobTiles.filter(t => t.workOrder.id === targetWorkOrderId);
-    const targetOrder = this.allOrders.find(order => order.id === targetWorkOrderId);
+    const unscheduledTiles = this.jobTiles.filter(t => t.workOrder.id === targetWorkOrderId || t.workOrder.referenceNumber === targetWorkOrderId);
+    const targetOrder = this.allOrders.find(order => order.id === targetWorkOrderId || order.referenceNumber === targetWorkOrderId);
     const unscheduledJobs = unscheduledTiles.length
       ? unscheduledTiles.map(t => t.job)
       : targetOrder ? this.getJobsForOrder(targetOrder) : [];
