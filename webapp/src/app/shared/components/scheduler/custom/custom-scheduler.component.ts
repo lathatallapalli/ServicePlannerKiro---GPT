@@ -629,9 +629,13 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     e.stopPropagation();
     this.lastValidDropPreview = null;
     const orderId = this.getOrderIdFromReference(orderRef);
+    const day = this.daySlots.find(d => this.getCapacityBlocksForResourceDay(resourceId, d).some(b => this.getCapacityBlockOrderReference(b) === orderRef));
+    const blocks = day ? this.getCapacityBlocksForOrder(resourceId, day, orderRef) : [];
+    const totalFru = blocks.reduce((sum, b) => sum + b.durationMinutes / MINUTES_PER_FRU, 0) || 1;
     e.dataTransfer?.setData('orderId', orderId ?? orderRef);
     e.dataTransfer?.setData('dropType', 'order');
     e.dataTransfer?.setData('droptype', 'order');
+    e.dataTransfer?.setData('fru', String(totalFru));
     e.dataTransfer?.setData('text/plain', orderId ?? orderRef);
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
     this.nativeDraggedEventId = null;
