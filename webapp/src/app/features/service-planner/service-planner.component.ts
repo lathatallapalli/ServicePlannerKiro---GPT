@@ -773,13 +773,22 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   private getBookedResourceIdsForOrder(order: any): string[] {
     const resourceIds = new Set<string>();
     this.events
-      .filter(event => this.isEventForOrder(event, order))
+      .filter(event => this.isEventForOrder(event, order)
+        && this.doRangesOverlap(event.start, event.end, this.viewStart, this.viewEnd))
       .forEach(event => resourceIds.add(event.resourceId));
     this.capacityBlocks
-      .filter(block => this.isEntryForOrder(block.meta?.entry as ScheduleEntry | undefined, order))
+      .filter(block => {
+        const entry = block.meta?.entry as ScheduleEntry | undefined;
+        // A capacity block whose entry range cannot be resolved provides no evidence of an
+        // in-window booking; exclude it rather than risk reintroducing the cross-window leak.
+        return this.isEntryForOrder(entry, order)
+          && !!entry?.start && !!entry?.end
+          && this.doRangesOverlap(entry.start, entry.end, this.viewStart, this.viewEnd);
+      })
       .forEach(block => resourceIds.add(block.resourceId));
     this.allScheduleEntries
-      .filter(entry => this.isEntryForOrder(entry, order))
+      .filter(entry => this.isEntryForOrder(entry, order)
+        && this.doRangesOverlap(entry.start, entry.end, this.viewStart, this.viewEnd))
       .forEach(entry => resourceIds.add(entry.resourceId));
     return [...resourceIds];
   }
