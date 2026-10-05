@@ -217,6 +217,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   collapsedGroupIds = new Set<string>();
   copiedContactKey: string | null = null;
   private lastBookedContextKey: string | null = null;
+  private lastBookedFocusOrderKey: string | null = null;
   private copiedContactResetId: ReturnType<typeof setTimeout> | null = null;
   private expandedCapacityLane: { resourceId: string; dayKey: string } | null = null;
   private groupCapacityDropTarget: { groupId: string; dayKey: string } | null = null;
@@ -1814,14 +1815,32 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
     if (contextKey === this.lastBookedContextKey) return;
 
     if (contextKey) {
-      // Auto-activate only for focused-order (full planner View Only)
       if (this.bookedResourceFilterContext?.source === 'focused-order') {
-        this.showBookedOnlyResources = true;
+        const focusSessionKey = this.getBookedFocusSessionKey(this.bookedResourceFilterContext);
+        // Auto-enable only on the FIRST activation of a focused-order session (the order id
+        // portion changed). When only the resourceIds signature changed for the same order,
+        // leave the toggle untouched so a manual OFF is preserved while live data streams in.
+        if (focusSessionKey !== this.lastBookedFocusOrderKey) {
+          this.showBookedOnlyResources = true;
+        }
+        this.lastBookedFocusOrderKey = focusSessionKey;
+      } else {
+        // Global / auto-proposal: unchanged behavior (no auto-enable). Reset the focus-session
+        // tracker so a later return to a focused order counts as a fresh session.
+        this.lastBookedFocusOrderKey = null;
       }
     } else {
       this.showBookedOnlyResources = false;
+      this.lastBookedFocusOrderKey = null;
     }
     this.lastBookedContextKey = contextKey;
+  }
+
+  private getBookedFocusSessionKey(ctx: SchedulerBookedResourceFilterContext | null): string | null {
+    if (!ctx || ctx.source !== 'focused-order') return null;
+    // The focus-session identity is the order-id portion (before the resourceIds signature).
+    const separatorIndex = ctx.contextKey.indexOf('|');
+    return separatorIndex === -1 ? ctx.contextKey : ctx.contextKey.slice(0, separatorIndex);
   }
 
   private getEffectiveBookedResourceIds(): Set<string> {

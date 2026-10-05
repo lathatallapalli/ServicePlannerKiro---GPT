@@ -746,8 +746,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const resourceIds = this.getBookedResourceIdsForOrder(focusedOrder);
     if (!resourceIds.length) return null;
     const source = this.plannerMode === 'order' ? 'global' : 'focused-order';
+    // For focused-order, include a stable signature of the live booked resourceIds so the
+    // scheduler reconciles the booked-only filter when membership changes while the order id
+    // stays the same. Global (order mode) keeps its id-only key unchanged.
+    const contextKey =
+      source === 'focused-order'
+        ? `${source}:${focusedOrder.id}|${[...resourceIds].sort().join(',')}`
+        : `${source}:${focusedOrder.id}`;
     return {
-      contextKey: `${source}:${focusedOrder.id}`,
+      contextKey,
       active: true,
       source,
       resourceIds,
