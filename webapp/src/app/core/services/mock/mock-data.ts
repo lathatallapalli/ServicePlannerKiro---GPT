@@ -176,247 +176,6 @@ const getTimedExecutionStatus = (start: Date, end: Date) => {
   return 'scheduled' as const;
 };
 
-const mayPlannerDemoBookings: Array<{
-  day: number;
-  reference: string;
-  jobId: string;
-  resourceId: string;
-  start: string;
-  end: string;
-  title: string;
-  kind?: ScheduleEntry['kind'];
-  category?: ScheduleEntry['workorderItemCategory'];
-}> = [
-  { day: 1, reference: '014900001', jobId: 'job-may-d01-1', resourceId: 'mech-mark-owen', start: '09:15', end: '11:15', title: 'May service inspection' },
-  { day: 1, reference: '014900001', jobId: 'job-may-d01-2', resourceId: 'advisor-ted-phillips', start: '09:00', end: '10:30', title: 'Customer intake', category: 'activity' },
-  { day: 2, reference: '014900002', jobId: 'job-may-d02-1', resourceId: 'mech-phil-parker', start: '10:00', end: '14:30', title: 'Brake noise diagnosis' },
-  { day: 2, reference: '014900002', jobId: 'job-may-d02-2', resourceId: 'car-audi-a4-kl657og', start: '09:00', end: '17:30', title: 'Courtesy car reservation', category: 'activity' },
-  { day: 5, reference: '014900003', jobId: 'job-may-d05-1', resourceId: 'mech-greg-jackson', start: '09:00', end: '16:30', title: 'MOT preparation' },
-  { day: 5, reference: '014900003', jobId: 'job-may-d05-2', resourceId: 'advisor-frank-miller', start: '14:00', end: '16:00', title: 'Repair approval calls', category: 'activity' },
-  { day: 6, reference: '014900004', jobId: 'job-may-d06-1', resourceId: 'mech-jeff-goldberg', start: '09:30', end: '12:30', title: 'Suspension repair' },
-  { day: 6, reference: '014900004', jobId: 'job-may-d06-2', resourceId: 'car-audi-a3-kl643ju', start: '10:00', end: '18:00', title: 'Courtesy car reservation', category: 'activity' },
-  { day: 7, reference: '014900005', jobId: 'job-may-d07-1', resourceId: 'mech-kelly-hanson', start: '11:00', end: '15:00', title: 'Control unit diagnostics' },
-  { day: 7, reference: '014900005', jobId: 'job-may-d07-2', resourceId: 'advisor-ted-phillips', start: '09:00', end: '13:00', title: 'Service advisor appointments', category: 'activity' },
-  { day: 8, reference: '014900006', jobId: 'job-may-d08-1', resourceId: 'mech-scenario-flex', start: '09:00', end: '18:00', title: 'High-priority workshop support' },
-  { day: 8, reference: '014900006', jobId: 'job-may-d08-2', resourceId: 'car-bmw-320-mw112ab', start: '09:00', end: '21:00', title: 'Courtesy car all day', category: 'activity' },
-  { day: 9, reference: '014900007', jobId: 'job-may-d09-1', resourceId: 'mech-mark-owen', start: '09:30', end: '11:30', title: 'Tyre pressure warning' },
-  { day: 9, reference: '014900007', jobId: 'job-may-d09-2', resourceId: 'mech-phil-parker', start: '13:00', end: '17:00', title: 'Brake pad replacement' },
-  { day: 12, reference: '014900008', jobId: 'job-may-d12-1', resourceId: 'advisor-frank-miller', start: '09:00', end: '16:30', title: 'Reception coverage', category: 'activity' },
-  { day: 12, reference: '014900008', jobId: 'job-may-d12-2', resourceId: 'mech-greg-jackson', start: '10:00', end: '12:30', title: 'Emissions fault diagnosis' },
-  { day: 13, reference: '014900009', jobId: 'job-may-d13-1', resourceId: 'mech-jeff-goldberg', start: '09:00', end: '11:00', title: 'Steering vibration check' },
-  { day: 13, reference: '014900009', jobId: 'job-may-d13-2', resourceId: 'car-scenario-courtesy', start: '09:00', end: '15:00', title: 'Short courtesy car booking', category: 'activity' },
-  { day: 14, reference: '014900010', jobId: 'job-may-d14-1', resourceId: 'mech-kelly-hanson', start: '09:00', end: '12:00', title: 'Battery draw test' },
-  { day: 14, reference: '014900010', jobId: 'job-may-d14-2', resourceId: 'advisor-ted-phillips', start: '13:00', end: '17:00', title: 'Customer handover block', category: 'activity' },
-  { day: 15, reference: '014900011', jobId: 'job-may-d15-1', resourceId: 'mech-phil-parker', start: '09:00', end: '21:00', title: 'Major repair day' },
-  { day: 15, reference: '014900011', jobId: 'job-may-d15-2', resourceId: 'car-audi-a4-kl657og', start: '09:00', end: '21:00', title: 'Courtesy car all day', category: 'activity' },
-  { day: 16, reference: '014900012', jobId: 'job-may-d16-1', resourceId: 'mech-mark-owen', start: '10:00', end: '13:00', title: 'Final inspection' },
-  { day: 16, reference: '014900012', jobId: 'job-may-d16-2', resourceId: 'advisor-frank-miller', start: '09:00', end: '11:00', title: 'Check-in wave', category: 'activity' },
-  { day: 19, reference: '014900013', jobId: 'job-may-d19-1', resourceId: 'mech-greg-jackson', start: '09:00', end: '15:30', title: 'Diagnostics backlog' },
-  { day: 19, reference: '014900013', jobId: 'job-may-d19-2', resourceId: 'mech-jeff-goldberg', start: '12:30', end: '17:30', title: 'Workshop overflow' },
-  { day: 20, reference: '014900014', jobId: 'job-may-d20-1', resourceId: 'advisor-scenario-lead', start: '09:00', end: '18:00', title: 'Service advisor desk', category: 'activity' },
-  { day: 20, reference: '014900014', jobId: 'job-may-d20-2', resourceId: 'car-audi-a3-kl643ju', start: '09:00', end: '17:00', title: 'Courtesy car booking', category: 'activity' },
-  { day: 21, reference: '014900015', jobId: 'job-may-d21-1', resourceId: 'mech-scenario-flex', start: '09:00', end: '12:00', title: 'Express jobs support' },
-  { day: 21, reference: '014900015', jobId: 'job-may-d21-2', resourceId: 'mech-kelly-hanson', start: '13:00', end: '18:00', title: 'Electrical diagnosis' },
-  { day: 22, reference: '014900016', jobId: 'job-may-d22-1', resourceId: 'car-bmw-320-mw112ab', start: '09:00', end: '21:00', title: 'Courtesy car all day', category: 'activity' },
-  { day: 22, reference: '014900016', jobId: 'job-may-d22-2', resourceId: 'mech-phil-parker', start: '10:00', end: '14:00', title: 'Brake repair follow-up' },
-  { day: 23, reference: '014900017', jobId: 'job-may-d23-1', resourceId: 'mech-mark-owen', start: '09:30', end: '12:00', title: 'Quick service package' },
-  { day: 23, reference: '014900017', jobId: 'job-may-d23-2', resourceId: 'advisor-ted-phillips', start: '10:00', end: '15:00', title: 'Advisor bookings', category: 'activity' },
-  { day: 26, reference: '014900018', jobId: 'job-may-d26-1', resourceId: 'mech-jeff-goldberg', start: '09:00', end: '18:00', title: 'Workshop campaign' },
-  { day: 26, reference: '014900018', jobId: 'job-may-d26-2', resourceId: 'car-scenario-courtesy', start: '12:00', end: '18:00', title: 'Afternoon courtesy car', category: 'activity' },
-  { day: 27, reference: '014900019', jobId: 'job-may-d27-1', resourceId: 'mech-kelly-hanson', start: '10:00', end: '12:30', title: 'Battery replacement' },
-  { day: 27, reference: '014900019', jobId: 'job-may-d27-2', resourceId: 'advisor-frank-miller', start: '09:00', end: '14:00', title: 'Advisor customer calls', category: 'activity' },
-  { day: 28, reference: '014900020', jobId: 'job-may-d28-1', resourceId: 'mech-greg-jackson', start: '09:00', end: '11:30', title: 'A/C service' },
-  { day: 28, reference: '014900020', jobId: 'job-may-d28-2', resourceId: 'car-audi-a4-kl657og', start: '09:00', end: '18:00', title: 'Courtesy car booking', category: 'activity' },
-  { day: 29, reference: '014900021', jobId: 'job-may-d29-1', resourceId: 'mech-scenario-flex', start: '09:00', end: '15:00', title: 'Workshop recovery block' },
-  { day: 29, reference: '014900021', jobId: 'job-may-d29-2', resourceId: 'advisor-scenario-lead', start: '13:00', end: '17:30', title: 'Late handovers', category: 'activity' },
-  { day: 30, reference: '014900022', jobId: 'job-may-d30-1', resourceId: 'mech-mark-owen', start: '09:00', end: '10:30', title: 'Pre-weekend check' },
-  { day: 30, reference: '014900022', jobId: 'job-may-d30-2', resourceId: 'car-audi-a3-kl643ju', start: '09:00', end: '13:00', title: 'Morning courtesy car', category: 'activity' },
-];
-
-const mayPlannerDayCapacity: Array<{
-  day: number;
-  reference: string;
-  jobId: string;
-  resourceId: string;
-  hours: number;
-  title: string;
-}> = [
-  { day: 2, reference: '014900002', jobId: 'job-may-d02-1', resourceId: 'mech-jeff-goldberg', hours: 2, title: 'Prepare parts and road test' },
-  { day: 6, reference: '014900004', jobId: 'job-may-d06-2', resourceId: 'mech-greg-jackson', hours: 3, title: 'Capacity hold: diagnostics' },
-  { day: 8, reference: '014900006', jobId: 'job-may-d08-1', resourceId: 'advisor-frank-miller', hours: 2, title: 'Callback capacity' },
-  { day: 12, reference: '014900008', jobId: 'job-may-d12-2', resourceId: 'mech-phil-parker', hours: 4, title: 'Capacity hold: brake repair' },
-  { day: 15, reference: '014900011', jobId: 'job-may-d15-2', resourceId: 'advisor-ted-phillips', hours: 3, title: 'Capacity hold: handovers' },
-  { day: 19, reference: '014900013', jobId: 'job-may-d19-1', resourceId: 'car-scenario-courtesy', hours: 6, title: 'Courtesy car day hold' },
-  { day: 22, reference: '014900016', jobId: 'job-may-d22-2', resourceId: 'mech-mark-owen', hours: 2, title: 'Capacity hold: quality check' },
-  { day: 28, reference: '014900020', jobId: 'job-may-d28-1', resourceId: 'mech-kelly-hanson', hours: 3, title: 'Capacity hold: A/C follow-up' },
-];
-
-// --- May planner order metadata (reference -> customer / plate / mechanic job titles) ---
-// Mechanic job titles are consumed left-to-right by the mechanic (non-activity)
-// booking rows of each order. Orders with a single mechanic row use only the
-// first title; order 014900014 has no mechanic row (both booking rows are
-// activities) and therefore no mechanic job title is used.
-const mayPlannerOrderMeta: Array<{
-  reference: string;
-  id: string;
-  customerName: string;
-  licensePlate: string;
-  jobTitles: [string, string];
-}> = [
-  { reference: '014900001', id: 'wo-may-1001', customerName: 'Fischer Mobility', licensePlate: 'M-MY 001', jobTitles: ['May Service Inspection', 'Multipoint Check'] },
-  { reference: '014900002', id: 'wo-may-1002', customerName: 'Lehmann Transport', licensePlate: 'M-MY 002', jobTitles: ['Brake Noise Diagnosis', 'Brake Pad Inspection'] },
-  { reference: '014900003', id: 'wo-may-1003', customerName: 'Vogel Fleet', licensePlate: 'M-MY 003', jobTitles: ['MOT Preparation', 'Headlight Alignment'] },
-  { reference: '014900004', id: 'wo-may-1004', customerName: 'Krueger GmbH', licensePlate: 'M-MY 004', jobTitles: ['Suspension Repair', 'Wheel Alignment'] },
-  { reference: '014900005', id: 'wo-may-1005', customerName: 'Hartmann Auto', licensePlate: 'M-MY 005', jobTitles: ['Control Unit Diagnostics', 'Software Update'] },
-  { reference: '014900006', id: 'wo-may-1006', customerName: 'Werner Services', licensePlate: 'M-MY 006', jobTitles: ['Workshop Support Job', 'Final Quality Check'] },
-  { reference: '014900007', id: 'wo-may-1007', customerName: 'Schulz Logistics', licensePlate: 'M-MY 007', jobTitles: ['Tyre Pressure Warning', 'Brake Pad Replacement'] },
-  { reference: '014900008', id: 'wo-may-1008', customerName: 'Braun Leasing', licensePlate: 'M-MY 008', jobTitles: ['Emissions Fault Diagnosis', 'Exhaust Inspection'] },
-  { reference: '014900009', id: 'wo-may-1009', customerName: 'Zimmermann KG', licensePlate: 'M-MY 009', jobTitles: ['Steering Vibration Check', 'Road Test'] },
-  { reference: '014900010', id: 'wo-may-1010', customerName: 'Koch Fleet', licensePlate: 'M-MY 010', jobTitles: ['Battery Draw Test', 'Charging System Check'] },
-  { reference: '014900011', id: 'wo-may-1011', customerName: 'Richter GmbH', licensePlate: 'M-MY 011', jobTitles: ['Major Repair Job', 'Component Replacement'] },
-  { reference: '014900012', id: 'wo-may-1012', customerName: 'Wagner Auto', licensePlate: 'M-MY 012', jobTitles: ['Final Inspection', 'Documentation Review'] },
-  { reference: '014900013', id: 'wo-may-1013', customerName: 'Becker Transport', licensePlate: 'M-MY 013', jobTitles: ['Diagnostics Backlog', 'Fault Code Analysis'] },
-  { reference: '014900014', id: 'wo-may-1014', customerName: 'Schaefer Fleet', licensePlate: 'M-MY 014', jobTitles: ['Service Advisor Job', 'Customer Follow-up'] },
-  { reference: '014900015', id: 'wo-may-1015', customerName: 'Hoffmann GmbH', licensePlate: 'M-MY 015', jobTitles: ['Express Jobs Support', 'Electrical Diagnosis'] },
-  { reference: '014900016', id: 'wo-may-1016', customerName: 'Schmitt Services', licensePlate: 'M-MY 016', jobTitles: ['Brake Repair Follow-up', 'Quality Check'] },
-  { reference: '014900017', id: 'wo-may-1017', customerName: 'Lang Logistics', licensePlate: 'M-MY 017', jobTitles: ['Quick Service Package', 'Fluid Top-up'] },
-  { reference: '014900018', id: 'wo-may-1018', customerName: 'Weiss Leasing', licensePlate: 'M-MY 018', jobTitles: ['Workshop Campaign Job', 'Inspection Round'] },
-  { reference: '014900019', id: 'wo-may-1019', customerName: 'Jung KG', licensePlate: 'M-MY 019', jobTitles: ['Battery Replacement', 'Battery Registration'] },
-  { reference: '014900020', id: 'wo-may-1020', customerName: 'Berger Fleet', licensePlate: 'M-MY 020', jobTitles: ['A/C Service', 'Refrigerant Recharge'] },
-  { reference: '014900021', id: 'wo-may-1021', customerName: 'Franke GmbH', licensePlate: 'M-MY 021', jobTitles: ['Workshop Recovery Job', 'Backlog Clearance'] },
-  { reference: '014900022', id: 'wo-may-1022', customerName: 'Albrecht Auto', licensePlate: 'M-MY 022', jobTitles: ['Pre-weekend Check', 'Safety Inspection'] },
-];
-
-const mayOrderIdByReference = new Map(mayPlannerOrderMeta.map(meta => [meta.reference, meta.id]));
-
-// Classify each booking row: mechanic rows stay as plain job entries keyed by
-// their job id; activity rows (`category: 'activity'`) are re-keyed onto the
-// owning order's `:act-*` id so the matcher and activity-status post-processing
-// resolve them. A courtesy-car resource (car-*) maps to act-mobility; an advisor
-// resource (advisor-*) maps to act-checkin.
-const isCarActivity = (booking: { category?: ScheduleEntry['workorderItemCategory']; resourceId: string }) =>
-  booking.category === 'activity' && booking.resourceId.startsWith('car-');
-
-// Mechanic (non-activity) job ids per order, in booking order.
-const mayMechanicJobIdsByReference = new Map<string, string[]>();
-for (const booking of mayPlannerDemoBookings) {
-  if (booking.category === 'activity') continue;
-  const list = mayMechanicJobIdsByReference.get(booking.reference) ?? [];
-  list.push(booking.jobId);
-  mayMechanicJobIdsByReference.set(booking.reference, list);
-}
-
-const mayPlannerOrderDefs = mayPlannerOrderMeta.map(meta => ({
-  ...meta,
-  mechanicJobIds: mayMechanicJobIdsByReference.get(meta.reference) ?? [],
-}));
-
-// Round-robin advisor resources used to back the synthesized check-in / handover
-// activity entries for orders that do not already book an advisor.
-const mayFallbackAdvisors = ['advisor-frank-miller', 'advisor-ted-phillips', 'advisor-scenario-lead'];
-
-// Build the May job-entry rows (mechanic + courtesy-car-as-mobility + advisor-as-checkin).
-const mayJobEntries: ScheduleEntry[] = mayPlannerDemoBookings.map((booking, index) => {
-  const orderId = mayOrderIdByReference.get(booking.reference)!;
-  const date = String(booking.day).padStart(2, '0');
-  if (booking.category === 'activity') {
-    const templateId = isCarActivity(booking) ? 'act-mobility' : 'act-checkin';
-    return {
-      id: `sch-may-demo-${index + 1}`,
-      jobId: `${orderId}:${templateId}`,
-      resourceId: booking.resourceId,
-      start: new Date(`2024-05-${date}T${booking.start}:00`),
-      end: new Date(`2024-05-${date}T${booking.end}:00`),
-      title: templateId === 'act-mobility' ? `Courtesy Car ${booking.reference}` : `Check-In ${booking.reference}`,
-      color: '#A6C8FF',
-      kind: 'scheduled' as const,
-      workOrderReference: booking.reference,
-      workorderItemStatus: 'scheduled' as const,
-      workorderItemCategory: 'activity' as const,
-    };
-  }
-  return {
-    id: `sch-may-demo-${index + 1}`,
-    jobId: booking.jobId,
-    resourceId: booking.resourceId,
-    start: new Date(`2024-05-${date}T${booking.start}:00`),
-    end: new Date(`2024-05-${date}T${booking.end}:00`),
-    title: booking.title,
-    color: '#A6C8FF',
-    kind: 'scheduled' as const,
-    workOrderReference: booking.reference,
-    workorderItemStatus: 'scheduled' as const,
-    workorderItemCategory: 'job' as const,
-  };
-});
-
-// Synthesize check-in + handover entries for every order so the shared default
-// activity injection (act-checkin / act-handover added to every order) resolves.
-// Orders that already carry an advisor booking (re-keyed to :act-checkin above)
-// skip the synthesized check-in to avoid duplication.
-const mayReferencesWithCheckin = new Set(
-  mayJobEntries.filter(entry => entry.jobId.endsWith(':act-checkin')).map(entry => entry.workOrderReference)
-);
-const mayActivityEntries: ScheduleEntry[] = mayPlannerOrderMeta.flatMap((meta, metaIndex) => {
-  const date = String(mayPlannerDemoBookings.find(b => b.reference === meta.reference)!.day).padStart(2, '0');
-  const advisor = mayFallbackAdvisors[metaIndex % mayFallbackAdvisors.length];
-  const entries: ScheduleEntry[] = [];
-  if (!mayReferencesWithCheckin.has(meta.reference)) {
-    entries.push({
-      id: `sch-may-checkin-${meta.id}`,
-      jobId: `${meta.id}:act-checkin`,
-      resourceId: advisor,
-      start: new Date(`2024-05-${date}T08:30:00`),
-      end: new Date(`2024-05-${date}T09:00:00`),
-      title: `Check-In ${meta.reference}`,
-      color: '#A6C8FF',
-      kind: 'scheduled' as const,
-      workOrderReference: meta.reference,
-      workorderItemStatus: 'scheduled' as const,
-      workorderItemCategory: 'activity' as const,
-    });
-  }
-  entries.push({
-    id: `sch-may-handover-${meta.id}`,
-    jobId: `${meta.id}:act-handover`,
-    resourceId: advisor,
-    start: new Date(`2024-05-${date}T17:30:00`),
-    end: new Date(`2024-05-${date}T18:00:00`),
-    title: `Handover ${meta.reference}`,
-    color: '#A6C8FF',
-    kind: 'scheduled' as const,
-    workOrderReference: meta.reference,
-    workorderItemStatus: 'scheduled' as const,
-    workorderItemCategory: 'activity' as const,
-  });
-  return entries;
-});
-
-// Day-capacity holds. Rows that originally pointed at an activity booking jobId
-// (which no longer exists as a job entry) are repointed to the owning order's
-// first mechanic job id so the hold still attaches to a real job item.
-const MOCK_MAY_PLANNER_SCHEDULE_ENTRIES: ScheduleEntry[] = [
-  ...mayJobEntries,
-  ...mayActivityEntries,
-  ...mayPlannerDayCapacity.map((block, index) => {
-    const mechanicIds = mayMechanicJobIdsByReference.get(block.reference) ?? [];
-    const jobId = mechanicIds.includes(block.jobId) ? block.jobId : (mechanicIds[0] ?? block.jobId);
-    return {
-      id: `sch-may-capacity-${index + 1}`,
-      jobId,
-      resourceId: block.resourceId,
-      start: new Date(`2024-05-${String(block.day).padStart(2, '0')}T09:00:00`),
-      end: new Date(new Date(`2024-05-${String(block.day).padStart(2, '0')}T09:00:00`).getTime() + block.hours * 60 * 60000),
-      title: block.title,
-      color: '#4C68B1',
-      kind: 'day-capacity' as const,
-      workOrderReference: block.reference,
-      workorderItemStatus: 'scheduled' as const,
-      workorderItemCategory: 'job' as const,
-    };
-  }),
-];
-
 const MOCK_MAY_CAPACITY_DEMO_UNAVAILABILITY: UnavailabilityBlock[] = [
   ...['mech-mark-owen', 'mech-phil-parker', 'mech-greg-jackson'].map(resourceId => ({
     resourceId,
@@ -1872,57 +1631,823 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
     createdAt: baseDate,
     updatedAt: baseDate,
   })),
-  // May planner demo orders: standalone Munich orders that own the dedicated
-  // 014900001-014900022 reference band used by the May 2024 planner demo bookings.
-  // These exist so every May demo schedule entry resolves 1:1 to its own real
-  // Munich order instead of reusing the wo-bg-* references. demoLocationId is
-  // intentionally omitted (undefined === Munich scope).
-  // Each order's work-order JOB items are keyed to the jobIds of this order's
-  // mechanic (non-activity) May booking rows (`mayPlannerDemoBookings`), so every
-  // mechanic booking attaches to a real job item and resolves as scheduled.
-  // The activity requirements (courtesy car / advisor) are modeled as ACTIVITY
-  // items: they are added by the shared default-activity injection below
-  // (act-checkin / act-handover for every order, act-mobility where a courtesy
-  // car was booked) and resolved by the dedicated `:act-*` May activity schedule
-  // entries (`MOCK_MAY_PLANNER_ACTIVITY_ENTRIES`). This mirrors exactly how the
-  // booked wo-bg-* / Vienna / Klagenfurt orders model their activities, which the
-  // app's planning-state matcher and the mock-data activity-status post-processing
-  // both key on the `:act-*` templateId. The job-item id<->booking mapping is by
-  // reference string, NOT day index (day numbers skip weekends).
-  ...mayPlannerOrderDefs.map(({ id, reference: referenceNumber, customerName, licensePlate, jobTitles, mechanicJobIds }) => ({
-    id,
-    referenceNumber,
-    status: 'preparation' as const,
+  // Munich May 2024 orders (references 014900001-014900022), booked by the
+  // sch-may-* schedule entries. demoLocationId is omitted (Munich scope).
+  {
+    id: 'wo-may-1001',
+    referenceNumber: '014900001',
+    status: 'preparation',
     vehicle: {
-      id: `vehicle-${id}`,
-      licensePlate,
+      id: 'vehicle-wo-may-1001',
+      licensePlate: 'M-MY 001',
       make: 'BMW',
       model: 'Workshop Vehicle',
       mileage: 60000,
     },
     customer: {
-      id: `customer-${id}`,
-      name: customerName,
+      id: 'customer-wo-may-1001',
+      name: 'Fischer Mobility',
       city: 'Munich',
       country: 'Germany',
-      phone: `+49 89 ${referenceNumber.slice(-6)}`,
-      email: `${customerName.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '')}@example.com`,
+      phone: '+49 89 900001',
+      email: 'fischer.mobility@example.com',
     },
-    jobs: mechanicJobIds.map((jobId, index) => ({
-      id: jobId,
-      workOrderId: id,
-      title: jobTitles[index],
-      description: getMechanicJobDescription(jobTitles[index]),
-      fru: index === 0 ? 0.75 : 0.5,
-      estimatedDurationMinutes: index === 0 ? 45 : 30,
-      requiredResourceType: 'mechanic' as const,
-      requiredQualifications: [QUALIFICATIONS.generalService],
-      resourceRequirements: defaultBackgroundJobRequirements,
-      status: 'unscheduled' as const,
-    })),
+    jobs: [
+      {
+        id: 'job-may-d01-1',
+        workOrderId: 'wo-may-1001',
+        title: 'May Service Inspection',
+        description: getMechanicJobDescription('May Service Inspection'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
     createdAt: baseDate,
     updatedAt: baseDate,
-  })),
+  },
+  {
+    id: 'wo-may-1002',
+    referenceNumber: '014900002',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1002',
+      licensePlate: 'M-MY 002',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1002',
+      name: 'Lehmann Transport',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900002',
+      email: 'lehmann.transport@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d02-1',
+        workOrderId: 'wo-may-1002',
+        title: 'Brake Noise Diagnosis',
+        description: getMechanicJobDescription('Brake Noise Diagnosis'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1003',
+    referenceNumber: '014900003',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1003',
+      licensePlate: 'M-MY 003',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1003',
+      name: 'Vogel Fleet',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900003',
+      email: 'vogel.fleet@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d05-1',
+        workOrderId: 'wo-may-1003',
+        title: 'MOT Preparation',
+        description: getMechanicJobDescription('MOT Preparation'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1004',
+    referenceNumber: '014900004',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1004',
+      licensePlate: 'M-MY 004',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1004',
+      name: 'Krueger GmbH',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900004',
+      email: 'krueger.gmbh@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d06-1',
+        workOrderId: 'wo-may-1004',
+        title: 'Suspension Repair',
+        description: getMechanicJobDescription('Suspension Repair'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1005',
+    referenceNumber: '014900005',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1005',
+      licensePlate: 'M-MY 005',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1005',
+      name: 'Hartmann Auto',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900005',
+      email: 'hartmann.auto@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d07-1',
+        workOrderId: 'wo-may-1005',
+        title: 'Control Unit Diagnostics',
+        description: getMechanicJobDescription('Control Unit Diagnostics'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1006',
+    referenceNumber: '014900006',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1006',
+      licensePlate: 'M-MY 006',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1006',
+      name: 'Werner Services',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900006',
+      email: 'werner.services@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d08-1',
+        workOrderId: 'wo-may-1006',
+        title: 'Workshop Support Job',
+        description: getMechanicJobDescription('Workshop Support Job'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1007',
+    referenceNumber: '014900007',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1007',
+      licensePlate: 'M-MY 007',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1007',
+      name: 'Schulz Logistics',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900007',
+      email: 'schulz.logistics@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d09-1',
+        workOrderId: 'wo-may-1007',
+        title: 'Tyre Pressure Warning',
+        description: getMechanicJobDescription('Tyre Pressure Warning'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+      {
+        id: 'job-may-d09-2',
+        workOrderId: 'wo-may-1007',
+        title: 'Brake Pad Replacement',
+        description: getMechanicJobDescription('Brake Pad Replacement'),
+        fru: 0.5,
+        estimatedDurationMinutes: 30,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1008',
+    referenceNumber: '014900008',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1008',
+      licensePlate: 'M-MY 008',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1008',
+      name: 'Braun Leasing',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900008',
+      email: 'braun.leasing@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d12-2',
+        workOrderId: 'wo-may-1008',
+        title: 'Emissions Fault Diagnosis',
+        description: getMechanicJobDescription('Emissions Fault Diagnosis'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1009',
+    referenceNumber: '014900009',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1009',
+      licensePlate: 'M-MY 009',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1009',
+      name: 'Zimmermann KG',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900009',
+      email: 'zimmermann.kg@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d13-1',
+        workOrderId: 'wo-may-1009',
+        title: 'Steering Vibration Check',
+        description: getMechanicJobDescription('Steering Vibration Check'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1010',
+    referenceNumber: '014900010',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1010',
+      licensePlate: 'M-MY 010',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1010',
+      name: 'Koch Fleet',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900010',
+      email: 'koch.fleet@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d14-1',
+        workOrderId: 'wo-may-1010',
+        title: 'Battery Draw Test',
+        description: getMechanicJobDescription('Battery Draw Test'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1011',
+    referenceNumber: '014900011',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1011',
+      licensePlate: 'M-MY 011',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1011',
+      name: 'Richter GmbH',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900011',
+      email: 'richter.gmbh@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d15-1',
+        workOrderId: 'wo-may-1011',
+        title: 'Major Repair Job',
+        description: getMechanicJobDescription('Major Repair Job'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1012',
+    referenceNumber: '014900012',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1012',
+      licensePlate: 'M-MY 012',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1012',
+      name: 'Wagner Auto',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900012',
+      email: 'wagner.auto@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d16-1',
+        workOrderId: 'wo-may-1012',
+        title: 'Final Inspection',
+        description: getMechanicJobDescription('Final Inspection'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1013',
+    referenceNumber: '014900013',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1013',
+      licensePlate: 'M-MY 013',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1013',
+      name: 'Becker Transport',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900013',
+      email: 'becker.transport@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d19-1',
+        workOrderId: 'wo-may-1013',
+        title: 'Diagnostics Backlog',
+        description: getMechanicJobDescription('Diagnostics Backlog'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+      {
+        id: 'job-may-d19-2',
+        workOrderId: 'wo-may-1013',
+        title: 'Fault Code Analysis',
+        description: getMechanicJobDescription('Fault Code Analysis'),
+        fru: 0.5,
+        estimatedDurationMinutes: 30,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1014',
+    referenceNumber: '014900014',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1014',
+      licensePlate: 'M-MY 014',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1014',
+      name: 'Schaefer Fleet',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900014',
+      email: 'schaefer.fleet@example.com',
+    },
+    jobs: [],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1015',
+    referenceNumber: '014900015',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1015',
+      licensePlate: 'M-MY 015',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1015',
+      name: 'Hoffmann GmbH',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900015',
+      email: 'hoffmann.gmbh@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d21-1',
+        workOrderId: 'wo-may-1015',
+        title: 'Express Jobs Support',
+        description: getMechanicJobDescription('Express Jobs Support'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+      {
+        id: 'job-may-d21-2',
+        workOrderId: 'wo-may-1015',
+        title: 'Electrical Diagnosis',
+        description: getMechanicJobDescription('Electrical Diagnosis'),
+        fru: 0.5,
+        estimatedDurationMinutes: 30,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1016',
+    referenceNumber: '014900016',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1016',
+      licensePlate: 'M-MY 016',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1016',
+      name: 'Schmitt Services',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900016',
+      email: 'schmitt.services@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d22-2',
+        workOrderId: 'wo-may-1016',
+        title: 'Brake Repair Follow-up',
+        description: getMechanicJobDescription('Brake Repair Follow-up'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1017',
+    referenceNumber: '014900017',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1017',
+      licensePlate: 'M-MY 017',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1017',
+      name: 'Lang Logistics',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900017',
+      email: 'lang.logistics@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d23-1',
+        workOrderId: 'wo-may-1017',
+        title: 'Quick Service Package',
+        description: getMechanicJobDescription('Quick Service Package'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1018',
+    referenceNumber: '014900018',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1018',
+      licensePlate: 'M-MY 018',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1018',
+      name: 'Weiss Leasing',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900018',
+      email: 'weiss.leasing@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d26-1',
+        workOrderId: 'wo-may-1018',
+        title: 'Workshop Campaign Job',
+        description: getMechanicJobDescription('Workshop Campaign Job'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1019',
+    referenceNumber: '014900019',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1019',
+      licensePlate: 'M-MY 019',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1019',
+      name: 'Jung KG',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900019',
+      email: 'jung.kg@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d27-1',
+        workOrderId: 'wo-may-1019',
+        title: 'Battery Replacement',
+        description: getMechanicJobDescription('Battery Replacement'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1020',
+    referenceNumber: '014900020',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1020',
+      licensePlate: 'M-MY 020',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1020',
+      name: 'Berger Fleet',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900020',
+      email: 'berger.fleet@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d28-1',
+        workOrderId: 'wo-may-1020',
+        title: 'A/C Service',
+        description: getMechanicJobDescription('A/C Service'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1021',
+    referenceNumber: '014900021',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1021',
+      licensePlate: 'M-MY 021',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1021',
+      name: 'Franke GmbH',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900021',
+      email: 'franke.gmbh@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d29-1',
+        workOrderId: 'wo-may-1021',
+        title: 'Workshop Recovery Job',
+        description: getMechanicJobDescription('Workshop Recovery Job'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
+  {
+    id: 'wo-may-1022',
+    referenceNumber: '014900022',
+    status: 'preparation',
+    vehicle: {
+      id: 'vehicle-wo-may-1022',
+      licensePlate: 'M-MY 022',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1022',
+      name: 'Albrecht Auto',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900022',
+      email: 'albrecht.auto@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-may-d30-1',
+        workOrderId: 'wo-may-1022',
+        title: 'Pre-weekend Check',
+        description: getMechanicJobDescription('Pre-weekend Check'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic',
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled',
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
   // Standalone PENDING Munich order mirroring 014900004 (Krueger GmbH, Suspension
   // Repair / Wheel Alignment) with an added courtesy-car (driver) requirement.
   // Intentionally has NO schedule entries, so it stays unscheduled -> Pending.
@@ -1992,7 +2517,92 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
 ];
 
 export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
-  ...MOCK_MAY_PLANNER_SCHEDULE_ENTRIES,
+  { id: 'sch-may-demo-1', jobId: 'job-may-d01-1', resourceId: 'mech-mark-owen', start: new Date('2024-05-01T09:15:00'), end: new Date('2024-05-01T11:15:00'), title: 'May service inspection', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900001', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-2', jobId: 'wo-may-1001:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-01T09:00:00'), end: new Date('2024-05-01T10:30:00'), title: 'Check-In 014900001', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900001', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-3', jobId: 'job-may-d02-1', resourceId: 'mech-phil-parker', start: new Date('2024-05-02T10:00:00'), end: new Date('2024-05-02T14:30:00'), title: 'Brake noise diagnosis', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900002', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-4', jobId: 'wo-may-1002:act-mobility', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-05-02T09:00:00'), end: new Date('2024-05-02T17:30:00'), title: 'Courtesy Car 014900002', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900002', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-5', jobId: 'job-may-d05-1', resourceId: 'mech-greg-jackson', start: new Date('2024-05-05T09:00:00'), end: new Date('2024-05-05T16:30:00'), title: 'MOT preparation', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900003', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-6', jobId: 'wo-may-1003:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-05-05T14:00:00'), end: new Date('2024-05-05T16:00:00'), title: 'Check-In 014900003', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900003', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-7', jobId: 'job-may-d06-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-05-06T09:30:00'), end: new Date('2024-05-06T12:30:00'), title: 'Suspension repair', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900004', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-8', jobId: 'wo-may-1004:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-05-06T10:00:00'), end: new Date('2024-05-06T18:00:00'), title: 'Courtesy Car 014900004', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900004', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-9', jobId: 'job-may-d07-1', resourceId: 'mech-kelly-hanson', start: new Date('2024-05-07T11:00:00'), end: new Date('2024-05-07T15:00:00'), title: 'Control unit diagnostics', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900005', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-10', jobId: 'wo-may-1005:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-07T09:00:00'), end: new Date('2024-05-07T13:00:00'), title: 'Check-In 014900005', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900005', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-11', jobId: 'job-may-d08-1', resourceId: 'mech-scenario-flex', start: new Date('2024-05-08T09:00:00'), end: new Date('2024-05-08T18:00:00'), title: 'High-priority workshop support', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900006', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-12', jobId: 'wo-may-1006:act-mobility', resourceId: 'car-bmw-320-mw112ab', start: new Date('2024-05-08T09:00:00'), end: new Date('2024-05-08T21:00:00'), title: 'Courtesy Car 014900006', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900006', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-13', jobId: 'job-may-d09-1', resourceId: 'mech-mark-owen', start: new Date('2024-05-09T09:30:00'), end: new Date('2024-05-09T11:30:00'), title: 'Tyre pressure warning', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900007', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-14', jobId: 'job-may-d09-2', resourceId: 'mech-phil-parker', start: new Date('2024-05-09T13:00:00'), end: new Date('2024-05-09T17:00:00'), title: 'Brake pad replacement', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900007', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-15', jobId: 'wo-may-1008:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-05-12T09:00:00'), end: new Date('2024-05-12T16:30:00'), title: 'Check-In 014900008', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900008', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-16', jobId: 'job-may-d12-2', resourceId: 'mech-greg-jackson', start: new Date('2024-05-12T10:00:00'), end: new Date('2024-05-12T12:30:00'), title: 'Emissions fault diagnosis', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900008', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-17', jobId: 'job-may-d13-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-05-13T09:00:00'), end: new Date('2024-05-13T11:00:00'), title: 'Steering vibration check', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900009', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-18', jobId: 'wo-may-1009:act-mobility', resourceId: 'car-scenario-courtesy', start: new Date('2024-05-13T09:00:00'), end: new Date('2024-05-13T15:00:00'), title: 'Courtesy Car 014900009', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900009', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-19', jobId: 'job-may-d14-1', resourceId: 'mech-kelly-hanson', start: new Date('2024-05-14T09:00:00'), end: new Date('2024-05-14T12:00:00'), title: 'Battery draw test', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900010', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-20', jobId: 'wo-may-1010:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-14T13:00:00'), end: new Date('2024-05-14T17:00:00'), title: 'Check-In 014900010', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900010', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-21', jobId: 'job-may-d15-1', resourceId: 'mech-phil-parker', start: new Date('2024-05-15T09:00:00'), end: new Date('2024-05-15T21:00:00'), title: 'Major repair day', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900011', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-22', jobId: 'wo-may-1011:act-mobility', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-05-15T09:00:00'), end: new Date('2024-05-15T21:00:00'), title: 'Courtesy Car 014900011', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900011', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-23', jobId: 'job-may-d16-1', resourceId: 'mech-mark-owen', start: new Date('2024-05-16T10:00:00'), end: new Date('2024-05-16T13:00:00'), title: 'Final inspection', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900012', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-24', jobId: 'wo-may-1012:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-05-16T09:00:00'), end: new Date('2024-05-16T11:00:00'), title: 'Check-In 014900012', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900012', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-25', jobId: 'job-may-d19-1', resourceId: 'mech-greg-jackson', start: new Date('2024-05-19T09:00:00'), end: new Date('2024-05-19T15:30:00'), title: 'Diagnostics backlog', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900013', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-26', jobId: 'job-may-d19-2', resourceId: 'mech-jeff-goldberg', start: new Date('2024-05-19T12:30:00'), end: new Date('2024-05-19T17:30:00'), title: 'Workshop overflow', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900013', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-27', jobId: 'wo-may-1014:act-checkin', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-20T09:00:00'), end: new Date('2024-05-20T18:00:00'), title: 'Check-In 014900014', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900014', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-28', jobId: 'wo-may-1014:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-05-20T09:00:00'), end: new Date('2024-05-20T17:00:00'), title: 'Courtesy Car 014900014', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900014', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-29', jobId: 'job-may-d21-1', resourceId: 'mech-scenario-flex', start: new Date('2024-05-21T09:00:00'), end: new Date('2024-05-21T12:00:00'), title: 'Express jobs support', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900015', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-30', jobId: 'job-may-d21-2', resourceId: 'mech-kelly-hanson', start: new Date('2024-05-21T13:00:00'), end: new Date('2024-05-21T18:00:00'), title: 'Electrical diagnosis', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900015', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-31', jobId: 'wo-may-1016:act-mobility', resourceId: 'car-bmw-320-mw112ab', start: new Date('2024-05-22T09:00:00'), end: new Date('2024-05-22T21:00:00'), title: 'Courtesy Car 014900016', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900016', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-32', jobId: 'job-may-d22-2', resourceId: 'mech-phil-parker', start: new Date('2024-05-22T10:00:00'), end: new Date('2024-05-22T14:00:00'), title: 'Brake repair follow-up', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900016', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-33', jobId: 'job-may-d23-1', resourceId: 'mech-mark-owen', start: new Date('2024-05-23T09:30:00'), end: new Date('2024-05-23T12:00:00'), title: 'Quick service package', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900017', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-34', jobId: 'wo-may-1017:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-23T10:00:00'), end: new Date('2024-05-23T15:00:00'), title: 'Check-In 014900017', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900017', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-35', jobId: 'job-may-d26-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-05-26T09:00:00'), end: new Date('2024-05-26T18:00:00'), title: 'Workshop campaign', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900018', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-36', jobId: 'wo-may-1018:act-mobility', resourceId: 'car-scenario-courtesy', start: new Date('2024-05-26T12:00:00'), end: new Date('2024-05-26T18:00:00'), title: 'Courtesy Car 014900018', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900018', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-37', jobId: 'job-may-d27-1', resourceId: 'mech-kelly-hanson', start: new Date('2024-05-27T10:00:00'), end: new Date('2024-05-27T12:30:00'), title: 'Battery replacement', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900019', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-38', jobId: 'wo-may-1019:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-05-27T09:00:00'), end: new Date('2024-05-27T14:00:00'), title: 'Check-In 014900019', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900019', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-39', jobId: 'job-may-d28-1', resourceId: 'mech-greg-jackson', start: new Date('2024-05-28T09:00:00'), end: new Date('2024-05-28T11:30:00'), title: 'A/C service', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900020', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-40', jobId: 'wo-may-1020:act-mobility', resourceId: 'car-audi-a4-kl657og', start: new Date('2024-05-28T09:00:00'), end: new Date('2024-05-28T18:00:00'), title: 'Courtesy Car 014900020', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900020', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-41', jobId: 'job-may-d29-1', resourceId: 'mech-scenario-flex', start: new Date('2024-05-29T09:00:00'), end: new Date('2024-05-29T15:00:00'), title: 'Workshop recovery block', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900021', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-42', jobId: 'wo-may-1021:act-checkin', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-29T13:00:00'), end: new Date('2024-05-29T17:30:00'), title: 'Check-In 014900021', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900021', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-demo-43', jobId: 'job-may-d30-1', resourceId: 'mech-mark-owen', start: new Date('2024-05-30T09:00:00'), end: new Date('2024-05-30T10:30:00'), title: 'Pre-weekend check', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900022', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-demo-44', jobId: 'wo-may-1022:act-mobility', resourceId: 'car-audi-a3-kl643ju', start: new Date('2024-05-30T09:00:00'), end: new Date('2024-05-30T13:00:00'), title: 'Courtesy Car 014900022', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900022', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1001', jobId: 'wo-may-1001:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-05-01T17:30:00'), end: new Date('2024-05-01T18:00:00'), title: 'Handover 014900001', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900001', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1002', jobId: 'wo-may-1002:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-02T08:30:00'), end: new Date('2024-05-02T09:00:00'), title: 'Check-In 014900002', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900002', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1002', jobId: 'wo-may-1002:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-02T17:30:00'), end: new Date('2024-05-02T18:00:00'), title: 'Handover 014900002', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900002', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1003', jobId: 'wo-may-1003:act-handover', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-05T17:30:00'), end: new Date('2024-05-05T18:00:00'), title: 'Handover 014900003', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900003', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1004', jobId: 'wo-may-1004:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-05-06T08:30:00'), end: new Date('2024-05-06T09:00:00'), title: 'Check-In 014900004', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900004', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1004', jobId: 'wo-may-1004:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-05-06T17:30:00'), end: new Date('2024-05-06T18:00:00'), title: 'Handover 014900004', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900004', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1005', jobId: 'wo-may-1005:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-07T17:30:00'), end: new Date('2024-05-07T18:00:00'), title: 'Handover 014900005', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900005', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1006', jobId: 'wo-may-1006:act-checkin', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-08T08:30:00'), end: new Date('2024-05-08T09:00:00'), title: 'Check-In 014900006', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900006', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1006', jobId: 'wo-may-1006:act-handover', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-08T17:30:00'), end: new Date('2024-05-08T18:00:00'), title: 'Handover 014900006', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900006', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1007', jobId: 'wo-may-1007:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-05-09T08:30:00'), end: new Date('2024-05-09T09:00:00'), title: 'Check-In 014900007', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900007', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1007', jobId: 'wo-may-1007:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-05-09T17:30:00'), end: new Date('2024-05-09T18:00:00'), title: 'Handover 014900007', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900007', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1008', jobId: 'wo-may-1008:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-12T17:30:00'), end: new Date('2024-05-12T18:00:00'), title: 'Handover 014900008', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900008', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1009', jobId: 'wo-may-1009:act-checkin', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-13T08:30:00'), end: new Date('2024-05-13T09:00:00'), title: 'Check-In 014900009', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900009', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1009', jobId: 'wo-may-1009:act-handover', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-13T17:30:00'), end: new Date('2024-05-13T18:00:00'), title: 'Handover 014900009', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900009', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1010', jobId: 'wo-may-1010:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-05-14T17:30:00'), end: new Date('2024-05-14T18:00:00'), title: 'Handover 014900010', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900010', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1011', jobId: 'wo-may-1011:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-15T08:30:00'), end: new Date('2024-05-15T09:00:00'), title: 'Check-In 014900011', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900011', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1011', jobId: 'wo-may-1011:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-15T17:30:00'), end: new Date('2024-05-15T18:00:00'), title: 'Handover 014900011', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900011', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1012', jobId: 'wo-may-1012:act-handover', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-16T17:30:00'), end: new Date('2024-05-16T18:00:00'), title: 'Handover 014900012', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900012', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1013', jobId: 'wo-may-1013:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-05-19T08:30:00'), end: new Date('2024-05-19T09:00:00'), title: 'Check-In 014900013', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900013', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1013', jobId: 'wo-may-1013:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-05-19T17:30:00'), end: new Date('2024-05-19T18:00:00'), title: 'Handover 014900013', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900013', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1014', jobId: 'wo-may-1014:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-20T17:30:00'), end: new Date('2024-05-20T18:00:00'), title: 'Handover 014900014', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900014', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1015', jobId: 'wo-may-1015:act-checkin', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-21T08:30:00'), end: new Date('2024-05-21T09:00:00'), title: 'Check-In 014900015', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900015', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1015', jobId: 'wo-may-1015:act-handover', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-21T17:30:00'), end: new Date('2024-05-21T18:00:00'), title: 'Handover 014900015', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900015', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1016', jobId: 'wo-may-1016:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-05-22T08:30:00'), end: new Date('2024-05-22T09:00:00'), title: 'Check-In 014900016', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900016', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1016', jobId: 'wo-may-1016:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-05-22T17:30:00'), end: new Date('2024-05-22T18:00:00'), title: 'Handover 014900016', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900016', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1017', jobId: 'wo-may-1017:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-23T17:30:00'), end: new Date('2024-05-23T18:00:00'), title: 'Handover 014900017', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900017', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1018', jobId: 'wo-may-1018:act-checkin', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-26T08:30:00'), end: new Date('2024-05-26T09:00:00'), title: 'Check-In 014900018', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900018', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1018', jobId: 'wo-may-1018:act-handover', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-26T17:30:00'), end: new Date('2024-05-26T18:00:00'), title: 'Handover 014900018', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900018', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1019', jobId: 'wo-may-1019:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-05-27T17:30:00'), end: new Date('2024-05-27T18:00:00'), title: 'Handover 014900019', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900019', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1020', jobId: 'wo-may-1020:act-checkin', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-28T08:30:00'), end: new Date('2024-05-28T09:00:00'), title: 'Check-In 014900020', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900020', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1020', jobId: 'wo-may-1020:act-handover', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-28T17:30:00'), end: new Date('2024-05-28T18:00:00'), title: 'Handover 014900020', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900020', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1021', jobId: 'wo-may-1021:act-handover', resourceId: 'advisor-scenario-lead', start: new Date('2024-05-29T17:30:00'), end: new Date('2024-05-29T18:00:00'), title: 'Handover 014900021', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900021', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-checkin-wo-may-1022', jobId: 'wo-may-1022:act-checkin', resourceId: 'advisor-frank-miller', start: new Date('2024-05-30T08:30:00'), end: new Date('2024-05-30T09:00:00'), title: 'Check-In 014900022', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900022', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-handover-wo-may-1022', jobId: 'wo-may-1022:act-handover', resourceId: 'advisor-frank-miller', start: new Date('2024-05-30T17:30:00'), end: new Date('2024-05-30T18:00:00'), title: 'Handover 014900022', color: '#A6C8FF', kind: 'scheduled', workOrderReference: '014900022', workorderItemStatus: 'scheduled', workorderItemCategory: 'activity' },
+  { id: 'sch-may-capacity-1', jobId: 'job-may-d02-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-05-02T09:00:00'), end: new Date('2024-05-02T11:00:00'), title: 'Prepare parts and road test', color: '#4C68B1', kind: 'day-capacity', workOrderReference: '014900002', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-capacity-2', jobId: 'job-may-d06-1', resourceId: 'mech-greg-jackson', start: new Date('2024-05-06T09:00:00'), end: new Date('2024-05-06T12:00:00'), title: 'Capacity hold: diagnostics', color: '#4C68B1', kind: 'day-capacity', workOrderReference: '014900004', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-capacity-3', jobId: 'job-may-d08-1', resourceId: 'advisor-frank-miller', start: new Date('2024-05-08T09:00:00'), end: new Date('2024-05-08T11:00:00'), title: 'Callback capacity', color: '#4C68B1', kind: 'day-capacity', workOrderReference: '014900006', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-capacity-4', jobId: 'job-may-d12-2', resourceId: 'mech-phil-parker', start: new Date('2024-05-12T09:00:00'), end: new Date('2024-05-12T13:00:00'), title: 'Capacity hold: brake repair', color: '#4C68B1', kind: 'day-capacity', workOrderReference: '014900008', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-capacity-5', jobId: 'job-may-d15-1', resourceId: 'advisor-ted-phillips', start: new Date('2024-05-15T09:00:00'), end: new Date('2024-05-15T12:00:00'), title: 'Capacity hold: handovers', color: '#4C68B1', kind: 'day-capacity', workOrderReference: '014900011', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-capacity-6', jobId: 'job-may-d19-1', resourceId: 'car-scenario-courtesy', start: new Date('2024-05-19T09:00:00'), end: new Date('2024-05-19T15:00:00'), title: 'Courtesy car day hold', color: '#4C68B1', kind: 'day-capacity', workOrderReference: '014900013', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-capacity-7', jobId: 'job-may-d22-2', resourceId: 'mech-mark-owen', start: new Date('2024-05-22T09:00:00'), end: new Date('2024-05-22T11:00:00'), title: 'Capacity hold: quality check', color: '#4C68B1', kind: 'day-capacity', workOrderReference: '014900016', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
+  { id: 'sch-may-capacity-8', jobId: 'job-may-d28-1', resourceId: 'mech-kelly-hanson', start: new Date('2024-05-28T09:00:00'), end: new Date('2024-05-28T12:00:00'), title: 'Capacity hold: A/C follow-up', color: '#4C68B1', kind: 'day-capacity', workOrderReference: '014900020', workorderItemStatus: 'scheduled', workorderItemCategory: 'job' },
   { id: 'sch-vie-701-frank-checkin', jobId: 'wo-vie-2001:act-checkin', resourceId: 'vie-advisor-frank-reynold', start: new Date('2024-04-15T09:00:00'), end: new Date('2024-04-15T09:30:00'), title: 'Check-In 014826701', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826701' },
   { id: 'sch-vie-701-kelly-hv', jobId: 'job-vie-2001-high-voltage-diagnosis', resourceId: 'vie-tech-kelly-hanson', start: new Date('2024-04-15T09:30:00'), end: new Date('2024-04-15T10:30:00'), title: 'High Voltage Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826701' },
   { id: 'sch-vie-701-bay-hv', jobId: 'job-vie-2001-high-voltage-diagnosis', resourceId: 'vie-bay-pc-1', start: new Date('2024-04-15T09:30:00'), end: new Date('2024-04-15T10:30:00'), title: 'High Voltage Diagnosis', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826701' },
