@@ -82,8 +82,8 @@ describe('Mock data location/reference integrity (regression for 4bc9cf7)', () =
     const workOrdersByReference = new Map(MOCK_WORK_ORDERS.map(o => [o.referenceNumber, o]));
 
     // (c1) The May demo band 014900001-014900022 exists and maps 1:1 to wo-may-*.
-    it('maps the May band 014900001-014900022 to wo-may-1001..1022', () => {
-      for (let i = 1; i <= 22; i++) {
+    it('maps the May band 014900001-014900023 to wo-may-1001..1023', () => {
+      for (let i = 1; i <= 23; i++) {
         const reference = pad(14900000 + i);
         const order = workOrdersByReference.get(reference);
         expect(order, `missing May work order for reference ${reference}`).toBeTruthy();

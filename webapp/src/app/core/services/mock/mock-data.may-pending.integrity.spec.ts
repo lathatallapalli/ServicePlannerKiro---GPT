@@ -231,11 +231,17 @@ function isOrderPlanned(order: any): boolean {
   return getOrderPlanningState(order) !== 'unscheduled';
 }
 
-const wayMayOrders = MOCK_WORK_ORDERS.filter(o => /^wo-may-10\d\d$/.test(o.id));
+const allWoMayOrders = MOCK_WORK_ORDERS.filter(o => /^wo-may-10\d+$/.test(o.id));
+// wo-may-1001..1022 are the booked May demo orders (must be planned).
+// wo-may-1023 is an intentionally-pending standalone order (no schedule entries).
+const wayMayOrders = allWoMayOrders.filter(o => o.id !== 'wo-may-1023');
+const pendingByDesign = allWoMayOrders.filter(o => o.id === 'wo-may-1023');
 
 describe('May booked orders do not leak into Pending (regression)', () => {
-  it('finds all 22 wo-may-* orders', () => {
+  it('finds all 23 wo-may-* orders (22 booked + 1 intentionally pending)', () => {
+    expect(allWoMayOrders.length).toBe(23);
     expect(wayMayOrders.length).toBe(22);
+    expect(pendingByDesign.length).toBe(1);
   });
 
   it('attaches at least one schedule entry to every wo-may-* order item', () => {
@@ -276,9 +282,25 @@ describe('May booked orders do not leak into Pending (regression)', () => {
     }
   });
 
-  it('reports zero wo-may-* orders in the (status-based) Pending set', () => {
+  it('reports zero booked wo-may-* orders in the (status-based) Pending set', () => {
     const pending = wayMayOrders.filter(o => !isOrderPlanned(o));
     expect(pending.length).toBe(0);
+  });
+
+  it('keeps wo-may-1023 as an intentionally-pending order with a courtesy-car requirement', () => {
+    const order = pendingByDesign[0];
+    expect(order, 'wo-may-1023 should exist').toBeTruthy();
+    // It is pending: no schedule entries reference it, so it is not planned.
+    expect(isOrderPlanned(order)).toBe(false);
+    expect(
+      MOCK_SCHEDULE_ENTRIES.some(e => e.workOrderReference === order.referenceNumber),
+      'wo-may-1023 must have no schedule entries (it is pending)',
+    ).toBe(false);
+    // It carries a courtesy-car (driver) resource requirement.
+    const hasCourtesyCar = (order.jobs ?? []).some(job =>
+      (job.resourceRequirements ?? []).some(req => req.resourceType === 'driver'),
+    );
+    expect(hasCourtesyCar, 'wo-may-1023 must have a driver (courtesy car) requirement').toBe(true);
   });
 });
 
@@ -286,8 +308,8 @@ describe('May pending fix preserves reference-band integrity', () => {
   const pad = (reference: number) => String(reference).padStart(9, '0');
   const workOrdersByReference = new Map(MOCK_WORK_ORDERS.map(o => [o.referenceNumber, o]));
 
-  it('maps the May band 014900001-014900022 to wo-may-1001..1022 one-to-one', () => {
-    for (let i = 1; i <= 22; i++) {
+  it('maps the May band 014900001-014900023 to wo-may-1001..1023 one-to-one', () => {
+    for (let i = 1; i <= 23; i++) {
       const reference = pad(14900000 + i);
       const order = workOrdersByReference.get(reference);
       expect(order, `missing May work order for reference ${reference}`).toBeTruthy();

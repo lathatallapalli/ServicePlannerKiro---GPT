@@ -1923,6 +1923,60 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
     createdAt: baseDate,
     updatedAt: baseDate,
   })),
+  // Standalone PENDING Munich order mirroring 014900004 (Krueger GmbH, Suspension
+  // Repair / Wheel Alignment) with an added courtesy-car (driver) requirement.
+  // Intentionally has NO schedule entries, so it stays unscheduled -> Pending.
+  {
+    id: 'wo-may-1023',
+    referenceNumber: '014900023',
+    status: 'preparation' as const,
+    vehicle: {
+      id: 'vehicle-wo-may-1023',
+      licensePlate: 'M-MY 004',
+      make: 'BMW',
+      model: 'Workshop Vehicle',
+      mileage: 60000,
+    },
+    customer: {
+      id: 'customer-wo-may-1023',
+      name: 'Krueger GmbH',
+      city: 'Munich',
+      country: 'Germany',
+      phone: '+49 89 900023',
+      email: 'krueger.gmbh@example.com',
+    },
+    jobs: [
+      {
+        id: 'job-wo-may-1023-1',
+        workOrderId: 'wo-may-1023',
+        title: 'Suspension Repair',
+        description: getMechanicJobDescription('Suspension Repair'),
+        fru: 0.75,
+        estimatedDurationMinutes: 45,
+        requiredResourceType: 'mechanic' as const,
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: [
+          ...defaultBackgroundJobRequirements,
+          { resourceType: 'driver' as const, requiredQualifications: [], label: 'Courtesy Car' },
+        ],
+        status: 'unscheduled' as const,
+      },
+      {
+        id: 'job-wo-may-1023-2',
+        workOrderId: 'wo-may-1023',
+        title: 'Wheel Alignment',
+        description: getMechanicJobDescription('Wheel Alignment'),
+        fru: 0.5,
+        estimatedDurationMinutes: 30,
+        requiredResourceType: 'mechanic' as const,
+        requiredQualifications: [QUALIFICATIONS.generalService],
+        resourceRequirements: defaultBackgroundJobRequirements,
+        status: 'unscheduled' as const,
+      },
+    ],
+    createdAt: baseDate,
+    updatedAt: baseDate,
+  },
 ];
 
 export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
