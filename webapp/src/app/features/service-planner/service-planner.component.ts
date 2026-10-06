@@ -2380,6 +2380,14 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     this.showBookingDetails = isActive;
     if (!isActive) {
       this.expandedOrderIds = new Set([order.id]);
+      // Focusing an order scrolls to (and pulses) its bookings within the current window,
+      // mirroring findOrderOnPlanner. Note: this only scrolls within the loaded time window;
+      // it does not move viewStart/viewEnd, so bookings on another day/week are not revealed
+      // (tracked as a known issue — see docs/known-issues.md "Focus does not align time window").
+      const focusIds = this.getPlannerFocusEntryIdsForOrder(order);
+      if (focusIds.length) {
+        this.focusPlannerEvents(focusIds, { pulse: true });
+      }
     }
   }
 
