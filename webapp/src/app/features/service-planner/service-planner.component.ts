@@ -2564,7 +2564,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       case 'outside-working-hours':
         return 'Choose a time inside working hours.';
       case 'resource-mismatch':
-        return reason.detail ? `Choose a compatible ${reason.detail} resource.` : 'Choose a compatible resource.';
+        return 'Choose a compatible resource.';
       case 'resource-unavailable':
         return 'The target resource is unavailable or already booked.';
       case 'vehicle-unavailable':
