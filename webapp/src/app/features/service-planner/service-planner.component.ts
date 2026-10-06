@@ -795,7 +795,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   get visibleSchedulerGroups(): SchedulerGroup[] {
     const resourceGroupIds = new Set(this.resourcesForSelectedView.map(resource => resource.groupId).filter(Boolean));
-    const viewGroups = this.groups.filter(group => resourceGroupIds.has(group.id));
+    const mergeLabels = new Map(
+      (this.plannerSettings.selectedResourceView()?.groupMerges ?? []).map(merge => [merge.into, merge.label])
+    );
+    const viewGroups = this.groups
+      .filter(group => resourceGroupIds.has(group.id))
+      .map(group => mergeLabels.has(group.id) ? { ...group, label: mergeLabels.get(group.id)! } : group);
     if (!this.viewPersonalCalendarOnTop) return viewGroups;
     return [
       this.personalCalendarGroup,
@@ -1404,10 +1409,20 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
     const viewResourceIds = new Set(activeView.resourceIds);
     const viewLocationId = activeView.demoLocationId;
-    return this.resources.filter(resource => {
+    const inView = this.resources.filter(resource => {
       if (!viewResourceIds.has(resource.id)) return false;
       const resourceLocationId = (resource.meta as Resource | undefined)?.demoLocationId;
       return viewLocationId ? resourceLocationId === viewLocationId : !resourceLocationId;
+    });
+    if (!activeView.groupMerges?.length) return inView;
+
+    const mergeByGroupId = new Map<string, { into: string; label: string }>();
+    for (const merge of activeView.groupMerges) {
+      for (const from of [merge.into, ...merge.from]) mergeByGroupId.set(from, { into: merge.into, label: merge.label });
+    }
+    return inView.map(resource => {
+      const merge = resource.groupId ? mergeByGroupId.get(resource.groupId) : undefined;
+      return merge ? { ...resource, groupId: merge.into, groupLabel: merge.label } : resource;
     });
   }
 

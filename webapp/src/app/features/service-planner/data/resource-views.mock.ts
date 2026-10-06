@@ -118,6 +118,8 @@ export const DEMO_RESOURCE_VIEWS: ResourceFavoriteView[] = [
     label: 'Service Center Vienna',
     value: 'view-service-center-vienna',
     demoLocationId: 'vienna',
+    // Only the Vienna Split View shows Technicians A / B separately.
+    groupMerges: [{ into: 'group-vienna-technicians', from: ['group-vienna-technicians-b'], label: 'Technicians' }],
     personalCalendarResourceId: 'vie-advisor-frank-reynold',
     catalogGroupIds: [
       'service-center-vienna-technicians',

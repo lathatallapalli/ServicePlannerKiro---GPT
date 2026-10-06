@@ -10,6 +10,8 @@ export interface ResourceFavoriteView {
   demoLocationId?: string;
   catalogGroupIds?: string[];
   personalCalendarResourceId?: string;
+  /** Show several resource groups as one group in this view (e.g. merge Technicians A + B). */
+  groupMerges?: Array<{ into: string; from: string[]; label: string }>;
 }
 
 export interface PlannerResourceContext {
