@@ -23,6 +23,7 @@ import { ResourceFavoriteView } from './services/planner-settings.service';
 import { AppointmentSyncService } from '../../core/services/appointment-sync.service';
 import { QuickViewSelectionService } from '../quick-view/quick-view-selection.service';
 import { BookingCategoriesService } from '../booking-categories/booking-categories.service';
+import { applyGroupMerges, getRequirementForResource, isCapacityGroupCompatible, isCapacityResourceCompatible } from './drop-validation.rules';
 
 const MINUTES_PER_FRU = 60;
 
@@ -872,6 +873,15 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     return invalidResources;
   }
 
+  get manualCapacityInvalidGroupIds(): string[] {
+    const context = this.manualDragContext;
+    if (!context) return [];
+    const resources = this.resourcesForSelectedView;
+    return this.visibleSchedulerGroups
+      .filter(group => !isCapacityGroupCompatible(context.kind, { id: group.id, resourceType: (group as any).resourceType }, context.requirements, resources))
+      .map(group => group.id);
+  }
+
   get manualDropVisualContext(): SchedulerDropVisualContext | null {
     if (this.manualResizeContext) {
       return {
@@ -1158,22 +1168,23 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
     const findGroupForRequirement = (requirement: { resourceType: string; requiredQualifications?: any[] }): any => {
       const candidates = this.visibleSchedulerGroups.filter(g => (g as any).resourceType === requirement.resourceType);
       if (candidates.length <= 1) return candidates[0] ?? this.groups.find(g => (g as any).resourceType === requirement.resourceType);
-      // If user dropped on a specific group of this type, prefer it
+      // Use view-remapped resources so merged groups (groupMerges) include all their members
+      const viewResources = this.resourcesForSelectedView;
+      const groupHasQualified = (group: any): boolean => isCapacityGroupCompatible(
+        'job',
+        { id: group.id, resourceType: group.resourceType },
+        [{ resourceType: requirement.resourceType, requiredQualifications: requirement.requiredQualifications ?? [] } as JobResourceRequirement],
+        viewResources,
+      );
+      // If user dropped on a specific group of this type, prefer it (only if it can serve the requirement)
       if (options.preferredGroupId) {
         const preferred = candidates.find(g => g.id === options.preferredGroupId);
-        if (preferred) return preferred;
+        if (preferred && (!requirement.requiredQualifications?.length || groupHasQualified(preferred))) return preferred;
       }
       // Multiple groups of same type — find one with resources matching qualifications
       if (requirement.requiredQualifications?.length) {
         for (const group of candidates) {
-          const groupResources = this.resources.filter(r => r.groupId === group.id);
-          const hasQualifiedResource = groupResources.some(r => {
-            const raw = r.meta as Resource | undefined;
-            return raw && requirement.requiredQualifications!.every(q =>
-              raw.qualifications.some(rq => rq.id === q.id)
-            );
-          });
-          if (hasQualifiedResource) return group;
+          if (groupHasQualified(group)) return group;
         }
       }
       return candidates[0];
@@ -1414,16 +1425,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       const resourceLocationId = (resource.meta as Resource | undefined)?.demoLocationId;
       return viewLocationId ? resourceLocationId === viewLocationId : !resourceLocationId;
     });
-    if (!activeView.groupMerges?.length) return inView;
-
-    const mergeByGroupId = new Map<string, { into: string; label: string }>();
-    for (const merge of activeView.groupMerges) {
-      for (const from of [merge.into, ...merge.from]) mergeByGroupId.set(from, { into: merge.into, label: merge.label });
-    }
-    return inView.map(resource => {
-      const merge = resource.groupId ? mergeByGroupId.get(resource.groupId) : undefined;
-      return merge ? { ...resource, groupId: merge.into, groupLabel: merge.label } : resource;
-    });
+    return applyGroupMerges(inView, activeView.groupMerges);
   }
 
   private get visibleResourcePool(): SchedulerResource[] {
@@ -4321,6 +4323,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
     // For order-level drops, book ALL required groups using the group-level proposal
     if (payload.dropType === 'order' && activeOrderId) {
+      const droppedOrder = this.allOrders.find(candidate => candidate.id === activeOrderId || candidate.referenceNumber === activeOrderId);
+      if (droppedOrder && !isCapacityGroupCompatible('order', { id: group.id, resourceType: (group as any).resourceType }, this.getAllOrderSchedulingRequirements(droppedOrder), this.resourcesForSelectedView)) {
+        this.setSchedulingError('Choose a compatible resource.', 'Drop not possible');
+        this.clearManualInteractionState();
+        return;
+      }
       const date = payload.date ?? payload.start;
       const start = this.getDayCapacityStart(date);
       this.applyGroupLevelProposal(start, true, { orderId: activeOrderId, preferredGroupId: groupId });
@@ -4338,9 +4346,9 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
       const job = this.allOrders.flatMap((o: any) => o.jobs ?? []).find((j: any) => j.id === payload.jobId);
       if (job) {
         const requirements = this.getSchedulingRequirements(job);
-        const matches = requirements.some(req => req.resourceType === groupResourceType);
+        const matches = isCapacityGroupCompatible('job', { id: group.id, resourceType: groupResourceType }, requirements, this.resourcesForSelectedView);
         if (!matches) {
-          this.setSchedulingError(`This job does not require a ${this.formatResourceType(groupResourceType)}.`, 'Drop not possible');
+          this.setSchedulingError('Choose a compatible resource.', 'Drop not possible');
           this.clearManualInteractionState();
           return;
         }
@@ -4512,10 +4520,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
     // Check that dropped resource matches at least one requirement
     const allRequirements = jobs.flatMap((job: any) => this.getSchedulingRequirements(job));
-    const droppedResourceMatchesAny = allRequirements.some(req =>
-      rawDroppedResource.type === req.resourceType &&
-      req.requiredQualifications.every(q => rawDroppedResource.qualifications.some(rq => rq.id === q.id))
-    );
+    const droppedResourceMatchesAny = !!getRequirementForResource(allRequirements, rawDroppedResource);
     if (!droppedResourceMatchesAny) {
       // If dropped on an advisor, book activities instead of jobs
       if ((rawDroppedResource.type as string) === 'advisor') {
@@ -6055,17 +6060,11 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
 
   private isManualCapacityResourceCompatible(context: ManualDragContext, resource: SchedulerResource): boolean {
     const rawResource = resource.meta as Resource | undefined;
-    if (!rawResource) return false;
-    return context.requirements.some(requirement => requirement.resourceType === rawResource.type);
+    return !!rawResource && isCapacityResourceCompatible(context.kind, context.requirements, rawResource);
   }
 
   private getRequirementForResource(requirements: JobResourceRequirement[], resource: Resource): JobResourceRequirement | null {
-    return requirements.find(requirement =>
-      resource.type === requirement.resourceType &&
-      requirement.requiredQualifications.every(qualification =>
-        resource.qualifications.some(resourceQualification => resourceQualification.id === qualification.id)
-      )
-    ) ?? null;
+    return getRequirementForResource(requirements, resource);
   }
 
   private isManualDropSequenceValid(context: ManualDragContext, start: Date, end: Date): boolean {

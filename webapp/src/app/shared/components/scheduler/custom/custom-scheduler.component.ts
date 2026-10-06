@@ -120,6 +120,7 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   @Input() public invalidDropRanges: SchedulerInvalidDropRange[] = [];
   @Input() public resizeInvalidHint = '';
   @Input() public invalidCapacityResources: SchedulerInvalidCapacityResource[] = [];
+  @Input() public invalidCapacityGroupIds: string[] = [];
   @Input() public dropVisualContext: SchedulerDropVisualContext | null = null;
   @Input() public selectedTimeRange: SchedulerTimeRangePayload | null = null;
   @Input() public navigationTitle = '';
@@ -2463,6 +2464,10 @@ export class CustomSchedulerComponent implements OnInit, OnChanges, AfterViewIni
   isGroupCapacityDropTarget(groupId: string, day: Date): boolean {
     return this.groupCapacityDropTarget?.groupId === groupId &&
       this.groupCapacityDropTarget?.dayKey === day.toDateString();
+  }
+
+  isGroupCapacityDropInvalid(groupId: string, day: Date): boolean {
+    return this.isGroupCapacityDropTarget(groupId, day) && this.invalidCapacityGroupIds.includes(groupId);
   }
 
   onGroupCapacityDragOver(e: DragEvent, groupId: string, day: Date): void {

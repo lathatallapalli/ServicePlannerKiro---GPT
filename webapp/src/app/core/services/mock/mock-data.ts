@@ -243,7 +243,7 @@ const orderLifecycleScenarios: Record<string, {
 
 const defaultBackgroundJobRequirements: JobResourceRequirement[] = [
   { resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' },
-  { resourceType: 'bay' as const, requiredQualifications: [], label: 'PC Bay' },
+  { resourceType: 'bay' as const, requiredQualifications: [QUALIFICATIONS.pcBay], label: 'PC Bay' },
 ];
 
 const backgroundJobRequirementsByOrder: Record<string, [JobResourceRequirement[], JobResourceRequirement[]]> = {
@@ -2665,7 +2665,7 @@ export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
   { id: 'sch-bg-1003-greg-2', jobId: 'job-wo-bg-1003-2', resourceId: 'mech-greg-jackson', start: new Date('2024-04-15T14:15:00'), end: new Date('2024-04-15T14:30:00'), title: 'Cabin Filter Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
   { id: 'sch-bg-1003-bay-2', jobId: 'job-wo-bg-1003-2', resourceId: 'bay-pc-3', start: new Date('2024-04-15T14:15:00'), end: new Date('2024-04-15T14:30:00'), title: 'Cabin Filter Replacement', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826502' },
   { id: 'sch-bg-1004-jeff-1', jobId: 'job-wo-bg-1004-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T14:30:00'), title: 'Suspension Noise Investigation', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
-  { id: 'sch-bg-1004-bay-1', jobId: 'job-wo-bg-1004-1', resourceId: 'bay-lt-1', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T14:30:00'), title: 'Suspension Noise Investigation', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
+  { id: 'sch-bg-1004-bay-1', jobId: 'job-wo-bg-1004-1', resourceId: 'bay-pc-2', start: new Date('2024-04-15T13:30:00'), end: new Date('2024-04-15T14:30:00'), title: 'Suspension Noise Investigation', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
   { id: 'sch-bg-1004-jeff-2', jobId: 'job-wo-bg-1004-2', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-15T14:30:00'), end: new Date('2024-04-15T15:00:00'), title: 'Shock Absorber Inspection', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826503' },
   { id: 'sch-bg-1005-kelly-1', jobId: 'job-wo-bg-1005-1', resourceId: 'mech-kelly-hanson', start: new Date('2024-04-15T16:00:00'), end: new Date('2024-04-15T16:45:00'), title: 'Control Unit Scan', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
   { id: 'sch-bg-1005-bay-1', jobId: 'job-wo-bg-1005-1', resourceId: 'bay-pc-1', start: new Date('2024-04-15T16:00:00'), end: new Date('2024-04-15T16:45:00'), title: 'Control Unit Scan', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826504' },
@@ -2680,7 +2680,7 @@ export const MOCK_SCHEDULE_ENTRIES: ScheduleEntry[] = [
   { id: 'sch-bg-1007-bay-1', jobId: 'job-wo-bg-1007-1', resourceId: 'bay-pc-3', start: new Date('2024-04-16T10:15:00'), end: new Date('2024-04-16T11:00:00'), title: 'Coolant Leak Check', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
   { id: 'sch-bg-1007-phil-2', jobId: 'job-wo-bg-1007-2', resourceId: 'mech-phil-parker', start: new Date('2024-04-16T11:00:00'), end: new Date('2024-04-16T11:30:00'), title: 'Pressure Test', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826506' },
   { id: 'sch-bg-1008-greg-1', jobId: 'job-wo-bg-1008-1', resourceId: 'mech-greg-jackson', start: new Date('2024-04-16T13:15:00'), end: new Date('2024-04-16T14:00:00'), title: 'Noise From Rear Axle', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
-  { id: 'sch-bg-1008-bay-1', jobId: 'job-wo-bg-1008-1', resourceId: 'bay-lt-1', start: new Date('2024-04-16T13:15:00'), end: new Date('2024-04-16T14:00:00'), title: 'Noise From Rear Axle', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
+  { id: 'sch-bg-1008-bay-1', jobId: 'job-wo-bg-1008-1', resourceId: 'bay-pc-2', start: new Date('2024-04-16T13:15:00'), end: new Date('2024-04-16T14:00:00'), title: 'Noise From Rear Axle', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
   { id: 'sch-bg-1008-greg-2', jobId: 'job-wo-bg-1008-2', resourceId: 'mech-greg-jackson', start: new Date('2024-04-16T14:00:00'), end: new Date('2024-04-16T14:30:00'), title: 'Road Test', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826507' },
   { id: 'sch-bg-1009-jeff-1', jobId: 'job-wo-bg-1009-1', resourceId: 'mech-jeff-goldberg', start: new Date('2024-04-16T14:45:00'), end: new Date('2024-04-16T15:15:00'), title: 'Navigation System Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
   { id: 'sch-bg-1009-eps-1', jobId: 'job-wo-bg-1009-1', resourceId: 'device-eps-708', start: new Date('2024-04-16T14:45:00'), end: new Date('2024-04-16T15:15:00'), title: 'Navigation System Update', color: '#A6C8FF', kind: 'blocked-order', workOrderReference: '014826508' },
