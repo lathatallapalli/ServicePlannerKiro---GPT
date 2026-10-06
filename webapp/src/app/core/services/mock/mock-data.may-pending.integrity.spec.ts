@@ -287,7 +287,7 @@ describe('May booked orders do not leak into Pending (regression)', () => {
     expect(pending.length).toBe(0);
   });
 
-  it('keeps wo-may-1023 as an intentionally-pending order with a courtesy-car requirement', () => {
+  it('keeps wo-may-1023 as an intentionally-pending order with a courtesy-car activity', () => {
     const order = pendingByDesign[0];
     expect(order, 'wo-may-1023 should exist').toBeTruthy();
     // It is pending: no schedule entries reference it, so it is not planned.
@@ -296,11 +296,19 @@ describe('May booked orders do not leak into Pending (regression)', () => {
       MOCK_SCHEDULE_ENTRIES.some(e => e.workOrderReference === order.referenceNumber),
       'wo-may-1023 must have no schedule entries (it is pending)',
     ).toBe(false);
-    // It carries a courtesy-car (driver) resource requirement.
-    const hasCourtesyCar = (order.jobs ?? []).some(job =>
-      (job.resourceRequirements ?? []).some(req => req.resourceType === 'driver'),
+    // Courtesy car is modeled as an act-mobility ACTIVITY, not a job requirement.
+    const items = order.jobs ?? [];
+    const mobility = items.find(item => item.templateId === 'act-mobility');
+    expect(mobility, 'wo-may-1023 must have an act-mobility (courtesy car) activity').toBeTruthy();
+    expect(mobility!.workorderItemCategory).toBe('activity');
+    const jobsWithDriverReq = items.filter(item =>
+      item.workorderItemCategory !== 'activity' &&
+      (item.resourceRequirements ?? []).some(req => req.resourceType === 'driver'),
     );
-    expect(hasCourtesyCar, 'wo-may-1023 must have a driver (courtesy car) requirement').toBe(true);
+    expect(jobsWithDriverReq.map(j => j.id), 'no job should carry a courtesy-car requirement').toEqual([]);
+    // Suspension Repair is 2 hours.
+    const suspension = items.find(item => item.title === 'Suspension Repair');
+    expect(suspension?.estimatedDurationMinutes).toBe(120);
   });
 });
 
