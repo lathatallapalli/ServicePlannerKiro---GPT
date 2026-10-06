@@ -7,10 +7,11 @@ import {
 /**
  * Permanent integrity test for the "booked May orders leak into Pending" fix.
  *
- * The defect: the 22 Munich May-planner demo orders wo-may-1001..wo-may-1022
- * (reference band 014900001-014900022) each had two May booking schedule entries,
- * but those entries carried jobIds `job-may-dNN-1/-2` while the orders' work-order
- * items were generated as `job-wo-may-10NN-1/-2`. Planning state attaches a
+ * The defect: the 22 Munich orders booked in May (now wo-bg-1011..wo-bg-1032;
+ * reference band 014900001-014900022) each had two May booking schedule entries,
+ * but those entries carried booking jobIds in a different scheme from the orders'
+ * generated work-order item ids (job ids have since been unified to `job-wo-bg-10MM-K`).
+ * Planning state attaches a
  * schedule entry to an order item only when BOTH
  *   entry.workOrderReference === order.referenceNumber
  *   AND (entry.jobId === item.id  OR, for activities, templateId matches)
@@ -26,7 +27,7 @@ import {
  *
  * This spec reproduces the production attachment + status-rollup logic (faithful
  * copies of the relevant helpers from service-planner.component.ts) against the
- * exported mock arrays and asserts that ZERO wo-may-* orders resolve to
+ * exported mock arrays and asserts that ZERO May-band orders resolve to
  * `unscheduled` (i.e. none would appear in Pending). It also re-asserts the
  * reference-band integrity invariants that must not regress.
  */
@@ -231,21 +232,29 @@ function isOrderPlanned(order: any): boolean {
   return getOrderPlanningState(order) !== 'unscheduled';
 }
 
-const allWoMayOrders = MOCK_WORK_ORDERS.filter(o => /^wo-may-10\d+$/.test(o.id));
-// wo-may-1001..1022 are the booked May demo orders (must be planned).
-// wo-may-1023 is an intentionally-pending standalone order (no schedule entries).
-const wayMayOrders = allWoMayOrders.filter(o => o.id !== 'wo-may-1023');
-const pendingByDesign = allWoMayOrders.filter(o => o.id === 'wo-may-1023');
+const padRef = (n: number) => String(n).padStart(9, '0');
+// The May orders are identified by their reference band, not by id prefix.
+const MAY_BAND = new Set(Array.from({ length: 23 }, (_, i) => padRef(14900001 + i)));
+// 014900001-014900022 (wo-bg-1011..1032) are the booked May orders (must be planned).
+// 014900023 (wo-bg-1033) is an intentionally-pending standalone order (no schedule entries).
+const PENDING_REFERENCE = '014900023';
+const allMayBandOrders = MOCK_WORK_ORDERS.filter(o => MAY_BAND.has(o.referenceNumber));
+const bookedMayOrders = allMayBandOrders.filter(o => o.referenceNumber !== PENDING_REFERENCE);
+const pendingByDesign = allMayBandOrders.filter(o => o.referenceNumber === PENDING_REFERENCE);
 
 describe('May booked orders do not leak into Pending (regression)', () => {
-  it('finds all 23 wo-may-* orders (22 booked + 1 intentionally pending)', () => {
-    expect(allWoMayOrders.length).toBe(23);
-    expect(wayMayOrders.length).toBe(22);
+  it('finds all 23 May-band (014900001-023) orders (22 booked + 1 intentionally pending)', () => {
+    expect(allMayBandOrders.length).toBe(23);
+    expect(bookedMayOrders.length).toBe(22);
     expect(pendingByDesign.length).toBe(1);
+    expect(bookedMayOrders.map(o => o.id)).toEqual(
+      Array.from({ length: 22 }, (_, i) => `wo-bg-${1011 + i}`),
+    );
+    expect(pendingByDesign[0].id).toBe('wo-bg-1033');
   });
 
-  it('attaches at least one schedule entry to every wo-may-* order item', () => {
-    for (const order of wayMayOrders) {
+  it('attaches at least one schedule entry to every May-band (014900001-023) order item', () => {
+    for (const order of bookedMayOrders) {
       for (const item of order.jobs ?? []) {
         const isActivity = item.workorderItemCategory === 'activity' || isActivityId(item.id);
         const templateId = item.templateId ?? getActivityTemplateId(item.id);
@@ -263,16 +272,16 @@ describe('May booked orders do not leak into Pending (regression)', () => {
     }
   });
 
-  it('resolves every wo-may-* order as planned (scheduled/reserved), never unscheduled', () => {
-    const unscheduled = wayMayOrders.filter(o => getOrderPlanningState(o) === 'unscheduled');
+  it('resolves every May-band (014900001-023) order as planned (scheduled/reserved), never unscheduled', () => {
+    const unscheduled = bookedMayOrders.filter(o => getOrderPlanningState(o) === 'unscheduled');
     expect(
       unscheduled.map(o => o.id),
-      `these wo-may orders still resolve to unscheduled (would appear in Pending): ${unscheduled
+      `these May-band orders still resolve to unscheduled (would appear in Pending): ${unscheduled
         .map(o => o.id)
         .join(', ')}`,
     ).toEqual([]);
 
-    for (const order of wayMayOrders) {
+    for (const order of bookedMayOrders) {
       const state = getOrderPlanningState(order);
       expect(
         state === 'scheduled' || state === 'reserved',
@@ -282,24 +291,24 @@ describe('May booked orders do not leak into Pending (regression)', () => {
     }
   });
 
-  it('reports zero booked wo-may-* orders in the (status-based) Pending set', () => {
-    const pending = wayMayOrders.filter(o => !isOrderPlanned(o));
+  it('reports zero booked May-band (014900001-023) orders in the (status-based) Pending set', () => {
+    const pending = bookedMayOrders.filter(o => !isOrderPlanned(o));
     expect(pending.length).toBe(0);
   });
 
-  it('keeps wo-may-1023 as an intentionally-pending order with a courtesy-car activity', () => {
+  it('keeps wo-bg-1033 (014900023) as an intentionally-pending order with a courtesy-car activity', () => {
     const order = pendingByDesign[0];
-    expect(order, 'wo-may-1023 should exist').toBeTruthy();
+    expect(order, 'wo-bg-1033 (014900023) should exist').toBeTruthy();
     // It is pending: no schedule entries reference it, so it is not planned.
     expect(isOrderPlanned(order)).toBe(false);
     expect(
       MOCK_SCHEDULE_ENTRIES.some(e => e.workOrderReference === order.referenceNumber),
-      'wo-may-1023 must have no schedule entries (it is pending)',
+      'wo-bg-1033 (014900023) must have no schedule entries (it is pending)',
     ).toBe(false);
     // Courtesy car is modeled as an act-mobility ACTIVITY, not a job requirement.
     const items = order.jobs ?? [];
     const mobility = items.find(item => item.templateId === 'act-mobility');
-    expect(mobility, 'wo-may-1023 must have an act-mobility (courtesy car) activity').toBeTruthy();
+    expect(mobility, 'wo-bg-1033 (014900023) must have an act-mobility (courtesy car) activity').toBeTruthy();
     expect(mobility!.workorderItemCategory).toBe('activity');
     const jobsWithDriverReq = items.filter(item =>
       item.workorderItemCategory !== 'activity' &&
@@ -316,12 +325,12 @@ describe('May pending fix preserves reference-band integrity', () => {
   const pad = (reference: number) => String(reference).padStart(9, '0');
   const workOrdersByReference = new Map(MOCK_WORK_ORDERS.map(o => [o.referenceNumber, o]));
 
-  it('maps the May band 014900001-014900023 to wo-may-1001..1023 one-to-one', () => {
+  it('maps the May band 014900001-014900023 to wo-bg-1011..1033 one-to-one', () => {
     for (let i = 1; i <= 23; i++) {
       const reference = pad(14900000 + i);
       const order = workOrdersByReference.get(reference);
       expect(order, `missing May work order for reference ${reference}`).toBeTruthy();
-      expect(order!.id).toBe(`wo-may-${1000 + i}`);
+      expect(order!.id).toBe(`wo-bg-${1010 + i}`);
     }
   });
 

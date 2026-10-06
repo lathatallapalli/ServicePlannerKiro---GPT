@@ -15,7 +15,8 @@ import {
  * locations/orders.
  *
  * The fix re-pointed every May demo entry onto a dedicated unused band
- * 014900001-014900022 and added 22 standalone Munich wo-may-* orders so each
+ * 014900001-014900022 and added 22 standalone Munich orders (now wo-bg-1011..wo-bg-1032;
+ * reference band 014900001-014900022, plus pending 014900023 -> wo-bg-1033) so each
  * reference resolves 1:1 to exactly one real order.
  *
  * This test asserts the integrity invariants that the fix established.
@@ -81,13 +82,13 @@ describe('Mock data location/reference integrity (regression for 4bc9cf7)', () =
   describe('reference bands (c)', () => {
     const workOrdersByReference = new Map(MOCK_WORK_ORDERS.map(o => [o.referenceNumber, o]));
 
-    // (c1) The May demo band 014900001-014900022 exists and maps 1:1 to wo-may-*.
-    it('maps the May band 014900001-014900023 to wo-may-1001..1023', () => {
+    // (c1) The May demo band 014900001-014900023 exists and maps 1:1 to wo-bg-1011..1033.
+    it('maps the May band 014900001-014900023 to wo-bg-1011..1033', () => {
       for (let i = 1; i <= 23; i++) {
         const reference = pad(14900000 + i);
         const order = workOrdersByReference.get(reference);
         expect(order, `missing May work order for reference ${reference}`).toBeTruthy();
-        const expectedId = `wo-may-${1000 + i}`;
+        const expectedId = `wo-bg-${1010 + i}`;
         expect(order!.id).toBe(expectedId);
       }
     });
