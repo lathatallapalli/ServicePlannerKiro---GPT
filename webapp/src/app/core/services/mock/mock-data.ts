@@ -251,33 +251,170 @@ const mayPlannerDayCapacity: Array<{
   { day: 28, reference: '014900020', jobId: 'job-may-d28-1', resourceId: 'mech-kelly-hanson', hours: 3, title: 'Capacity hold: A/C follow-up' },
 ];
 
-const MOCK_MAY_PLANNER_SCHEDULE_ENTRIES: ScheduleEntry[] = [
-  ...mayPlannerDemoBookings.map((booking, index) => ({
+// --- May planner order metadata (reference -> customer / plate / mechanic job titles) ---
+// Mechanic job titles are consumed left-to-right by the mechanic (non-activity)
+// booking rows of each order. Orders with a single mechanic row use only the
+// first title; order 014900014 has no mechanic row (both booking rows are
+// activities) and therefore no mechanic job title is used.
+const mayPlannerOrderMeta: Array<{
+  reference: string;
+  id: string;
+  customerName: string;
+  licensePlate: string;
+  jobTitles: [string, string];
+}> = [
+  { reference: '014900001', id: 'wo-may-1001', customerName: 'Fischer Mobility', licensePlate: 'M-MY 001', jobTitles: ['May Service Inspection', 'Multipoint Check'] },
+  { reference: '014900002', id: 'wo-may-1002', customerName: 'Lehmann Transport', licensePlate: 'M-MY 002', jobTitles: ['Brake Noise Diagnosis', 'Brake Pad Inspection'] },
+  { reference: '014900003', id: 'wo-may-1003', customerName: 'Vogel Fleet', licensePlate: 'M-MY 003', jobTitles: ['MOT Preparation', 'Headlight Alignment'] },
+  { reference: '014900004', id: 'wo-may-1004', customerName: 'Krueger GmbH', licensePlate: 'M-MY 004', jobTitles: ['Suspension Repair', 'Wheel Alignment'] },
+  { reference: '014900005', id: 'wo-may-1005', customerName: 'Hartmann Auto', licensePlate: 'M-MY 005', jobTitles: ['Control Unit Diagnostics', 'Software Update'] },
+  { reference: '014900006', id: 'wo-may-1006', customerName: 'Werner Services', licensePlate: 'M-MY 006', jobTitles: ['Workshop Support Job', 'Final Quality Check'] },
+  { reference: '014900007', id: 'wo-may-1007', customerName: 'Schulz Logistics', licensePlate: 'M-MY 007', jobTitles: ['Tyre Pressure Warning', 'Brake Pad Replacement'] },
+  { reference: '014900008', id: 'wo-may-1008', customerName: 'Braun Leasing', licensePlate: 'M-MY 008', jobTitles: ['Emissions Fault Diagnosis', 'Exhaust Inspection'] },
+  { reference: '014900009', id: 'wo-may-1009', customerName: 'Zimmermann KG', licensePlate: 'M-MY 009', jobTitles: ['Steering Vibration Check', 'Road Test'] },
+  { reference: '014900010', id: 'wo-may-1010', customerName: 'Koch Fleet', licensePlate: 'M-MY 010', jobTitles: ['Battery Draw Test', 'Charging System Check'] },
+  { reference: '014900011', id: 'wo-may-1011', customerName: 'Richter GmbH', licensePlate: 'M-MY 011', jobTitles: ['Major Repair Job', 'Component Replacement'] },
+  { reference: '014900012', id: 'wo-may-1012', customerName: 'Wagner Auto', licensePlate: 'M-MY 012', jobTitles: ['Final Inspection', 'Documentation Review'] },
+  { reference: '014900013', id: 'wo-may-1013', customerName: 'Becker Transport', licensePlate: 'M-MY 013', jobTitles: ['Diagnostics Backlog', 'Fault Code Analysis'] },
+  { reference: '014900014', id: 'wo-may-1014', customerName: 'Schaefer Fleet', licensePlate: 'M-MY 014', jobTitles: ['Service Advisor Job', 'Customer Follow-up'] },
+  { reference: '014900015', id: 'wo-may-1015', customerName: 'Hoffmann GmbH', licensePlate: 'M-MY 015', jobTitles: ['Express Jobs Support', 'Electrical Diagnosis'] },
+  { reference: '014900016', id: 'wo-may-1016', customerName: 'Schmitt Services', licensePlate: 'M-MY 016', jobTitles: ['Brake Repair Follow-up', 'Quality Check'] },
+  { reference: '014900017', id: 'wo-may-1017', customerName: 'Lang Logistics', licensePlate: 'M-MY 017', jobTitles: ['Quick Service Package', 'Fluid Top-up'] },
+  { reference: '014900018', id: 'wo-may-1018', customerName: 'Weiss Leasing', licensePlate: 'M-MY 018', jobTitles: ['Workshop Campaign Job', 'Inspection Round'] },
+  { reference: '014900019', id: 'wo-may-1019', customerName: 'Jung KG', licensePlate: 'M-MY 019', jobTitles: ['Battery Replacement', 'Battery Registration'] },
+  { reference: '014900020', id: 'wo-may-1020', customerName: 'Berger Fleet', licensePlate: 'M-MY 020', jobTitles: ['A/C Service', 'Refrigerant Recharge'] },
+  { reference: '014900021', id: 'wo-may-1021', customerName: 'Franke GmbH', licensePlate: 'M-MY 021', jobTitles: ['Workshop Recovery Job', 'Backlog Clearance'] },
+  { reference: '014900022', id: 'wo-may-1022', customerName: 'Albrecht Auto', licensePlate: 'M-MY 022', jobTitles: ['Pre-weekend Check', 'Safety Inspection'] },
+];
+
+const mayOrderIdByReference = new Map(mayPlannerOrderMeta.map(meta => [meta.reference, meta.id]));
+
+// Classify each booking row: mechanic rows stay as plain job entries keyed by
+// their job id; activity rows (`category: 'activity'`) are re-keyed onto the
+// owning order's `:act-*` id so the matcher and activity-status post-processing
+// resolve them. A courtesy-car resource (car-*) maps to act-mobility; an advisor
+// resource (advisor-*) maps to act-checkin.
+const isCarActivity = (booking: { category?: ScheduleEntry['workorderItemCategory']; resourceId: string }) =>
+  booking.category === 'activity' && booking.resourceId.startsWith('car-');
+
+// Mechanic (non-activity) job ids per order, in booking order.
+const mayMechanicJobIdsByReference = new Map<string, string[]>();
+for (const booking of mayPlannerDemoBookings) {
+  if (booking.category === 'activity') continue;
+  const list = mayMechanicJobIdsByReference.get(booking.reference) ?? [];
+  list.push(booking.jobId);
+  mayMechanicJobIdsByReference.set(booking.reference, list);
+}
+
+const mayPlannerOrderDefs = mayPlannerOrderMeta.map(meta => ({
+  ...meta,
+  mechanicJobIds: mayMechanicJobIdsByReference.get(meta.reference) ?? [],
+}));
+
+// Round-robin advisor resources used to back the synthesized check-in / handover
+// activity entries for orders that do not already book an advisor.
+const mayFallbackAdvisors = ['advisor-frank-miller', 'advisor-ted-phillips', 'advisor-scenario-lead'];
+
+// Build the May job-entry rows (mechanic + courtesy-car-as-mobility + advisor-as-checkin).
+const mayJobEntries: ScheduleEntry[] = mayPlannerDemoBookings.map((booking, index) => {
+  const orderId = mayOrderIdByReference.get(booking.reference)!;
+  const date = String(booking.day).padStart(2, '0');
+  if (booking.category === 'activity') {
+    const templateId = isCarActivity(booking) ? 'act-mobility' : 'act-checkin';
+    return {
+      id: `sch-may-demo-${index + 1}`,
+      jobId: `${orderId}:${templateId}`,
+      resourceId: booking.resourceId,
+      start: new Date(`2024-05-${date}T${booking.start}:00`),
+      end: new Date(`2024-05-${date}T${booking.end}:00`),
+      title: templateId === 'act-mobility' ? `Courtesy Car ${booking.reference}` : `Check-In ${booking.reference}`,
+      color: '#A6C8FF',
+      kind: 'scheduled' as const,
+      workOrderReference: booking.reference,
+      workorderItemStatus: 'scheduled' as const,
+      workorderItemCategory: 'activity' as const,
+    };
+  }
+  return {
     id: `sch-may-demo-${index + 1}`,
     jobId: booking.jobId,
     resourceId: booking.resourceId,
-    start: new Date(`2024-05-${String(booking.day).padStart(2, '0')}T${booking.start}:00`),
-    end: new Date(`2024-05-${String(booking.day).padStart(2, '0')}T${booking.end}:00`),
+    start: new Date(`2024-05-${date}T${booking.start}:00`),
+    end: new Date(`2024-05-${date}T${booking.end}:00`),
     title: booking.title,
     color: '#A6C8FF',
     kind: 'scheduled' as const,
     workOrderReference: booking.reference,
     workorderItemStatus: 'scheduled' as const,
-    workorderItemCategory: booking.category ?? 'job',
-  })),
-  ...mayPlannerDayCapacity.map((block, index) => ({
-    id: `sch-may-capacity-${index + 1}`,
-    jobId: block.jobId,
-    resourceId: block.resourceId,
-    start: new Date(`2024-05-${String(block.day).padStart(2, '0')}T09:00:00`),
-    end: new Date(new Date(`2024-05-${String(block.day).padStart(2, '0')}T09:00:00`).getTime() + block.hours * 60 * 60000),
-    title: block.title,
-    color: '#4C68B1',
-    kind: 'day-capacity' as const,
-    workOrderReference: block.reference,
-    workorderItemStatus: 'scheduled' as const,
     workorderItemCategory: 'job' as const,
-  })),
+  };
+});
+
+// Synthesize check-in + handover entries for every order so the shared default
+// activity injection (act-checkin / act-handover added to every order) resolves.
+// Orders that already carry an advisor booking (re-keyed to :act-checkin above)
+// skip the synthesized check-in to avoid duplication.
+const mayReferencesWithCheckin = new Set(
+  mayJobEntries.filter(entry => entry.jobId.endsWith(':act-checkin')).map(entry => entry.workOrderReference)
+);
+const mayActivityEntries: ScheduleEntry[] = mayPlannerOrderMeta.flatMap((meta, metaIndex) => {
+  const date = String(mayPlannerDemoBookings.find(b => b.reference === meta.reference)!.day).padStart(2, '0');
+  const advisor = mayFallbackAdvisors[metaIndex % mayFallbackAdvisors.length];
+  const entries: ScheduleEntry[] = [];
+  if (!mayReferencesWithCheckin.has(meta.reference)) {
+    entries.push({
+      id: `sch-may-checkin-${meta.id}`,
+      jobId: `${meta.id}:act-checkin`,
+      resourceId: advisor,
+      start: new Date(`2024-05-${date}T08:30:00`),
+      end: new Date(`2024-05-${date}T09:00:00`),
+      title: `Check-In ${meta.reference}`,
+      color: '#A6C8FF',
+      kind: 'scheduled' as const,
+      workOrderReference: meta.reference,
+      workorderItemStatus: 'scheduled' as const,
+      workorderItemCategory: 'activity' as const,
+    });
+  }
+  entries.push({
+    id: `sch-may-handover-${meta.id}`,
+    jobId: `${meta.id}:act-handover`,
+    resourceId: advisor,
+    start: new Date(`2024-05-${date}T17:30:00`),
+    end: new Date(`2024-05-${date}T18:00:00`),
+    title: `Handover ${meta.reference}`,
+    color: '#A6C8FF',
+    kind: 'scheduled' as const,
+    workOrderReference: meta.reference,
+    workorderItemStatus: 'scheduled' as const,
+    workorderItemCategory: 'activity' as const,
+  });
+  return entries;
+});
+
+// Day-capacity holds. Rows that originally pointed at an activity booking jobId
+// (which no longer exists as a job entry) are repointed to the owning order's
+// first mechanic job id so the hold still attaches to a real job item.
+const MOCK_MAY_PLANNER_SCHEDULE_ENTRIES: ScheduleEntry[] = [
+  ...mayJobEntries,
+  ...mayActivityEntries,
+  ...mayPlannerDayCapacity.map((block, index) => {
+    const mechanicIds = mayMechanicJobIdsByReference.get(block.reference) ?? [];
+    const jobId = mechanicIds.includes(block.jobId) ? block.jobId : (mechanicIds[0] ?? block.jobId);
+    return {
+      id: `sch-may-capacity-${index + 1}`,
+      jobId,
+      resourceId: block.resourceId,
+      start: new Date(`2024-05-${String(block.day).padStart(2, '0')}T09:00:00`),
+      end: new Date(new Date(`2024-05-${String(block.day).padStart(2, '0')}T09:00:00`).getTime() + block.hours * 60 * 60000),
+      title: block.title,
+      color: '#4C68B1',
+      kind: 'day-capacity' as const,
+      workOrderReference: block.reference,
+      workorderItemStatus: 'scheduled' as const,
+      workorderItemCategory: 'job' as const,
+    };
+  }),
 ];
 
 const MOCK_MAY_CAPACITY_DEMO_UNAVAILABILITY: UnavailabilityBlock[] = [
@@ -1740,30 +1877,19 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
   // These exist so every May demo schedule entry resolves 1:1 to its own real
   // Munich order instead of reusing the wo-bg-* references. demoLocationId is
   // intentionally omitted (undefined === Munich scope).
-  ...[
-    ['wo-may-1001', '014900001', 'Fischer Mobility', 'M-MY 001', 'May Service Inspection', 'Multipoint Check', 'mech-mark-owen'],
-    ['wo-may-1002', '014900002', 'Lehmann Transport', 'M-MY 002', 'Brake Noise Diagnosis', 'Brake Pad Inspection', 'mech-phil-parker'],
-    ['wo-may-1003', '014900003', 'Vogel Fleet', 'M-MY 003', 'MOT Preparation', 'Headlight Alignment', 'mech-greg-jackson'],
-    ['wo-may-1004', '014900004', 'Krueger GmbH', 'M-MY 004', 'Suspension Repair', 'Wheel Alignment', 'mech-jeff-goldberg'],
-    ['wo-may-1005', '014900005', 'Hartmann Auto', 'M-MY 005', 'Control Unit Diagnostics', 'Software Update', 'mech-kelly-hanson'],
-    ['wo-may-1006', '014900006', 'Werner Services', 'M-MY 006', 'Workshop Support Job', 'Final Quality Check', 'mech-scenario-flex'],
-    ['wo-may-1007', '014900007', 'Schulz Logistics', 'M-MY 007', 'Tyre Pressure Warning', 'Brake Pad Replacement', 'mech-mark-owen'],
-    ['wo-may-1008', '014900008', 'Braun Leasing', 'M-MY 008', 'Emissions Fault Diagnosis', 'Exhaust Inspection', 'mech-greg-jackson'],
-    ['wo-may-1009', '014900009', 'Zimmermann KG', 'M-MY 009', 'Steering Vibration Check', 'Road Test', 'mech-jeff-goldberg'],
-    ['wo-may-1010', '014900010', 'Koch Fleet', 'M-MY 010', 'Battery Draw Test', 'Charging System Check', 'mech-kelly-hanson'],
-    ['wo-may-1011', '014900011', 'Richter GmbH', 'M-MY 011', 'Major Repair Job', 'Component Replacement', 'mech-phil-parker'],
-    ['wo-may-1012', '014900012', 'Wagner Auto', 'M-MY 012', 'Final Inspection', 'Documentation Review', 'mech-mark-owen'],
-    ['wo-may-1013', '014900013', 'Becker Transport', 'M-MY 013', 'Diagnostics Backlog', 'Fault Code Analysis', 'mech-greg-jackson'],
-    ['wo-may-1014', '014900014', 'Schaefer Fleet', 'M-MY 014', 'Service Advisor Job', 'Customer Follow-up', 'mech-jeff-goldberg'],
-    ['wo-may-1015', '014900015', 'Hoffmann GmbH', 'M-MY 015', 'Express Jobs Support', 'Electrical Diagnosis', 'mech-scenario-flex'],
-    ['wo-may-1016', '014900016', 'Schmitt Services', 'M-MY 016', 'Brake Repair Follow-up', 'Quality Check', 'mech-phil-parker'],
-    ['wo-may-1017', '014900017', 'Lang Logistics', 'M-MY 017', 'Quick Service Package', 'Fluid Top-up', 'mech-mark-owen'],
-    ['wo-may-1018', '014900018', 'Weiss Leasing', 'M-MY 018', 'Workshop Campaign Job', 'Inspection Round', 'mech-jeff-goldberg'],
-    ['wo-may-1019', '014900019', 'Jung KG', 'M-MY 019', 'Battery Replacement', 'Battery Registration', 'mech-kelly-hanson'],
-    ['wo-may-1020', '014900020', 'Berger Fleet', 'M-MY 020', 'A/C Service', 'Refrigerant Recharge', 'mech-greg-jackson'],
-    ['wo-may-1021', '014900021', 'Franke GmbH', 'M-MY 021', 'Workshop Recovery Job', 'Backlog Clearance', 'mech-scenario-flex'],
-    ['wo-may-1022', '014900022', 'Albrecht Auto', 'M-MY 022', 'Pre-weekend Check', 'Safety Inspection', 'mech-mark-owen'],
-  ].map(([id, referenceNumber, customerName, licensePlate, firstJob, secondJob]) => ({
+  // Each order's work-order JOB items are keyed to the jobIds of this order's
+  // mechanic (non-activity) May booking rows (`mayPlannerDemoBookings`), so every
+  // mechanic booking attaches to a real job item and resolves as scheduled.
+  // The activity requirements (courtesy car / advisor) are modeled as ACTIVITY
+  // items: they are added by the shared default-activity injection below
+  // (act-checkin / act-handover for every order, act-mobility where a courtesy
+  // car was booked) and resolved by the dedicated `:act-*` May activity schedule
+  // entries (`MOCK_MAY_PLANNER_ACTIVITY_ENTRIES`). This mirrors exactly how the
+  // booked wo-bg-* / Vienna / Klagenfurt orders model their activities, which the
+  // app's planning-state matcher and the mock-data activity-status post-processing
+  // both key on the `:act-*` templateId. The job-item id<->booking mapping is by
+  // reference string, NOT day index (day numbers skip weekends).
+  ...mayPlannerOrderDefs.map(({ id, reference: referenceNumber, customerName, licensePlate, jobTitles, mechanicJobIds }) => ({
     id,
     referenceNumber,
     status: 'preparation' as const,
@@ -1782,32 +1908,18 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
       phone: `+49 89 ${referenceNumber.slice(-6)}`,
       email: `${customerName.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '')}@example.com`,
     },
-    jobs: [
-      {
-        id: `job-${id}-1`,
-        workOrderId: id,
-        title: firstJob,
-        description: getMechanicJobDescription(firstJob),
-        fru: 0.75,
-        estimatedDurationMinutes: 45,
-        requiredResourceType: 'mechanic' as const,
-        requiredQualifications: [QUALIFICATIONS.generalService],
-        resourceRequirements: defaultBackgroundJobRequirements,
-        status: 'unscheduled' as const,
-      },
-      {
-        id: `job-${id}-2`,
-        workOrderId: id,
-        title: secondJob,
-        description: getMechanicJobDescription(secondJob),
-        fru: 0.5,
-        estimatedDurationMinutes: 30,
-        requiredResourceType: 'mechanic' as const,
-        requiredQualifications: [QUALIFICATIONS.generalService],
-        resourceRequirements: defaultBackgroundJobRequirements,
-        status: 'unscheduled' as const,
-      },
-    ],
+    jobs: mechanicJobIds.map((jobId, index) => ({
+      id: jobId,
+      workOrderId: id,
+      title: jobTitles[index],
+      description: getMechanicJobDescription(jobTitles[index]),
+      fru: index === 0 ? 0.75 : 0.5,
+      estimatedDurationMinutes: index === 0 ? 45 : 30,
+      requiredResourceType: 'mechanic' as const,
+      requiredQualifications: [QUALIFICATIONS.generalService],
+      resourceRequirements: defaultBackgroundJobRequirements,
+      status: 'unscheduled' as const,
+    })),
     createdAt: baseDate,
     updatedAt: baseDate,
   })),
