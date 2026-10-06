@@ -23,6 +23,8 @@ export const QUALIFICATIONS = {
 } satisfies Record<string, Qualification>;
 
 const mechanicJobDescriptions: Record<string, string> = {
+  'Engine Oil and Filter Service': 'Drain engine oil, replace oil filter and sealing washer, refill with specified oil grade, and reset the service indicator.',
+  'Wheel Alignment': 'Measure and adjust camber, caster, and toe to manufacturer specification, then verify straight-line tracking on a road test.',
   'Oil Leak Diagnosis': 'Inspect engine bay, sump, oil filter housing, and underbody for leak traces; clean affected area and confirm source after idle test.',
   'Engine Bay Inspection': 'Check visible engine components, hoses, belts, fluid levels, and mounting points; document any wear, leaks, or loose fittings.',
   'Windshield Washer Repair': 'Test washer pump operation, inspect reservoir, hoses, jets, and fuse; clear blockage or replace failed washer components.',
@@ -1573,7 +1575,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
     notes: 'Vienna scheduled brake service order using later-day advisor and workshop capacity.',
   },
   ...[
-  ['wo-bg-1001', '014826500', 'Mueller GmbH', 'M-BG 500', 'Oil Leak Diagnosis', 'Engine Bay Inspection', 'mech-mark-owen'],
+  ['wo-bg-1001', '014826500', 'Mueller GmbH', 'M-BG 500', 'Engine Oil and Filter Service', 'Wheel Alignment', 'mech-mark-owen'],
     ['wo-bg-1002', '014826501', 'Schneider AG', 'M-BG 501', 'Windshield Washer Repair', 'Wiper Blade Replacement', 'mech-phil-parker'],
     ['wo-bg-1003', '014826502', 'Weber Logistics', 'M-BG 502', 'Air Conditioning Diagnosis', 'Cabin Filter Replacement', 'mech-greg-jackson'],
     ['wo-bg-1004', '014826503', 'Klein Fleet', 'M-BG 503', 'Suspension Noise Investigation', 'Shock Absorber Inspection', 'mech-jeff-goldberg'],
