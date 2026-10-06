@@ -239,7 +239,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   activeSearchResultIndex = 0;
   expandedOrderIds = new Set<string>();
   searchRevealedOrderIds = new Set<string>();
-  collapsedOrderGroups = new Set<OrderPanelGroup>();
+  collapsedOrderGroups = new Set<OrderPanelGroup>(['group-reserved']);
   expandedEmptyOrderGroups = new Set<OrderPanelGroup>();
   expandedEmptySearchOrderGroups = new Set<OrderPanelGroup>();
   selectedPanelOrderId = '';
@@ -2890,7 +2890,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getOrderPlanningStateBackground(order: any): string {
-    if (this.isOrderGroupReserved(order)) return '#E8DAFF';
+    if (this.isOrderGroupReserved(order)) return '#E0E0E0';
     const state = this.getOrderPlanningState(order);
     return state === 'unscheduled' || state === 'partiallyScheduled'
       ? 'white'
@@ -2898,7 +2898,7 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getOrderPlanningStateColor(order: any): string {
-    if (this.isOrderGroupReserved(order)) return '#6929C4';
+    if (this.isOrderGroupReserved(order)) return '#525252';
     const state = this.getOrderPlanningState(order);
     return state === 'unscheduled' || state === 'partiallyScheduled'
       ? '#161616'
@@ -2919,12 +2919,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getJobExecutionStatusBackground(order: any, job: any): string {
-    if (this.isJobGroupReserved(job)) return '#E8DAFF';
+    if (this.isJobGroupReserved(job)) return '#E0E0E0';
     return this.getStatusBackground(this.getJobExecutionStatus(order, job));
   }
 
   getJobExecutionStatusColor(order: any, job: any): string {
-    if (this.isJobGroupReserved(job)) return '#6929C4';
+    if (this.isJobGroupReserved(job)) return '#525252';
     return this.getStatusColor(this.getJobExecutionStatus(order, job));
   }
 
@@ -2948,12 +2948,12 @@ export class ServicePlannerComponent implements OnInit, OnDestroy {
   }
 
   getActivityExecutionStatusBackground(order: any, activity: ActivityTile): string {
-    if (this.isActivityGroupReserved(activity)) return '#E8DAFF';
+    if (this.isActivityGroupReserved(activity)) return '#E0E0E0';
     return this.getStatusBackground(this.getActivityExecutionStatus(order, activity));
   }
 
   getActivityExecutionStatusColor(order: any, activity: ActivityTile): string {
-    if (this.isActivityGroupReserved(activity)) return '#6929C4';
+    if (this.isActivityGroupReserved(activity)) return '#525252';
     return this.getStatusColor(this.getActivityExecutionStatus(order, activity));
   }
 
