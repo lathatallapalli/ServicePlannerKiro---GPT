@@ -247,7 +247,13 @@ const defaultBackgroundJobRequirements: JobResourceRequirement[] = [
 ];
 
 const backgroundJobRequirementsByOrder: Record<string, [JobResourceRequirement[], JobResourceRequirement[]]> = {
-  '014826500': [defaultBackgroundJobRequirements, defaultBackgroundJobRequirements],
+  '014826500': [
+    defaultBackgroundJobRequirements,
+    [
+      { resourceType: 'mechanic' as const, requiredQualifications: [QUALIFICATIONS.generalService], label: 'Mechanic' },
+      { resourceType: 'bay' as const, requiredQualifications: [QUALIFICATIONS.pcAlignmentBay], label: 'PC Alignment Bay' },
+    ],
+  ],
   '014826501': [defaultBackgroundJobRequirements, defaultBackgroundJobRequirements],
   '014826502': [defaultBackgroundJobRequirements, defaultBackgroundJobRequirements],
   '014826503': [
