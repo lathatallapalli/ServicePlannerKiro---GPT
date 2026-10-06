@@ -385,7 +385,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         requiredResourceType: 'mechanic',
         requiredQualifications: [QUALIFICATIONS.mechanic],
         resourceRequirements: [
-          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.mechanic], label: 'Technician' },
+          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.mechanic], label: 'Mechanic' },
           { resourceType: 'bay', requiredQualifications: [QUALIFICATIONS.pcBay], label: 'PC Bay' },
         ],
         status: 'unscheduled',
@@ -400,7 +400,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         requiredResourceType: 'mechanic',
         requiredQualifications: [QUALIFICATIONS.mechanic],
         resourceRequirements: [
-          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.mechanic], label: 'Technician' },
+          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.mechanic], label: 'Mechanic' },
           { resourceType: 'bay', requiredQualifications: [QUALIFICATIONS.pcBay], label: 'PC Bay' },
           { resourceType: 'device', requiredQualifications: [QUALIFICATIONS.emissionTester], label: 'Emission Tester' },
         ],
@@ -416,7 +416,7 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         requiredResourceType: 'mechanic',
         requiredQualifications: [QUALIFICATIONS.mechanic],
         resourceRequirements: [
-          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.mechanic], label: 'Technician' },
+          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.mechanic], label: 'Mechanic' },
           { resourceType: 'bay', requiredQualifications: [QUALIFICATIONS.pcBay], label: 'PC Bay' },
         ],
         status: 'unscheduled',
@@ -1372,9 +1372,9 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         fru: 1,
         estimatedDurationMinutes: 60,
         requiredResourceType: 'mechanic',
-        requiredQualifications: [QUALIFICATIONS.mechanic, QUALIFICATIONS.electrician],
+        requiredQualifications: [QUALIFICATIONS.electrician],
         resourceRequirements: [
-          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.mechanic, QUALIFICATIONS.electrician], label: 'Electrician' },
+          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.electrician], label: 'Electrician' },
           { resourceType: 'bay', requiredQualifications: [QUALIFICATIONS.pcBay], label: 'PC Bay' },
         ],
         status: 'unscheduled',
@@ -1387,9 +1387,9 @@ export const MOCK_WORK_ORDERS: WorkOrder[] = [
         fru: 0.5,
         estimatedDurationMinutes: 30,
         requiredResourceType: 'mechanic',
-        requiredQualifications: [QUALIFICATIONS.mechanic, QUALIFICATIONS.electrician],
+        requiredQualifications: [QUALIFICATIONS.electrician],
         resourceRequirements: [
-          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.mechanic, QUALIFICATIONS.electrician], label: 'Electrician' },
+          { resourceType: 'mechanic', requiredQualifications: [QUALIFICATIONS.electrician], label: 'Electrician' },
           { resourceType: 'device', requiredQualifications: [QUALIFICATIONS.dieselTester], label: 'Diesel tester' },
         ],
         status: 'unscheduled',
